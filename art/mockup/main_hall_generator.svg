@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 50" width="60" height="50">
+  <defs>
+    <filter id="blur" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="2"/></filter>
+    <clipPath id="c"><rect x="5" y="5" width="44" height="34" rx="6"/></clipPath>
+    <radialGradient id="core"><stop offset="0" stop-color="#FFF4C2"/><stop offset="0.6" stop-color="#FFB02E"/><stop offset="1" stop-color="#FFB02E" stop-opacity="0"/></radialGradient>
+  </defs>
+  <rect x="9" y="10" width="44" height="34" rx="6" fill="#000" opacity="0.28" filter="url(#blur)"/>
+  <rect x="5" y="5" width="44" height="34" rx="6" fill="#8E98A2"/>
+  <g clip-path="url(#c)">
+    <rect x="5" y="25.4" width="44" height="14" fill="#000" opacity="0.15"/>
+    <rect x="5" y="5" width="44" height="4" fill="#fff" opacity="0.18"/>
+  </g>
+  <rect x="5" y="5" width="44" height="34" rx="6" fill="none" stroke="#25282C" stroke-width="2.5"/>
+  <g stroke="#000" stroke-opacity="0.35" stroke-width="2">
+    <line x1="11" y1="13" x2="21" y2="13"/><line x1="11" y1="18" x2="21" y2="18"/><line x1="11" y1="23" x2="21" y2="23"/>
+  </g>
+  <rect x="37" y="9" width="8" height="5" rx="1" fill="#D9534F" stroke="#25282C" stroke-width="1.5"/>
+  <circle cx="27" cy="22" r="16" fill="url(#core)" opacity="0.6"/>
+  <circle cx="27" cy="22" r="9" fill="#FFB02E" stroke="#25282C" stroke-width="2.2"/>
+  <circle cx="27" cy="22" r="5" fill="#FFF4C2"/>
+</svg>
