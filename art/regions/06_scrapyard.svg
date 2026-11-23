@@ -1,0 +1,250 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 700" width="1000" height="700">
+  <defs>
+    <!-- ===== Holdout io asset kit v2 (shared defs; pasted into each mockup) ===== -->
+    <filter id="sh" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="4"/></filter>
+    <radialGradient id="warm"><stop offset="0" stop-color="#FFC86E" stop-opacity="0.75"/><stop offset="1" stop-color="#FFC86E" stop-opacity="0"/></radialGradient>
+    <radialGradient id="cyan"><stop offset="0" stop-color="#7FE6F0" stop-opacity="0.85"/><stop offset="1" stop-color="#7FE6F0" stop-opacity="0"/></radialGradient>
+
+    <!-- ground textures -->
+    <pattern id="grassTex" width="120" height="120" patternUnits="userSpaceOnUse">
+      <rect width="120" height="120" fill="#7CC24B"/>
+      <path d="M60 0 V120 M0 60 H120" stroke="#74B945" stroke-width="2"/>
+      <ellipse cx="28" cy="34" rx="18" ry="10" fill="#86CB55" opacity=".7"/><ellipse cx="92" cy="96" rx="16" ry="9" fill="#86CB55" opacity=".7"/><ellipse cx="96" cy="22" rx="10" ry="6" fill="#71B643" opacity=".7"/>
+      <g stroke="#5FA83A" stroke-width="2.2" fill="none" stroke-linecap="round"><path d="M14 84 l3 -7 l3 6 l3 -8 l3 8"/><path d="M78 52 l3 -7 l3 6 l3 -8 l3 8"/><path d="M40 108 l3 -6 l3 5 l3 -7 l3 7"/></g>
+      <g fill="#9ADB6A"><circle cx="50" cy="20" r="1.8"/><circle cx="108" cy="66" r="1.8"/><circle cx="20" cy="56" r="1.6"/><circle cx="70" cy="88" r="1.6"/></g>
+    </pattern>
+    <pattern id="soilTex" width="18" height="18" patternUnits="userSpaceOnUse"><rect width="18" height="18" fill="#8A5A34"/><circle cx="4" cy="5" r="1.6" fill="#74472A"/><circle cx="13" cy="12" r="1.6" fill="#74472A"/><circle cx="10" cy="3" r="1" fill="#A06A40"/></pattern>
+    <pattern id="shingle" width="22" height="13" patternUnits="userSpaceOnUse"><rect width="22" height="13" fill="#D9533F"/><path d="M0 13 Q5.5 5 11 13 Q16.5 5 22 13" fill="#E26A55" stroke="#A83C2E" stroke-width="2"/><path d="M-11 6.5 Q-5.5 -1.5 0 6.5 Q5.5 -1.5 11 6.5 Q16.5 -1.5 22 6.5 Q27.5 -1.5 33 6.5" fill="none" stroke="#A83C2E" stroke-width="2" transform="translate(0 0)"/></pattern>
+    <pattern id="metal" width="12" height="12" patternUnits="userSpaceOnUse"><rect width="12" height="12" fill="#6E9BD6"/><rect width="5" height="12" fill="#5B8FD1"/><path d="M5 0 V12" stroke="#4A78B4" stroke-width="1.5"/></pattern>
+    <pattern id="plank" width="16" height="40" patternUnits="userSpaceOnUse"><rect width="16" height="40" fill="#C98A4A"/><path d="M16 0 V40" stroke="#8E5A2E" stroke-width="2.5"/><path d="M5 6 q2 8 0 16 M10 22 q2 6 0 12" stroke="#B47840" stroke-width="1.5" fill="none"/><circle cx="3" cy="3" r="1.2" fill="#5A3A22"/><circle cx="3" cy="37" r="1.2" fill="#5A3A22"/></pattern>
+
+    <!-- shared canopy shapes -->
+    <g id="oakShape"><circle r="30"/><circle cx="-22" cy="-10" r="20"/><circle cx="20" cy="-14" r="20"/><circle cx="20" cy="16" r="20"/><circle cx="-16" cy="18" r="20"/></g>
+    <polygon id="star8" points="40,0 22.2,9.2 28.3,28.3 9.2,22.2 0,40 -9.2,22.2 -28.3,28.3 -22.2,9.2 -40,0 -22.2,-9.2 -28.3,-28.3 -9.2,-22.2 0,-40 9.2,-22.2 28.3,-28.3 22.2,-9.2"/>
+    <g id="bushShape"><circle r="16"/><circle cx="-14" cy="4" r="11"/><circle cx="13" cy="5" r="11"/><circle cx="2" cy="-12" r="10"/></g>
+
+    <!-- OAK: lumpy canopy, 3 tones + sparkle highlights -->
+    <g id="oak">
+      <ellipse cx="9" cy="13" rx="46" ry="42" fill="#000" opacity=".22" filter="url(#sh)"/>
+      <use href="#oakShape" fill="#1E2A1E" stroke="#1E2A1E" stroke-width="9"/>
+      <use href="#oakShape" fill="#2E8434"/>
+      <g fill="#3FA23C"><circle cx="-3" cy="-4" r="25"/><circle cx="-24" cy="-13" r="15"/><circle cx="17" cy="-17" r="15"/><circle cx="16" cy="11" r="14"/><circle cx="-18" cy="13" r="14"/></g>
+      <g fill="#5BBF4A"><circle cx="-8" cy="-10" r="14"/><circle cx="-25" cy="-16" r="8"/><circle cx="13" cy="-20" r="8"/><circle cx="12" cy="6" r="7"/><circle cx="-18" cy="9" r="6"/></g>
+      <g fill="#8ED866"><circle cx="-14" cy="-16" r="4.5"/><circle cx="-28" cy="-18" r="3"/><circle cx="10" cy="-23" r="3"/><circle cx="-2" cy="-6" r="2.5"/></g>
+      <g fill="none" stroke="#2E8434" stroke-width="2.5" stroke-linecap="round"><path d="M4 18 q6 4 12 0"/><path d="M-30 4 q4 5 10 3"/></g>
+    </g>
+    <!-- PINE: stacked stars -->
+    <g id="pine">
+      <circle cx="8" cy="11" r="40" fill="#000" opacity=".22" filter="url(#sh)"/>
+      <use href="#star8" fill="#1F5E2A" stroke="#1E2A1E" stroke-width="4.5" stroke-linejoin="round"/>
+      <use href="#star8" transform="rotate(22.5) scale(.7)" fill="#2C7A33" stroke="#1E2A1E" stroke-width="5" stroke-linejoin="round"/>
+      <use href="#star8" transform="scale(.42)" fill="#3B9440" stroke="#1E2A1E" stroke-width="7" stroke-linejoin="round"/>
+      <circle r="5" fill="#57B04E" stroke="#1E2A1E" stroke-width="2.5"/>
+      <g fill="#4FA84A"><circle cx="-18" cy="-6" r="2.5"/><circle cx="8" cy="-20" r="2.5"/><circle cx="16" cy="14" r="2"/></g>
+    </g>
+    <!-- BUSH with berries -->
+    <g id="bush">
+      <ellipse cx="4" cy="6" rx="26" ry="20" fill="#000" opacity=".2" filter="url(#sh)"/>
+      <use href="#bushShape" fill="#1E2A1E" stroke="#1E2A1E" stroke-width="7"/>
+      <use href="#bushShape" fill="#3A9A3A"/>
+      <g fill="#55B848"><circle cx="-3" cy="-3" r="11"/><circle cx="-15" cy="2" r="6"/><circle cx="1" cy="-14" r="5"/></g>
+      <circle cx="-7" cy="-8" r="3.5" fill="#8ED866"/>
+      <g fill="#E0443A" stroke="#1E2328" stroke-width="1.8"><circle cx="7" cy="3" r="4"/><circle cx="-9" cy="9" r="4"/><circle cx="13" cy="-6" r="4"/></g>
+      <g fill="#fff"><circle cx="6" cy="1.8" r="1.3"/><circle cx="-10" cy="7.8" r="1.3"/><circle cx="12" cy="-7.2" r="1.3"/></g>
+    </g>
+    <!-- ROCK: faceted, crack, moss -->
+    <g id="rock">
+      <ellipse cx="5" cy="9" rx="30" ry="20" fill="#000" opacity=".22" filter="url(#sh)"/>
+      <polygon points="-27,10 -23,-10 -7,-21 14,-19 27,-4 23,14 4,21 -14,19" fill="#7E7E7A" stroke="#1E2328" stroke-width="4" stroke-linejoin="round"/>
+      <polygon points="-19,-6 -7,-16 12,-14 19,-2 4,4 -11,2" fill="#ABABA5"/>
+      <polygon points="-12,-8 -5,-13 5,-11 -2,-6" fill="#D2D2CC"/>
+      <path d="M6 6 L12 11 L9 18 M-16 6 L-10 10" stroke="#5E5E5A" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+      <path d="M-26 9 Q-22 2 -15 5 Q-12 12 -18 16 Q-24 15 -26 9 Z" fill="#5BAE47" stroke="#1E2328" stroke-width="2"/>
+    </g>
+    <!-- CRATE: planks, brace, nails -->
+    <g id="crate">
+      <rect x="-14" y="-12" width="34" height="34" rx="3" fill="#000" opacity=".22" filter="url(#sh)"/>
+      <rect x="-17" y="-17" width="34" height="34" rx="3" fill="#C98A4A" stroke="#1E2328" stroke-width="4"/>
+      <path d="M-12 -4 H12 M-12 5 H12" stroke="#A8733E" stroke-width="2"/>
+      <rect x="-12" y="-12" width="24" height="24" fill="none" stroke="#8E5A2E" stroke-width="3"/>
+      <path d="M-11 -11 L11 11" stroke="#8E5A2E" stroke-width="6" stroke-linecap="round"/><path d="M-11 -11 L11 11" stroke="#B47840" stroke-width="2" stroke-linecap="round"/>
+      <g fill="#4A4A4E"><circle cx="-13" cy="-13" r="1.8"/><circle cx="13" cy="-13" r="1.8"/><circle cx="-13" cy="13" r="1.8"/><circle cx="13" cy="13" r="1.8"/></g>
+      <path d="M-15 -15 H10" stroke="#E0A868" stroke-width="2" stroke-linecap="round"/>
+    </g>
+    <!-- BARREL: lid planks + metal hoop -->
+    <g id="barrel">
+      <circle cx="4" cy="6" r="17" fill="#000" opacity=".22" filter="url(#sh)"/>
+      <circle r="16" fill="#A8653A" stroke="#1E2328" stroke-width="4"/>
+      <path d="M-6 -13 V13 M3 -14 V14" stroke="#8A4E2A" stroke-width="2"/>
+      <circle r="12.5" fill="none" stroke="#8E98A2" stroke-width="3.5"/><circle r="12.5" fill="none" stroke="#1E2328" stroke-width="1"/>
+      <path d="M-9 -7 A11 11 0 0 1 -2 -11" stroke="#E0A868" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+      <circle cx="6" cy="5" r="2" fill="#5A3A22"/>
+    </g>
+    <!-- small flora -->
+    <g id="flowersW"><g fill="#fff" stroke="#1E2328" stroke-width="1"><circle cx="-2.5" cy="0" r="2.6"/><circle cx="2.5" cy="0" r="2.6"/><circle cx="0" cy="-2.5" r="2.6"/><circle cx="0" cy="2.5" r="2.6"/></g><circle r="1.6" fill="#FFD34D"/>
+      <g transform="translate(9 6)"><g fill="#fff" stroke="#1E2328" stroke-width="1"><circle cx="-2.2" cy="0" r="2.2"/><circle cx="2.2" cy="0" r="2.2"/><circle cx="0" cy="-2.2" r="2.2"/><circle cx="0" cy="2.2" r="2.2"/></g><circle r="1.4" fill="#FFD34D"/></g></g>
+    <g id="flowersP"><g fill="#F28AB0" stroke="#1E2328" stroke-width="1"><circle cx="-2.5" cy="0" r="2.6"/><circle cx="2.5" cy="0" r="2.6"/><circle cx="0" cy="-2.5" r="2.6"/><circle cx="0" cy="2.5" r="2.6"/></g><circle r="1.6" fill="#FFF0A0"/>
+      <g transform="translate(-8 7)"><g fill="#FFD34D" stroke="#1E2328" stroke-width="1"><circle cx="-2.2" cy="0" r="2.2"/><circle cx="2.2" cy="0" r="2.2"/><circle cx="0" cy="-2.2" r="2.2"/><circle cx="0" cy="2.2" r="2.2"/></g><circle r="1.4" fill="#E0584A"/></g></g>
+    <g id="tuft"><path d="M-8 5 L-5 -5 L-2 4 L1 -7 L4 4 L7 -4 L9 5" stroke="#4E9A32" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <!-- campfire: stone ring, crossed logs, 3-layer flame -->
+    <g id="campfire">
+      <circle r="60" fill="url(#warm)"/>
+      <g fill="#9A9A96" stroke="#1E2328" stroke-width="2.5"><circle cx="20" cy="0" r="6.5"/><circle cx="14" cy="14" r="6.5"/><circle cx="0" cy="20" r="6.5"/><circle cx="-14" cy="14" r="6.5"/><circle cx="-20" cy="0" r="6.5"/><circle cx="-14" cy="-14" r="6.5"/><circle cx="0" cy="-20" r="6.5"/><circle cx="14" cy="-14" r="6.5"/></g>
+      <g fill="#BDBDB8"><circle cx="18" cy="-2" r="2.5"/><circle cx="-2" cy="18" r="2.5"/><circle cx="-16" cy="-16" r="2.5"/></g>
+      <circle r="14" fill="#3A2E28"/>
+      <g stroke="#1E2328" stroke-width="2.5"><rect x="-15" y="-4" width="30" height="8" rx="4" fill="#8A5A34" transform="rotate(35)"/><rect x="-15" y="-4" width="30" height="8" rx="4" fill="#9A6838" transform="rotate(-35)"/></g>
+      <path d="M-10 6 Q-13 -8 -4 -12 Q-4 -3 0 -6 Q-2 -18 4 -25 Q9 -11 11 -8 Q14 -2 11 6 Z" fill="#FF5A24" stroke="#1E2328" stroke-width="3" stroke-linejoin="round"/>
+      <path d="M-6 6 Q-7 -3 -1 -6 Q0 0 3 -3 Q5 -11 8 -14 Q9 -5 9 0 Q9 4 7 6 Z" fill="#FFA03A"/>
+      <path d="M-3 6 Q-3 1 0 -1 Q2 3 4 1 Q5 4 4 6 Z" fill="#FFE07A"/>
+      <g fill="#FFD34D"><circle cx="-12" cy="-22" r="1.6"/><circle cx="10" cy="-30" r="1.4"/></g>
+    </g>
+    <!-- well: brick ring, water, roof beam -->
+    <g id="well">
+      <circle cx="5" cy="7" r="30" fill="#000" opacity=".22" filter="url(#sh)"/>
+      <circle r="28" fill="#A3A39E" stroke="#1E2328" stroke-width="4"/>
+      <circle r="22" fill="none" stroke="#8A8A86" stroke-width="9" stroke-dasharray="8 3"/>
+      <circle r="17" fill="#2F6E9E" stroke="#1E2328" stroke-width="3.5"/>
+      <path d="M-10 -6 A12 12 0 0 1 2 -12" stroke="#7FC0E8" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <rect x="-34" y="-5" width="68" height="10" rx="4" fill="#9A6838" stroke="#1E2328" stroke-width="3"/>
+      <circle cx="-32" cy="0" r="6" fill="#7A5232" stroke="#1E2328" stroke-width="2.5"/><circle cx="32" cy="0" r="6" fill="#7A5232" stroke="#1E2328" stroke-width="2.5"/>
+      <rect x="4" y="5" width="12" height="10" rx="2" fill="#8E98A2" stroke="#1E2328" stroke-width="2.5"/>
+    </g>
+    <!-- log with growth rings (for woodpiles) -->
+    <g id="log"><rect x="-28" y="-7" width="56" height="14" rx="7" fill="#9A6838" stroke="#1E2328" stroke-width="3"/><path d="M-20 -2 H14 M-14 3 H20" stroke="#7A5232" stroke-width="1.6"/><circle cx="24" cy="0" r="7" fill="#E0B47A" stroke="#1E2328" stroke-width="2.5"/><circle cx="24" cy="0" r="3.5" fill="none" stroke="#B4844A" stroke-width="1.4"/></g>
+    <!-- cabbage + carrot -->
+    <g id="cabbage"><circle r="9" fill="#4FA83A" stroke="#1E2328" stroke-width="2.5"/><circle cx="-1" cy="-1" r="6" fill="#7FCB55"/><circle cx="-2" cy="-2" r="3" fill="#A6E07A"/><path d="M-6 3 Q0 7 6 3" stroke="#3A8A2A" stroke-width="1.5" fill="none"/></g>
+    <g id="carrot"><path d="M0 -2 L-5 -10 M0 -2 L0 -11 M0 -2 L5 -10" stroke="#3E9A3A" stroke-width="3" stroke-linecap="round"/><circle cx="0" cy="2" r="5" fill="#F28C38" stroke="#1E2328" stroke-width="2.2"/></g>
+    <!-- waypoint: carved stone base + faceted crystal -->
+    <g id="waypoint">
+      <circle r="52" fill="url(#cyan)"/>
+      <polygon points="-22,10 -14,-2 14,-2 22,10 14,20 -14,20" fill="#6E7682" stroke="#1E2328" stroke-width="3.5" stroke-linejoin="round"/>
+      <polygon points="-14,-2 14,-2 18,6 -18,6" fill="#8E96A2"/>
+      <g fill="#7FE6F0"><circle cx="-10" cy="13" r="2"/><circle cx="0" cy="14" r="2"/><circle cx="10" cy="13" r="2"/></g>
+      <polygon points="0,-40 13,-14 0,8 -13,-14" fill="#7FE6F0" stroke="#1E2328" stroke-width="3.5" stroke-linejoin="round"/>
+      <polygon points="0,-40 0,8 -13,-14" fill="#4FC6D8"/>
+      <polygon points="0,-36 6,-16 0,-12" fill="#DFFAFF"/>
+      <polygon points="0,-40 13,-14 0,8 -13,-14" fill="none" stroke="#1E2328" stroke-width="3.5" stroke-linejoin="round"/>
+      <g fill="#DFFAFF"><circle cx="-20" cy="-30" r="2"/><circle cx="18" cy="-38" r="1.6"/></g>
+    </g>
+    <!-- fence post with cap -->
+    <g id="post2"><rect x="-7" y="-7" width="14" height="14" rx="3" fill="#8A5A34" stroke="#1E2328" stroke-width="3"/><rect x="-4" y="-4" width="8" height="8" rx="2" fill="#B07A45"/></g>
+    <!-- zombie: torn shirt, rot patches, reaching arms -->
+    <g id="zombie">
+      <circle cx="4" cy="7" r="19" fill="#000" opacity=".25" filter="url(#sh)"/>
+      <circle cx="21" cy="-11" r="7" fill="#8FC46A" stroke="#1E2328" stroke-width="3"/><circle cx="21" cy="11" r="7" fill="#8FC46A" stroke="#1E2328" stroke-width="3"/>
+      <path d="M17 -14 l3 -3 M18 14 l3 3" stroke="#6E9A4E" stroke-width="2"/>
+      <circle r="18" fill="#8FC46A" stroke="#1E2328" stroke-width="3.5"/>
+      <path d="M-18 -4 A18 18 0 0 0 -4 17.5 L-6 10 L-1 6 L-6 1 L-2 -4 L-8 -8 L-4 -13 L-9 -16 A18 18 0 0 0 -18 -4 Z" fill="#6E7FA3" stroke="#1E2328" stroke-width="2"/>
+      <circle cx="4" cy="-9" r="3.5" fill="#6E9A4E"/><circle cx="10" cy="9" r="2.5" fill="#6E9A4E"/>
+      <circle cx="9" cy="-5" r="3.2" fill="#1E2328"/><circle cx="9" cy="5" r="3.2" fill="#1E2328"/>
+      <circle cx="9.8" cy="-5.8" r="1" fill="#fff"/><circle cx="9.8" cy="4.2" r="1" fill="#fff"/>
+    </g>
+    <style>
+      .tn{font:800 13px system-ui,'Segoe UI',sans-serif;fill:#FFFFFF}
+      .ts{font:700 12px system-ui,'Segoe UI',sans-serif;fill:#E8D9A8}
+      .td{font:900 10px system-ui,'Segoe UI',sans-serif;fill:#FFFFFF;text-anchor:middle;letter-spacing:1px}
+      .cn{font:900 16px system-ui,'Segoe UI',sans-serif;fill:#FFFFFF;letter-spacing:.5px}
+      .cd{font:italic 600 12px system-ui,'Segoe UI',sans-serif;fill:#B8B2A6}
+      .cb{font:900 13px system-ui,'Segoe UI',sans-serif;fill:#1E2328;text-anchor:middle;letter-spacing:1.5px}
+      .hr{font:900 18px system-ui,'Segoe UI',sans-serif;fill:#F3E6C0;letter-spacing:2px}
+      .hs{font:700 12px system-ui,'Segoe UI',sans-serif;fill:#E8D9A8;letter-spacing:.5px}
+      .hint{font:800 14px system-ui,'Segoe UI',sans-serif;fill:#FFFFFF;stroke:#1E2328;stroke-width:4;paint-order:stroke}
+    </style>
+    <!-- white "you can tap this" flash: a bright rim around the object plus a light sheen over it -->
+    <filter id="flash" x="-25%" y="-25%" width="150%" height="150%">
+      <feMorphology in="SourceAlpha" operator="dilate" radius="3.5" result="fat"/>
+      <feFlood flood-color="#FFFFFF" result="white"/>
+      <feComposite in="white" in2="fat" operator="in" result="whiteFat"/>
+      <feComposite in="whiteFat" in2="SourceAlpha" operator="out" result="rim"/>
+      <feGaussianBlur in="rim" stdDeviation="1.2" result="rimSoft"/>
+      <feComposite in="white" in2="SourceAlpha" operator="in" result="fill"/>
+      <feComponentTransfer in="fill" result="sheen"><feFuncA type="linear" slope="0.38"/></feComponentTransfer>
+      <feMerge><feMergeNode in="rimSoft"/><feMergeNode in="sheen"/></feMerge>
+    </filter>
+    <pattern id="dirt" width="70" height="70" patternUnits="userSpaceOnUse"><rect width="70" height="70" fill="#9A8E7C"/><g fill="#887C6A"><circle cx="10" cy="12" r="2.8"/><circle cx="26" cy="58" r="2.2"/><circle cx="60" cy="16" r="2.4"/></g><g fill="#B0A492"><circle cx="34" cy="22" r="1.8"/><circle cx="8" cy="40" r="1.5"/></g></pattern>
+    <g id="tire2"><circle r="16" fill="#2A2A2E" stroke="#25282C" stroke-width="3"/><circle r="16" fill="none" stroke="#3E3E44" stroke-width="4" stroke-dasharray="3 3"/><circle r="7" fill="#5E5E64" stroke="#25282C" stroke-width="2"/></g>
+    <g id="car3"><rect x="-38" y="-17" width="76" height="34" rx="9" stroke="#25282C" stroke-width="3.5"/><rect x="-14" y="-13" width="30" height="26" rx="5" fill="#3A4A5C" stroke="#25282C" stroke-width="2.5"/><path d="M-8 -8 L2 2 L-6 8" stroke="#9EC6E0" stroke-width="2" fill="none"/></g>
+    <g id="appl"><rect x="-18" y="-18" width="36" height="36" rx="4" fill="#E8E8E2" stroke="#25282C" stroke-width="3"/><circle r="10" fill="#9EC6E0" stroke="#25282C" stroke-width="2.5"/><circle r="5" fill="#C9CED6"/></g>
+    <g id="fridge"><rect x="-16" y="-24" width="32" height="48" rx="4" fill="#DDE3E8" stroke="#25282C" stroke-width="3"/><path d="M-16 -4 H16 M10 -18 V-10 M10 2 V12" stroke="#25282C" stroke-width="2.5"/></g>
+    <g id="cont"><rect x="-70" y="-22" width="140" height="44" rx="3" stroke="#25282C" stroke-width="3.5"/><path d="M-60 -22 V22 M-44 -22 V22 M-28 -22 V22 M-12 -22 V22 M4 -22 V22 M20 -22 V22 M36 -22 V22 M52 -22 V22" stroke="#000" stroke-opacity=".18" stroke-width="3"/></g>
+  </defs>
+  <rect width="1000" height="700" fill="url(#dirt)"/>
+  <!-- oil puddles, tyre tracks -->
+  <g fill="#1E1C1A" opacity=".55"><path d="M380 330 Q420 310 460 330 Q470 356 430 362 Q390 360 380 330 Z"/><path d="M620 620 Q660 604 690 622 Q690 642 650 644 Q620 640 620 620 Z"/></g>
+  <g fill="#5D8FC9" opacity=".25"><ellipse cx="420" cy="334" rx="16" ry="5"/></g>
+  <path d="M0 420 Q300 360 560 380 Q800 400 1000 340" fill="none" stroke="#7E7262" stroke-width="22" stroke-dasharray="8 6" opacity=".7"/>
+
+  <!-- walls of junk around the yard (out of reach) -->
+  <use href="#cont" transform="translate(90 40) rotate(-4)" fill="#B8473A"/><use href="#cont" transform="translate(240 34) rotate(3)" fill="#3F6FAE"/><use href="#cont" transform="translate(390 40) rotate(-2)" fill="#4FA83A"/><use href="#cont" transform="translate(110 4) rotate(2)" fill="#E8A030"/><use href="#cont" transform="translate(300 0) rotate(-3)" fill="#8E98A2"/>
+  <g stroke="#25282C" stroke-width="4" stroke-linejoin="round">
+    <polygon points="620,0 1000,0 1000,170 940,160 900,120 820,130 760,90 680,80" fill="#6E767E"/>
+    <polygon points="660,0 1000,0 1000,140 940,130 900,96 820,104 760,66 700,56" fill="#8E98A2"/>
+    <polygon points="0,700 0,560 60,580 100,620 160,640 200,700" fill="#6E767E"/>
+  </g>
+  <g stroke="#25282C" stroke-width="3" stroke-linejoin="round"><polygon points="720,40 760,30 770,56 730,64" fill="#A8653A"/><polygon points="840,60 880,52 884,80 846,84" fill="#5D8FC9"/><polygon points="930,90 970,84 976,110 936,114" fill="#E8B84A"/><polygon points="30,600 70,610 66,640 26,632" fill="#A8653A"/></g>
+  <use href="#tire2" x="790" y="100"/><use href="#tire2" x="960" y="40"/><use href="#tire2" x="120" y="660"/>
+  <path d="M1000 260 Q980 400 1000 560" fill="none" stroke="#5E6670" stroke-width="10" stroke-dasharray="2 6"/>
+
+  <!-- ===== tappable: LEANING CAR STACK ===== -->
+  <rect x="198" y="198" width="150" height="120" rx="10" fill="#000" opacity=".3" filter="url(#sh)" transform="rotate(10 273 258)"/>
+  <g id="o_stack">
+    <use href="#car3" transform="translate(266 270) rotate(10) scale(1.6)" fill="#B8473A"/>
+    <use href="#car3" transform="translate(262 256) rotate(16) scale(1.5)" fill="#5D8FC9"/>
+    <use href="#car3" transform="translate(270 240) rotate(4) scale(1.4)" fill="#E8B84A"/>
+    <use href="#car3" transform="translate(266 226) rotate(14) scale(1.3)" fill="#4FA83A"/>
+  </g>
+
+  <!-- ===== tappable: CRANE CAB + magnet ===== -->
+  <rect x="512" y="176" width="96" height="96" rx="8" fill="#000" opacity=".3" filter="url(#sh)" transform="rotate(-15 560 224)"/>
+  <g id="o_crane" stroke="#25282C" stroke-linejoin="round">
+    <g transform="rotate(-15 556 216)">
+      <rect x="508" y="168" width="96" height="96" rx="8" fill="#E0B030" stroke-width="4.5"/>
+      <rect x="520" y="180" width="40" height="34" rx="4" fill="#7FC8E0" stroke-width="3"/>
+      <rect x="564" y="226" width="34" height="30" rx="3" fill="#5E6670" stroke-width="3"/>
+    </g>
+    <path d="M584 204 L760 176" stroke-width="18" stroke-linecap="round"/>
+    <path d="M584 204 L760 176" stroke="#F2C230" stroke-width="11" stroke-linecap="round"/>
+    <path d="M594 202 L612 194 L630 198 L648 190 L666 194 L684 186 L702 190 L720 182 L738 186 L756 178" fill="none" stroke-width="2"/>
+    <path d="M760 176 V246" stroke-width="2.5"/>
+    <circle cx="760" cy="264" r="22" fill="#5E6670" stroke-width="4"/><circle cx="760" cy="264" r="11" fill="#8E98A2" stroke-width="2.5"/>
+    <rect x="744" y="282" width="34" height="14" rx="3" fill="#A8653A" stroke-width="2.5" transform="rotate(12 761 289)"/>
+  </g>
+
+  <!-- ===== tappable: YARD OFFICE ===== -->
+  <rect x="830" y="324" width="140" height="92" rx="6" fill="#000" opacity=".3" filter="url(#sh)" transform="rotate(8 900 370)"/>
+  <g id="o_office" transform="rotate(8 894 362)" stroke="#25282C" stroke-linejoin="round">
+    <rect x="824" y="316" width="140" height="92" rx="6" fill="url(#metal)" stroke-width="4.5"/>
+    <rect x="824" y="354" width="140" height="10" fill="#4A78B4" stroke-width="2.5"/>
+    <rect x="886" y="294" width="72" height="24" rx="3" fill="#E8B84A" stroke-width="3"/><path d="M896 306 h52" stroke-width="3" stroke-dasharray="6 4"/>
+    <rect x="840" y="408" width="40" height="12" rx="2" fill="#9A6838" stroke-width="2.5"/>
+  </g>
+  <use href="#barrel" transform="translate(800 420) scale(.9)"/>
+
+  <!-- ===== tappable: APPLIANCE HEAP ===== -->
+  <g id="o_appl">
+    <use href="#fridge" transform="translate(470 476) rotate(-24)"/><use href="#appl" transform="translate(522 506) rotate(12)"/><use href="#appl" transform="translate(500 452) rotate(-8)"/><use href="#fridge" transform="translate(566 470) rotate(66)"/><use href="#appl" transform="translate(546 548) rotate(28)"/><use href="#appl" transform="translate(456 528) rotate(-40)"/>
+    <path d="M462 530 Q500 576 566 526" fill="none" stroke="#25282C" stroke-width="6"/><path d="M462 530 Q500 576 566 526" fill="none" stroke="#E08A3A" stroke-width="3"/>
+  </g>
+
+  <!-- ===== tappable: TIRE MOUNTAIN ===== -->
+  <g id="o_tires">
+    <use href="#tire2" x="740" y="540"/><use href="#tire2" x="772" y="550"/><use href="#tire2" x="756" y="520"/><use href="#tire2" x="790" y="516"/><use href="#tire2" x="772" y="490"/><use href="#tire2" x="720" y="510"/><use href="#tire2" x="808" y="574"/><use href="#tire2" x="742" y="574"/><use href="#tire2" x="806" y="482"/>
+  </g>
+
+  <!-- ===== tappable: CAR CRUSHER ===== -->
+  <rect x="104" y="448" width="200" height="130" rx="8" fill="#000" opacity=".3" filter="url(#sh)" transform="rotate(-6 204 513)"/>
+  <g id="o_crusher" transform="rotate(-6 198 506)" stroke="#25282C" stroke-linejoin="round">
+    <rect x="96" y="440" width="200" height="130" rx="8" fill="#5E6670" stroke-width="4.5"/>
+    <rect x="110" y="454" width="120" height="102" rx="4" fill="#3A3E44" stroke-width="3"/>
+    <rect x="124" y="468" width="92" height="74" rx="3" fill="#8E98A2" stroke-width="3"/>
+    <g stroke="#6E767E" stroke-width="3"><path d="M128 484 H212 M128 500 H212 M128 516 H212 M128 532 H212"/></g>
+    <rect x="238" y="454" width="46" height="56" rx="4" fill="#E0B030" stroke-width="3"/>
+    <circle cx="261" cy="528" r="12" fill="#D9534F" stroke-width="3"/>
+  </g>
+  <g stroke="#25282C" stroke-width="3" stroke-linejoin="round"><rect x="316" y="530" width="42" height="42" rx="3" fill="#5D8FC9" transform="rotate(10 337 551)"/><rect x="326" y="584" width="38" height="38" rx="3" fill="#B8473A" transform="rotate(-8 345 603)"/></g>
+
+  <!-- loose junk + a burn barrel -->
+  <g stroke="#25282C" stroke-width="3" stroke-linejoin="round"><polygon points="640,380 680,364 700,386 660,400" fill="#9AA3AD"/><polygon points="360,400 390,390 402,412 370,418" fill="#A8653A"/><rect x="600" y="620" width="60" height="10" rx="5" fill="#8E98A2" transform="rotate(-20 630 625)"/><polygon points="880,600 920,590 930,620 890,628" fill="#9AA3AD"/></g>
+  <use href="#tire2" x="420" y="640"/><use href="#barrel" transform="translate(640 470) scale(.9)"/><use href="#barrel" transform="translate(664 492) scale(.8)"/>
+  <g transform="translate(600 300)"><circle r="12" fill="#7C4A34" stroke="#25282C" stroke-width="3"/><circle cy="-6" r="24" fill="url(#warm)"/><path d="M-7 4 Q-9 -6 -3 -8 Q-3 -2 0 -3 Q-1 -11 3 -15 Q6 -6 7 -4 Q9 0 7 4 Z" fill="#FF6A2B" stroke="#25282C" stroke-width="2"/></g>
+</svg>

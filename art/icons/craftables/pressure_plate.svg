@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <ellipse cx="64" cy="108" rx="54" ry="9" fill="#000" opacity=".18"/>
+  <g stroke="#25282C" stroke-width="5" stroke-linejoin="round">
+    <polygon points="10,80 64,56 118,80 64,104" fill="#8A5A34"/>
+    <polygon points="10,80 64,104 64,112 10,88" fill="#6B4426"/><polygon points="118,80 64,104 64,112 118,88" fill="#5A3A22"/>
+    <polygon points="26,76 64,60 102,76 64,94" fill="#9AA3AD"/>
+  </g>
+  <polygon points="34,76 64,64 94,76 64,88" fill="#B4BCC4"/>
+  <g transform="translate(64 76) scale(1 .55)">
+    <circle r="16" fill="none" stroke="#25282C" stroke-width="13" stroke-dasharray="6 4.5"/>
+    <circle r="16" fill="none" stroke="#D9A441" stroke-width="8" stroke-dasharray="6 4.5"/>
+    <circle r="13" fill="#D9A441" stroke="#25282C" stroke-width="4"/>
+    <circle r="5" fill="#5E6670" stroke="#25282C" stroke-width="3"/>
+  </g>
+  <g fill="#5E6670" stroke="#25282C" stroke-width="2"><circle cx="32" cy="76" r="3"/><circle cx="96" cy="76" r="3"/><circle cx="64" cy="62" r="3"/><circle cx="64" cy="91" r="3"/></g>
+  <g stroke="#FFD34D" stroke-width="4" stroke-linecap="round"><path d="M64 22 V44"/><path d="M54 36 L64 46 L74 36" fill="none" stroke-linejoin="round"/></g>
+  <path d="M64 22 V44 M54 36 L64 46 L74 36" fill="none" stroke="#25282C" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" opacity=".0"/>
+</svg>

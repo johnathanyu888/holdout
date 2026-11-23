@@ -1,0 +1,41 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Holdout items</title>
+<style>
+  body{margin:0;padding:28px;background:#1C242E;font-family:system-ui,'Segoe UI',sans-serif;color:#F3E6C0}
+  h2{margin:8px 0 12px;letter-spacing:2px;font-size:20px;color:#FFD34D}
+  table{border-collapse:separate;border-spacing:0;width:100%;margin-bottom:30px;background:#232D39;border:2px solid #C9A24A;border-radius:10px;overflow:hidden}
+  th{background:#2E3A48;text-align:left;padding:8px 12px;font-size:13px;letter-spacing:1px;color:#C9A24A}
+  td{padding:6px 12px;border-top:1px solid #34404E;font-size:14px;vertical-align:middle}
+  td.ic{width:64px} td.ic img{width:56px;height:56px;display:block}
+  td.n{font-weight:800}
+  .t{display:inline-block;padding:2px 8px;border-radius:10px;font-size:12px;font-weight:700;background:#3A4656}
+</style></head><body>
+<h2>RAW MATERIALS</h2>
+<table>
+<tr><th></th><th>Material</th><th>Used for</th><th>Found mostly at</th></tr>
+<tr><td class="ic"><img src="materials/wood.svg"></td><td class="n">Wood</td><td>Walls, spikes, logs, torches</td><td>Forest edge</td></tr>
+<tr><td class="ic"><img src="materials/stone.svg"></td><td class="n">Stone</td><td>Stone walls, falling rocks</td><td>Quarry</td></tr>
+<tr><td class="ic"><img src="materials/scrap.svg"></td><td class="n">Scrap metal</td><td>Metal walls, bear traps, rattles</td><td>Junkyard</td></tr>
+<tr><td class="ic"><img src="materials/rope.svg"></td><td class="n">Rope</td><td>Swinging logs, nets, rock drops</td><td>Farm</td></tr>
+<tr><td class="ic"><img src="materials/wire.svg"></td><td class="n">Wire</td><td>Circuits (trigger → mechanism), tripwires</td><td>Junkyard</td></tr>
+<tr><td class="ic"><img src="materials/gears.svg"></td><td class="n">Gears</td><td>Pressure plates, bear traps</td><td>Junkyard</td></tr>
+<tr><td class="ic"><img src="materials/cloth.svg"></td><td class="n">Cloth</td><td>Torches, nets</td><td>Suburbs</td></tr>
+<tr><td class="ic"><img src="materials/glass.svg"></td><td class="n">Glass</td><td>No demo use (Expansion: lanterns, chimes)</td><td>Suburbs</td></tr>
+</table>
+<h2>CRAFTABLE ITEMS</h2>
+<table>
+<tr><th></th><th>#</th><th>Item</th><th>Type</th><th>Recipe</th><th>Effect</th></tr>
+<tr><td class="ic"><img src="craftables/wood_wall.svg"></td><td>1</td><td class="n">Wood wall</td><td><span class="t">Barricade</span></td><td>3 Wood</td><td>Blocks a tile; weak</td></tr>
+<tr><td class="ic"><img src="craftables/stone_wall.svg"></td><td>2</td><td class="n">Stone wall</td><td><span class="t">Barricade</span></td><td>3 Stone</td><td>Blocks; strong</td></tr>
+<tr><td class="ic"><img src="craftables/metal_wall.svg"></td><td>3</td><td class="n">Metal wall</td><td><span class="t">Barricade</span></td><td>2 Scrap + 1 Wood</td><td>Blocks; strongest</td></tr>
+<tr><td class="ic"><img src="craftables/wood_spikes.svg"></td><td>4</td><td class="n">Wood spikes</td><td><span class="t">Floor trap</span></td><td>2 Wood</td><td>Damages walkers; wears out</td></tr>
+<tr><td class="ic"><img src="craftables/bear_trap.svg"></td><td>5</td><td class="n">Bear trap</td><td><span class="t">Floor trap</span></td><td>2 Scrap + 1 Gear</td><td>Holds one zombie</td></tr>
+<tr><td class="ic"><img src="craftables/tripwire.svg"></td><td>6</td><td class="n">Tripwire</td><td><span class="t">Trigger</span></td><td>1 Wire</td><td>Fires its circuit when any zombie crosses</td></tr>
+<tr><td class="ic"><img src="craftables/pressure_plate.svg"></td><td>7</td><td class="n">Pressure plate</td><td><span class="t">Trigger</span></td><td>1 Wood + 1 Gear</td><td>Fires only for heavy zombies (Brutes)</td></tr>
+<tr><td class="ic"><img src="craftables/swinging_log.svg"></td><td>8</td><td class="n">Swinging log</td><td><span class="t">Mechanism</span></td><td>2 Wood + 2 Rope</td><td>Sweeps a 3-tile lane, knocks back</td></tr>
+<tr><td class="ic"><img src="craftables/falling_rocks.svg"></td><td>9</td><td class="n">Falling rocks</td><td><span class="t">Mechanism</span></td><td>3 Stone + 1 Rope</td><td>Big hit on one tile</td></tr>
+<tr><td class="ic"><img src="craftables/net_drop.svg"></td><td>10</td><td class="n">Net drop</td><td><span class="t">Mechanism</span></td><td>2 Rope + 1 Cloth</td><td>Holds everything on 2 tiles</td></tr>
+<tr><td class="ic"><img src="craftables/tin_can_rattle.svg"></td><td>11</td><td class="n">Tin can rattle</td><td><span class="t">Lure</span></td><td>1 Scrap + 1 Rope</td><td>Noise all raid; pulls zombies toward it</td></tr>
+<tr><td class="ic"><img src="craftables/torch.svg"></td><td>12</td><td class="n">Torch</td><td><span class="t">Light</span></td><td>1 Wood + 1 Cloth</td><td>Zombies drift toward light; lights the night</td></tr>
+</table>
+</body></html>

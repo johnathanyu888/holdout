@@ -1,5 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" width="240" height="240">
-  <!-- Main Hall light. Draw with additive blending over the night overlay. -->
-  <defs><radialGradient id="g"><stop offset="0" stop-color="#FFC86E" stop-opacity="0.32"/><stop offset="1" stop-color="#FFC86E" stop-opacity="0"/></radialGradient></defs>
-  <circle cx="120" cy="120" r="120" fill="url(#g)"/>
-</svg>

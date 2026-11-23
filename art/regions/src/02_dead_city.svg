@@ -1,0 +1,185 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 700" width="1000" height="700">
+  <defs>
+<!--KIT2-->
+    <pattern id="asph" width="60" height="60" patternUnits="userSpaceOnUse"><rect width="60" height="60" fill="#4E5156"/><circle cx="12" cy="18" r="1.6" fill="#5E6166"/><circle cx="44" cy="40" r="1.6" fill="#42454A"/><path d="M30 50 l6 -4" stroke="#44474C" stroke-width="1.5"/></pattern>
+    <pattern id="walk" width="30" height="30" patternUnits="userSpaceOnUse"><rect width="30" height="30" fill="#A8A69E"/><path d="M30 0 V30 H0" fill="none" stroke="#908E86" stroke-width="2"/></pattern>
+    <pattern id="gravel" width="30" height="30" patternUnits="userSpaceOnUse"><rect width="30" height="30" fill="#8A8882"/><circle cx="6" cy="8" r="1.8" fill="#76746E"/><circle cx="20" cy="18" r="2" fill="#9C9A94"/><circle cx="12" cy="26" r="1.5" fill="#76746E"/></pattern>
+    <pattern id="tar" width="40" height="40" patternUnits="userSpaceOnUse"><rect width="40" height="40" fill="#5E5A56"/><path d="M0 20 H40" stroke="#54504C" stroke-width="2"/><circle cx="30" cy="10" r="2" fill="#6A6662"/></pattern>
+    <pattern id="brickR" width="24" height="12" patternUnits="userSpaceOnUse"><rect width="24" height="12" fill="#A8553E"/><path d="M0 6 H24 M12 0 V6 M0 6 V12" stroke="#8E4432" stroke-width="1.5"/></pattern>
+    <pattern id="slab" width="40" height="40" patternUnits="userSpaceOnUse"><rect width="40" height="40" fill="#6E6A64"/><path d="M40 0 V40 H0" fill="none" stroke="#5E5A54" stroke-width="2"/></pattern>
+    <pattern id="tiles" width="16" height="16" patternUnits="userSpaceOnUse"><rect width="16" height="16" fill="#D8CDB4"/><rect width="8" height="8" fill="#C4B898"/><rect x="8" y="8" width="8" height="8" fill="#C4B898"/></pattern>
+    <pattern id="wood" width="12" height="40" patternUnits="userSpaceOnUse"><rect width="12" height="40" fill="#A8794A"/><path d="M12 0 V40" stroke="#7A5232" stroke-width="2"/></pattern>
+    <pattern id="carpet" width="10" height="10" patternUnits="userSpaceOnUse"><rect width="10" height="10" fill="#6E7FA3"/><circle cx="5" cy="5" r="1.2" fill="#5E6F93"/></pattern>
+    <pattern id="park" width="60" height="120" patternUnits="userSpaceOnUse"><rect width="60" height="120" fill="#6A6C70"/><path d="M58 0 V50 M58 70 V120" stroke="#E8E4DA" stroke-width="3"/></pattern>
+    <radialGradient id="vig"><stop offset=".6" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".5"/></radialGradient>
+    <g id="rubR"><path d="M-14 6 Q-16 -6 -5 -10 Q7 -14 14 -5 Q17 6 8 10 Q-5 14 -14 6 Z" fill="#8E8A82" stroke="#25282C" stroke-width="2.5"/><path d="M-6 -4 L2 -7" stroke="#B4AFA6" stroke-width="2.5" stroke-linecap="round"/></g>
+    <g id="brick"><rect x="-8" y="-4" width="16" height="8" rx="1.5" fill="#A8553E" stroke="#25282C" stroke-width="2"/></g>
+    <g id="shard"><polygon points="-5,3 -2,-6 4,-3 3,5" fill="#9EE6F0" stroke="#25282C" stroke-width="1.6"/></g>
+    <g id="plume" opacity=".55"><circle r="22" fill="#4A4644"/><circle cx="26" cy="-14" r="26" fill="#5A5654"/><circle cx="56" cy="-36" r="30" fill="#6A6664"/><circle cx="92" cy="-60" r="26" fill="#7A7674"/></g>
+    <g id="flame"><circle cy="-8" r="26" fill="url(#warm)"/><path d="M-12 8 Q-15 -8 -6 -13 Q-6 -3 0 -6 Q-2 -19 5 -27 Q9 -11 11 -8 Q15 -3 12 8 Z" fill="#FF5A24" stroke="#25282C" stroke-width="2.6" stroke-linejoin="round"/><path d="M-5 8 Q-5 0 0 -3 Q2 3 4 0 Q6 4 5 8 Z" fill="#FFD34D"/></g>
+    <g id="jam"><rect x="-36" y="-17" width="72" height="34" rx="9" stroke="#25282C" stroke-width="3.5"/><rect x="-12" y="-13" width="28" height="26" rx="5" fill="#3A4A5C" stroke="#25282C" stroke-width="2.5"/><path d="M-6 -8 L2 0 L-4 8" stroke="#9EC6E0" stroke-width="2" fill="none"/></g>
+    <g id="ac"><rect x="-13" y="-10" width="26" height="20" rx="2" fill="#C9CED6" stroke="#25282C" stroke-width="2.2"/><circle r="6.5" fill="#8E98A2" stroke="#25282C" stroke-width="1.6"/><path d="M-4 0 H4 M0 -4 V4" stroke="#5E6670" stroke-width="1.2"/></g>
+    <g id="vent"><circle r="6" fill="#8E98A2" stroke="#25282C" stroke-width="2"/><circle r="2.5" fill="#3A3E44"/></g>
+    <g id="beam"><rect x="-40" y="-3" width="80" height="6" fill="#7A8088" stroke="#25282C" stroke-width="1.8"/></g>
+  </defs>
+
+  <!-- ===== streets (the city carries on past every edge) ===== -->
+  <rect width="1000" height="700" fill="url(#walk)"/>
+  <rect x="0" y="352" width="1000" height="108" fill="url(#asph)"/>
+  <rect x="566" y="0" width="92" height="700" fill="url(#asph)"/>
+  <path d="M0 352 H566 M658 352 H1000 M0 460 H566 M658 460 H1000 M566 0 V352 M658 0 V352 M566 460 V700 M658 460 V700" stroke="#25282C" stroke-width="4"/>
+  <path d="M0 406 H550 M674 406 H1000 M612 0 V336 M612 476 V700" stroke="#E0C040" stroke-width="4" stroke-dasharray="24 20" opacity=".7"/>
+  <g fill="#E8E8E2" opacity=".85"><rect x="574" y="360" width="76" height="9"/><rect x="574" y="380" width="76" height="9"/><rect x="574" y="400" width="76" height="9"/><rect x="574" y="420" width="76" height="9"/><rect x="574" y="440" width="76" height="9"/></g>
+  <g stroke="#25282C" stroke-width="2.5" fill="none"><path d="M90 366 l18 14 l-6 16 l20 10 M860 372 l-16 18 l10 16 M600 120 l12 16 l-6 18 M630 560 l-14 18 l8 16"/></g>
+  <!-- sinkhole in the crossing -->
+  <path d="M590 382 Q614 362 646 372 Q666 388 658 414 Q640 436 608 432 Q584 420 590 382 Z" fill="#141416" stroke="#25282C" stroke-width="4"/>
+  <path d="M598 384 Q618 370 642 378" stroke="#5E6166" stroke-width="5" fill="none"/>
+
+  <!-- ===== BLOCK A (top-left, runs off the edges): tall tower, south-east corner caved in ===== -->
+  <polygon points="-20,-20 350,-20 350,176 300,210 240,214 236,320 -20,320" fill="#000" opacity=".38" transform="translate(26 30)"/>
+  <g stroke="#25282C" stroke-linejoin="round">
+    <polygon points="-20,-20 350,-20 350,176 300,210 240,214 236,320 -20,320" fill="#8E8A82" stroke-width="4"/>
+    <polygon points="-20,-8 336,-8 336,170 296,198 228,204 224,306 -20,306" fill="url(#tar)"/>
+    <!-- caved-in corner: one floor down, then the next -->
+    <polygon points="350,176 350,320 236,320 240,214 300,210" fill="#4A4642" stroke-width="3"/>
+    <polygon points="350,214 350,320 268,320 270,248 312,244" fill="url(#slab)" stroke-width="2.5"/>
+    <polygon points="350,260 350,320 300,320 302,280" fill="#2A2826" stroke-width="2.5"/>
+    <path d="M250 230 L340 230 M256 258 L340 258 M262 286 L340 286 M276 220 V320 M310 216 V320" stroke="#7A8088" stroke-width="4"/>
+    <path d="M300 210 l-10 -16 M240 214 l-16 -8 M270 248 l-14 -10" stroke="#8A6A5A" stroke-width="2.5"/>
+    <use href="#ac" x="60" y="60"/><use href="#ac" x="100" y="60"/><use href="#ac" x="60" y="100"/>
+    <circle cx="200" cy="80" r="26" fill="#C9CED6" stroke-width="3"/><circle cx="200" cy="80" r="16" fill="none" stroke="#8E98A2" stroke-width="3"/>
+    <rect x="130" y="200" width="40" height="30" rx="3" fill="#5E6670" stroke-width="2.5"/>
+    <use href="#vent" x="40" y="220"/><use href="#vent" x="280" y="40"/>
+  </g>
+  <use href="#rubR" x="250" y="336"/><use href="#rubR" transform="translate(300 342) scale(.8)"/><use href="#rubR" x="340" y="330"/><use href="#brick" transform="translate(278 348) rotate(30)"/>
+  <use href="#flame" x="320" y="290"/><use href="#plume" x="320" y="270"/>
+
+  <!-- ===== BLOCK B: brick apartments, roof burnt through to the rooms below (tappable) ===== -->
+  <polygon points="380,-20 548,-20 548,320 380,320" fill="#000" opacity=".35" transform="translate(18 24)"/>
+  <g stroke="#25282C" stroke-linejoin="round">
+    <rect x="380" y="-20" width="168" height="340" fill="#7E4A3A" stroke-width="4"/>
+    <rect x="390" y="-10" width="148" height="320" fill="url(#brickR)"/>
+    <use href="#vent" x="410" y="20"/><use href="#ac" x="510" y="40"/><use href="#vent" x="420" y="290"/>
+  </g>
+  <g id="o_gutted" stroke="#25282C" stroke-linejoin="round">
+    <path d="M398 110 L430 92 L470 100 L520 86 L534 130 L526 190 L534 240 L490 258 L440 250 L400 230 L392 170 Z" fill="#2A2420" stroke-width="3.5"/>
+    <rect x="404" y="104" width="64" height="70" fill="url(#tiles)" stroke-width="2"/>
+    <rect x="474" y="104" width="54" height="140" fill="url(#carpet)" stroke-width="2"/>
+    <rect x="404" y="180" width="64" height="64" fill="url(#wood)" stroke-width="2"/>
+    <path d="M471 100 V250 M398 177 H471" stroke="#8E8A82" stroke-width="5"/>
+    <rect x="482" y="120" width="38" height="56" rx="3" fill="#5D8FC9" stroke-width="2.5"/><rect x="486" y="124" width="30" height="14" rx="2" fill="#F2F2EE" stroke-width="1.8"/>
+    <rect x="414" y="120" width="26" height="20" rx="2" fill="#E8E8E2" stroke-width="2"/>
+    <rect x="420" y="196" width="34" height="22" rx="2" fill="#8A5A34" stroke-width="2"/>
+    <ellipse cx="500" cy="210" rx="22" ry="12" fill="#1E1C1A" opacity=".6" stroke="none"/>
+    <path d="M398 110 L430 92 L470 100 L520 86 L534 130 L526 190 L534 240 L490 258 L440 250 L400 230 L392 170 Z" fill="none" stroke="#5A3428" stroke-width="7"/>
+    <path d="M398 110 L430 92 L470 100 L520 86 L534 130 L526 190 L534 240 L490 258 L440 250 L400 230 L392 170 Z" fill="none" stroke-width="2.5"/>
+  </g>
+  <use href="#flame" x="500" y="214"/><use href="#plume" x="500" y="190"/>
+  <flash ref="o_gutted" begin="0.2"/>
+
+  <!-- ===== BLOCK C (top-right, cut off): department store, skylights smashed ===== -->
+  <polygon points="690,-20 1020,-20 1020,320 690,320" fill="#000" opacity=".35" transform="translate(18 24)"/>
+  <g stroke="#25282C" stroke-linejoin="round">
+    <rect x="690" y="-20" width="330" height="340" fill="#8A8882" stroke-width="4"/>
+    <rect x="700" y="-10" width="320" height="320" fill="url(#gravel)"/>
+    <g fill="#7FC8E0" stroke-width="2.5"><rect x="730" y="40" width="60" height="40" rx="2"/><rect x="820" y="40" width="60" height="40" rx="2"/><rect x="910" y="40" width="60" height="40" rx="2"/><rect x="730" y="120" width="60" height="40" rx="2"/><rect x="910" y="120" width="60" height="40" rx="2"/></g>
+    <rect x="820" y="120" width="60" height="40" rx="2" fill="#1A1A1E" stroke-width="2.5"/><path d="M826 126 L850 152 M874 124 L860 158" stroke="#7FC8E0" stroke-width="2.5"/>
+    <rect x="730" y="200" width="60" height="40" rx="2" fill="#1A1A1E" stroke-width="2.5"/>
+    <use href="#ac" x="940" y="220"/><use href="#ac" x="980" y="220"/><use href="#vent" x="860" y="270"/>
+    <polygon points="690,320 1020,320 1020,336 690,336" fill="#D9A3BE" stroke-width="2.5"/>
+    <path d="M714 320 V336 M754 320 V336 M794 320 V336 M834 320 V336 M874 320 V336 M914 320 V336 M954 320 V336 M994 320 V336" stroke="#B44E7A" stroke-width="16" opacity=".8"/>
+  </g>
+  <use href="#shard" x="840" y="150"/><use href="#shard" x="756" y="226"/>
+
+  <!-- ===== BLOCK D (bottom-left, cut off): pharmacy, cross painted on the roof (tappable) ===== -->
+  <polygon points="-20,480 270,480 270,720 -20,720" fill="#000" opacity=".3" transform="translate(16 20)"/>
+  <g id="o_pharm" stroke="#25282C" stroke-linejoin="round">
+    <rect x="-20" y="480" width="290" height="240" fill="#9A9890" stroke-width="4"/>
+    <rect x="-10" y="490" width="270" height="230" fill="url(#gravel)"/>
+    <g transform="translate(120 600)"><rect x="-52" y="-18" width="104" height="36" fill="#3FAF6A" stroke-width="3"/><rect x="-18" y="-52" width="36" height="104" fill="#3FAF6A" stroke-width="3"/><rect x="-16" y="-16" width="32" height="32" fill="#3FAF6A"/></g>
+    <rect x="200" y="530" width="50" height="40" rx="3" fill="#1A1A1E" stroke-width="2.5"/><path d="M206 536 L228 564 M244 534 L232 566" stroke="#7FC8E0" stroke-width="2.5"/>
+    <use href="#ac" x="40" y="680"/>
+    <polygon points="-20,462 270,462 270,480 -20,480" fill="#3FAF6A" stroke-width="2.5"/>
+    <path d="M10 462 V480 M50 462 V480 M90 462 V480 M130 462 V480 M170 462 V480 M210 462 V480 M250 462 V480" stroke="#F2F2EE" stroke-width="12"/>
+  </g>
+  <g fill="#F2F2EE" stroke="#25282C" stroke-width="2"><rect x="120" y="446" width="10" height="14" rx="2" transform="rotate(30 125 453)"/><rect x="180" y="440" width="10" height="14" rx="2" transform="rotate(-50 185 447)"/></g>
+  <flash ref="o_pharm" begin="1.0"/>
+
+  <!-- ===== BLOCK E: a building that came down completely (tappable) ===== -->
+  <g id="o_collapse" stroke="#25282C" stroke-linejoin="round">
+    <polygon points="300,480 540,480 540,720 300,720" fill="#5E5A54" stroke-width="4"/>
+    <path d="M300 480 H380 M440 480 H540 V560 M300 480 V600" fill="none" stroke="#8E8A82" stroke-width="14"/>
+    <polygon points="330,530 470,500 520,560 500,640 400,690 330,650" fill="#8E8A82" stroke-width="3.5"/>
+    <polygon points="350,540 450,520 480,560 440,610 360,620" fill="#A8A398"/>
+    <rect x="340" y="560" width="160" height="22" rx="3" fill="url(#slab)" stroke-width="3" transform="rotate(-24 420 571)"/>
+    <rect x="360" y="610" width="130" height="18" rx="3" fill="url(#slab)" stroke-width="3" transform="rotate(14 425 619)"/>
+    <use href="#beam" transform="translate(440 540) rotate(30)"/><use href="#beam" transform="translate(400 650) rotate(-40)"/><use href="#beam" transform="translate(480 610) rotate(70)"/>
+    <path d="M420 600 l20 -26 M460 640 l26 -10 M370 600 l-10 -24" stroke="#8A6A5A" stroke-width="3"/>
+    <rect x="460" y="660" width="34" height="24" rx="3" fill="#E8E8E2" stroke-width="2.5" transform="rotate(30 477 672)"/>
+  </g>
+  <use href="#rubR" x="320" y="470"/><use href="#rubR" x="520" y="476"/><use href="#rubR" transform="translate(550 520) scale(.8)"/><use href="#brick" transform="translate(420 468) rotate(20)"/><use href="#brick" transform="translate(556 560) rotate(-30)"/>
+  <use href="#plume" x="430" y="580"/>
+  <flash ref="o_collapse" begin="0.4"/>
+
+  <!-- ===== BLOCK F (bottom-right, cut off): parking deck with abandoned cars ===== -->
+  <polygon points="700,490 1020,490 1020,720 700,720" fill="#000" opacity=".3" transform="translate(16 20)"/>
+  <g stroke="#25282C" stroke-linejoin="round">
+    <rect x="700" y="490" width="320" height="230" fill="#7E7C76" stroke-width="4"/>
+    <rect x="710" y="500" width="310" height="220" fill="url(#park)"/>
+    <rect x="700" y="490" width="320" height="10" fill="#A8A69E" stroke-width="2.5"/>
+  </g>
+  <use href="#jam" transform="translate(740 560) rotate(90)" fill="#E8B84A"/><use href="#jam" transform="translate(862 676) rotate(84)" fill="#5D8FC9"/><use href="#jam" transform="translate(980 560) rotate(96)" fill="#8E3226"/>
+  <use href="#flame" x="980" y="556"/>
+
+  <!-- ===== street wreckage ===== -->
+  <!-- OVERTURNED BUS (tappable) -->
+  <g transform="translate(236 414) rotate(-6)"><rect x="-120" y="-28" width="240" height="64" rx="14" fill="#000" opacity=".3" filter="url(#sh)"/></g>
+  <g id="o_bus" transform="translate(230 406) rotate(-6)" stroke="#25282C" stroke-linejoin="round">
+    <rect x="-120" y="-32" width="240" height="64" rx="14" fill="#E8A030" stroke-width="4.5"/>
+    <rect x="-112" y="-24" width="224" height="18" rx="5" fill="#C98420" stroke-width="2.5"/>
+    <g fill="#3A4A5C" stroke-width="2"><rect x="-104" y="-22" width="30" height="14" rx="2"/><rect x="-68" y="-22" width="30" height="14" rx="2"/><rect x="-32" y="-22" width="30" height="14" rx="2"/><rect x="4" y="-22" width="30" height="14" rx="2"/><rect x="40" y="-22" width="30" height="14" rx="2"/><rect x="76" y="-22" width="30" height="14" rx="2"/></g>
+    <g fill="#2A2A2E" stroke-width="2.5"><circle cx="-80" cy="16" r="13"/><circle cx="80" cy="16" r="13"/></g>
+    <rect x="-40" y="6" width="60" height="12" rx="3" fill="#fff" stroke-width="2"/>
+    <g fill="#5A3A22" opacity=".6" stroke="none"><ellipse cx="96" cy="0" rx="16" ry="10"/></g>
+  </g>
+  <use href="#shard" x="140" y="448"/><use href="#shard" x="190" y="452"/><use href="#shard" x="320" y="444"/>
+  <flash ref="o_bus" begin="0"/>
+
+  <use href="#jam" transform="translate(420 380) rotate(-12)" fill="#5D8FC9"/>
+  <use href="#jam" transform="translate(740 420) rotate(10)" fill="#4FA83A"/>
+  <use href="#jam" transform="translate(612 250) rotate(84)" fill="#8E3226"/><use href="#flame" x="612" y="248"/><use href="#plume" x="620" y="226"/>
+
+  <!-- AMBULANCE (tappable) -->
+  <g transform="translate(886 412) rotate(-8)"><rect x="-66" y="-28" width="132" height="60" rx="10" fill="#000" opacity=".3" filter="url(#sh)"/></g>
+  <g id="o_amb" stroke="#25282C" stroke-linejoin="round">
+    <g transform="translate(880 404) rotate(-8)">
+      <rect x="-66" y="-30" width="132" height="60" rx="10" fill="#F2F2EE" stroke-width="4.5"/>
+      <rect x="-66" y="-6" width="132" height="12" fill="#D9534F" stroke-width="2"/>
+      <rect x="-60" y="-24" width="34" height="48" rx="6" fill="#3A4A5C" stroke-width="2.5"/>
+      <g transform="translate(20 0)"><rect x="-14" y="-5" width="28" height="10" fill="#D9534F" stroke-width="1.5"/><rect x="-5" y="-14" width="10" height="28" fill="#D9534F" stroke-width="1.5"/></g>
+      <path d="M66 -30 L88 -44 M66 30 L88 44" stroke-width="5"/>
+    </g>
+    <rect x="948" y="440" width="28" height="20" rx="4" fill="#D9534F" stroke-width="3" transform="rotate(-16 962 450)"/>
+  </g>
+  <flash ref="o_amb" begin="0.7"/>
+
+  <!-- DOWNED POWER LINE (tappable) -->
+  <g id="o_line" stroke="#25282C" stroke-linejoin="round">
+    <circle cx="676" cy="474" r="11" fill="#7A5232" stroke-width="3"/>
+    <rect x="672" y="474" width="9" height="140" rx="3" fill="#8A5A34" stroke-width="2.5" transform="rotate(150 676 474)"/>
+    <path d="M676 474 Q720 430 780 456 Q820 470 860 446 M676 474 Q690 520 730 540" fill="none" stroke-width="6" stroke-linecap="round"/>
+    <path d="M676 474 Q720 430 780 456 Q820 470 860 446 M676 474 Q690 520 730 540" fill="none" stroke="#E08A3A" stroke-width="3" stroke-linecap="round"/>
+  </g>
+  <g fill="#FFD34D"><circle cx="730" cy="540" r="4"/><circle cx="738" cy="534" r="2"/><circle cx="724" cy="546" r="2"/></g>
+  <flash ref="o_line" begin="1.3"/>
+
+  <!-- cones, a barricade, paper, ash -->
+  <g stroke="#25282C" stroke-width="2.5"><circle cx="540" cy="370" r="9" fill="#F28C38"/><circle cx="690" cy="300" r="9" fill="#F28C38"/><rect x="40" y="366" width="80" height="14" rx="3" fill="#F2F2EE"/></g>
+  <g fill="#fff"><circle cx="540" cy="370" r="3.5"/><circle cx="690" cy="300" r="3.5"/></g>
+  <path d="M48 366 L42 380 M66 366 L60 380 M84 366 L78 380 M102 366 L96 380" stroke="#E0584A" stroke-width="5"/>
+  <g fill="#E8E4DA" opacity=".85"><rect x="380" y="430" width="10" height="7" transform="rotate(20 385 433)"/><rect x="800" y="380" width="10" height="7" transform="rotate(-30 805 383)"/><rect x="590" y="520" width="10" height="7"/></g>
+  <rect width="1000" height="700" fill="#3A3632" opacity=".12"/>
+
+  <card x="700" y="96" ax="460" ay="160" name="Gutted apartments" desc="The roof burned through. Rooms lie open." time="2h" loot="cloth,wire" danger="danger"/>
+  <hud region="DEAD CITY" danger="danger" hours="7" loot="Cloth, glass, wire"/>
+</svg>

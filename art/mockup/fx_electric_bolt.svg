@@ -1,5 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 200" width="30" height="200">
-  <defs><filter id="blur" x="-100%" y="-10%" width="300%" height="120%"><feGaussianBlur stdDeviation="3"/></filter></defs>
-  <polyline points="15,4 11,16 19,28 11,40 19,52 11,64 19,76 11,88 19,100 11,112 19,124 11,136 19,148 11,160 19,172 11,184 15,196" fill="none" stroke="#4FC3FF" stroke-width="6" opacity="0.8" filter="url(#blur)"/>
-  <polyline points="15,4 11,16 19,28 11,40 19,52 11,64 19,76 11,88 19,100 11,112 19,124 11,136 19,148 11,160 19,172 11,184 15,196" fill="none" stroke="#D8F4FF" stroke-width="2.5" stroke-linejoin="miter"/>
-</svg>
