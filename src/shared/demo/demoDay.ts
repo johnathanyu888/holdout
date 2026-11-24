@@ -18,7 +18,7 @@ export const demoDay: DayConfig = {
     saw_blade: 3,
     spike_floor: 3,
   },
-  materials: { wire: 60, wood: 12, stone: 0 },
+  materials: { wire: 36, wood: 24, stone: 0 },
   buildSeconds: 240,
   raidMaxSeconds: 45,
   spawns: {
@@ -30,6 +30,8 @@ export const demoDay: DayConfig = {
     groupMax: 3,
   },
   par: 1000,
+  // A broken Tesla coil near the inlet: 2:00 of build time to bring it back.
+  fixtures: [{ type: 'tesla_coil', x: 6, y: 8, rot: 0, broken: true, repairSeconds: 120 }],
 };
 
 /** Sandbox: same map and inlet, effectively unlimited kit and materials, no clock pressure. */

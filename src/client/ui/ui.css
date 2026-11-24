@@ -1316,3 +1316,469 @@
     font-size: 12px;
   }
 }
+/* ---- part card, floating over the selected part ------------------------------- */
+
+.inspector.floating {
+  position: absolute;
+  bottom: auto !important;
+  width: max-content;
+  max-width: min(320px, calc(100vw - 20px));
+  z-index: 2;
+  animation: card-pop 140ms ease-out;
+}
+
+.inspector.floating.above {
+  transform: translate(-50%, -100%);
+}
+
+.inspector.floating.below {
+  transform: translate(-50%, 0);
+}
+
+/* the pointer down (or up) to the part */
+.inspector.floating::after {
+  content: '';
+  position: absolute;
+  left: var(--arrow, 50%);
+  width: 12px;
+  height: 12px;
+  margin-left: -6px;
+  background: inherit;
+  border: inherit;
+  transform: rotate(45deg);
+}
+
+.inspector.floating.above::after {
+  bottom: -7.5px;
+  border-top: 0;
+  border-left: 0;
+}
+
+.inspector.floating.below::after {
+  top: -7.5px;
+  border-bottom: 0;
+  border-right: 0;
+}
+
+@keyframes card-pop {
+  from {
+    opacity: 0;
+  }
+}
+
+/* ---- briefing card ------------------------------------------------------------ */
+
+.card.briefing {
+  width: min(460px, 100%);
+  padding: 22px 22px 18px;
+  display: flex;
+  flex-direction: column;
+}
+
+.brief-hero {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.brief-portrait {
+  flex: 0 0 auto;
+  width: 78px;
+  height: 78px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 40%, #3d4a2c, #1b2117 70%);
+  box-shadow: inset 0 0 0 2px rgba(143, 196, 106, 0.35), 0 0 22px rgba(143, 196, 106, 0.18);
+}
+
+.brief-portrait img {
+  width: 66px;
+  height: 66px;
+}
+
+.brief-head h1 {
+  margin: 6px 0 4px;
+}
+
+.brief-head .blurb {
+  margin: 0;
+}
+
+.brief-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.brief-stats div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 10px 4px 9px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.brief-stats b {
+  font-size: 22px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+
+.brief-stats span {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.card.briefing .section-label {
+  margin-bottom: 8px;
+}
+
+.card.briefing .kit {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
+  gap: 6px;
+  margin: 0 0 18px;
+}
+
+.card.briefing .kit-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 9px 5px 5px;
+  border: 0;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: none;
+  font-size: 13px;
+}
+
+.card.briefing .kit-item img {
+  width: 28px;
+  height: 28px;
+}
+
+.kit-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 700;
+  color: #c9c1b2;
+}
+
+.brief-steps {
+  margin: 0 0 18px;
+  padding: 0;
+  list-style: none;
+  counter-reset: step;
+  display: grid;
+  gap: 8px;
+}
+
+.brief-steps li {
+  counter-increment: step;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: #d8d1c4;
+}
+
+.brief-steps li::before {
+  content: counter(step);
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.brief-auto {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.brief-bar {
+  width: 100%;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.brief-bar i {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transition: width 1s linear;
+}
+
+.brief-auto span {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+/* ---- time warnings ------------------------------------------------------------ */
+
+.time-warning {
+  position: absolute;
+  top: calc(var(--safe-t) + 74px);
+  left: 50%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 20px;
+  border-radius: 12px;
+  background: rgba(14, 18, 24, 0.94);
+  border: 2px solid var(--accent);
+  box-shadow: 0 0 0 6px rgba(242, 181, 68, 0.15), 0 14px 30px rgba(0, 0, 0, 0.4);
+  color: var(--accent);
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  pointer-events: none;
+  animation: warn-in 2600ms ease both;
+}
+
+.time-warning svg {
+  width: 24px;
+  height: 24px;
+}
+
+.time-warning.urgent {
+  border-color: var(--bad);
+  color: #ff9c90;
+  box-shadow: 0 0 0 6px rgba(232, 87, 74, 0.2), 0 14px 30px rgba(0, 0, 0, 0.4);
+}
+
+@keyframes warn-in {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -10px) scale(0.9);
+  }
+  8% {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1.06);
+  }
+  14% {
+    transform: translate(-50%, 0) scale(1);
+  }
+  85% {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -6px) scale(0.98);
+  }
+}
+
+/* ---- shop button when nothing is affordable ----------------------------------- */
+
+#ui .shop-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  border-color: rgba(255, 255, 255, 0.08);
+  color: var(--muted) !important;
+}
+
+/* ---- phones: two rows of bigger slots, a slimmer Fight ------------------------- */
+
+@media (max-width: 560px) {
+  .tray {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 58px));
+    justify-content: center;
+    gap: 6px;
+    padding: 6px;
+    width: auto;
+  }
+  .hotbar {
+    justify-content: center;
+  }
+  .tool {
+    width: 100%;
+    border-width: 3px;
+  }
+  .tool-icon,
+  .tool-icon img {
+    width: 74%;
+    height: 74%;
+  }
+  .tool-icon svg {
+    width: 22px;
+    height: 22px;
+  }
+  .key {
+    font-size: 9px;
+    top: 1px;
+    left: 4px;
+  }
+  .count {
+    font-size: 13px;
+    right: 4px;
+    bottom: 1px;
+  }
+  .badge {
+    width: 16px;
+    height: 16px;
+    font-size: 10px;
+  }
+  .fight-btn {
+    height: 42px;
+  }
+  .fight-main {
+    font-size: 17px;
+  }
+  .fight-btn .swords {
+    width: 18px;
+    height: 18px;
+  }
+  .toast {
+    bottom: calc(var(--safe-b) + 200px);
+  }
+  .time-warning {
+    font-size: 18px;
+    padding: 8px 16px;
+    top: calc(var(--safe-t) + 60px);
+  }
+  .brief-portrait {
+    width: 62px;
+    height: 62px;
+  }
+  .brief-portrait img {
+    width: 52px;
+    height: 52px;
+  }
+}
+
+/* ---- briefing exit ------------------------------------------------------------ */
+
+.modal-wrap.leaving {
+  animation: none;
+  opacity: 0;
+  transition: opacity 360ms ease-in 40ms;
+  pointer-events: none;
+}
+
+.card.briefing.leaving {
+  animation: none;
+  transform: translateY(-36px) scale(0.92);
+  opacity: 0;
+  transition: transform 360ms cubic-bezier(0.5, 0, 0.75, 0), opacity 300ms ease-in;
+}
+
+/* ---- broken machine card ------------------------------------------------------ */
+
+.insp-broken-img {
+  filter: grayscale(0.8) brightness(0.75);
+}
+
+.repair-btn {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 8px;
+  height: 32px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--accent);
+  color: var(--accent-ink) !important;
+  font-size: 13px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+
+.repair-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.repair-btn:not(:disabled):hover {
+  filter: brightness(1.08);
+}
+
+#ui .repair-btn:disabled {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--muted) !important;
+}
+
+.insp-note {
+  margin-top: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #ff9c90;
+}
+
+/* ---- build HUD entrance: the hotbar and Fight slide up, the clock drops in ------ */
+
+.tray-wrap {
+  animation: hud-up 460ms cubic-bezier(0.2, 0.9, 0.3, 1) both;
+}
+
+.tray-wrap .fight-dock {
+  animation: hud-up 460ms cubic-bezier(0.2, 0.9, 0.3, 1) 80ms both;
+}
+
+.clock-group {
+  animation: hud-down 420ms cubic-bezier(0.2, 0.9, 0.3, 1) 60ms both;
+}
+
+@keyframes hud-up {
+  from {
+    opacity: 0;
+    transform: translateY(40px);
+  }
+}
+
+@keyframes hud-down {
+  from {
+    opacity: 0;
+    transform: translateY(-24px);
+  }
+}
+
+/* roomier floating part card */
+.inspector.floating {
+  gap: 12px;
+  padding: 12px 14px 12px 12px;
+  border-radius: 12px;
+}
+
+.inspector.floating .insp-sub {
+  margin-top: 3px;
+}
+
+.inspector.floating .insp-controls {
+  margin-top: 4px;
+}
+
+@media (max-width: 480px) {
+  .inspector.floating {
+    gap: 9px;
+    padding: 9px 10px 9px 9px;
+  }
+}

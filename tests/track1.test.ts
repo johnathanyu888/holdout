@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
+import { eraseAt, placePart } from '@shared/build/rules';
+import { FIXTURE_ID_BASE } from '@shared/build/fixtures';
 import { demoDay } from '@shared/demo/demoDay';
 import { key } from '@shared/grid';
-import { blinkerFloods, createSim, partDef, powerPreview, step, type SimCtx, type SimEvent, type SimState } from '@shared/sim';
+import { INLET_PART_ID, blinkerFloods, createSim, partDef, powerPreview, step, type SimCtx, type SimEvent, type SimState } from '@shared/sim';
 import type { Contraption, PlacedPart } from '@shared/types/build';
 import type { DayConfig } from '@shared/types/day';
 
@@ -148,14 +150,19 @@ describe('delay: blink mode', () => {
 });
 
 describe('spike floor', () => {
-  it('held up on constant power: 2 damage a step, and zombies cross at half speed', () => {
+  it('held up on constant power: one 20-damage stab per zombie, and it crosses at half speed', () => {
     const c = build([{ id: 1, type: 'spike_floor', x: 12, y: 5, rot: 0 }], wires([13, 5]));
     const st = createSim(day({ x: 14, y: 5 }), c, { schedule: one });
-    const ev = run(st, 400);
+    let onTile = 0;
+    const ev = run(st, 400, (s) => {
+      const z = s.zombies[0];
+      if (z && Math.floor(z.x) === 12 && Math.floor(z.y) === 5) onTile++;
+    });
     const hits = ev.filter((e) => e.type === 'hit' && e.partId === 1);
+    expect(hits).toHaveLength(1);
+    expect((hits[0] as { amount: number }).amount).toBe(20);
     // A shambler crosses a tile in ~11 steps; at half speed it takes ~22.
-    expect(hits.length).toBeGreaterThanOrEqual(18);
-    expect(hits.every((h) => (h as { amount: number }).amount === 2)).toBe(true);
+    expect(onTile).toBeGreaterThanOrEqual(18);
   });
   it('a tick only punches once per cooldown', () => {
     // A clock-like source: tripwire ticks can't repeat this fast, so drive the tick layer directly.
@@ -173,5 +180,64 @@ describe('spike floor', () => {
       if (events.some((e) => e.type === 'partFired')) punches++;
     }
     expect(punches).toBe(2); // at i = 0 and once the 10-step cooldown ends (i = 10)
+  });
+});
+
+describe('map machines (broken Tesla coil)', () => {
+  // A coil at (12, 6), wired straight to an inlet at (14, 6) through (13, 6):
+  // the shambler walking down x = 12.5 passes right over it.
+  const withCoil = (broken: boolean): DayConfig => ({
+    ...day({ x: 14, y: 6 }),
+    fixtures: [{ type: 'tesla_coil', x: 12, y: 6, rot: 0, broken, repairSeconds: 120 }],
+  });
+  const c = build([], wires([13, 6]));
+
+  it('does nothing while broken', () => {
+    const st = createSim(withCoil(true), c, { schedule: one });
+    const ev = run(st, 400);
+    expect(ev.filter((e) => e.type === 'zap')).toHaveLength(0);
+  });
+  it('once repaired it zaps zombies in reach for 70', () => {
+    const st = createSim(withCoil(false), c, { schedule: one });
+    const ev = run(st, 400);
+    const zaps = ev.filter((e) => e.type === 'zap');
+    expect(zaps.length).toBeGreaterThanOrEqual(1);
+    const hits = ev.filter((e) => e.type === 'hit' && e.partId === FIXTURE_ID_BASE);
+    expect(hits.every((h) => (h as { amount: number }).amount === 70)).toBe(true);
+    expect(ev.some((e) => e.type === 'death')).toBe(true); // two zaps kill a shambler
+  });
+  it("can't be built on or removed", () => {
+    const d = withCoil(true);
+    expect(placePart(d, c, 'saw_blade', 12, 6)).toEqual({ ok: false, reason: 'A machine is here' });
+    expect(eraseAt(d, c, 12, 6)).toEqual({ ok: false, reason: "You can't remove a machine on the map" });
+    expect(eraseAt(d, c, 14, 6)).toEqual({ ok: false, reason: "You can't remove the power inlet" });
+  });
+});
+
+describe('power inlet: blink setting', () => {
+  // inlet (3, 3) -> wire (4, 3) -> spike floor (5, 3)
+  const c = { ...build([{ id: 1, type: 'spike_floor', x: 5, y: 3, rot: 0 }], wires([4, 3])), inlet: { blink: 1 } };
+
+  it('blinks as ticks: 0.5s on, 0.5s off, never steady', () => {
+    const st = createSim(day({ x: 3, y: 3 }), c, { schedule: [] });
+    const out: string[] = [];
+    run(st, 20, (s) => {
+      out.push(s.powerT[key(4, 3)]! > 0 ? '1' : '0');
+      expect(s.powerC[key(4, 3)]).toBe(0);
+    });
+    expect(out.join('')).toBe('11111000001111100000');
+  });
+  it('spikes punch on every beat', () => {
+    const st = createSim(day({ x: 3, y: 3 }), c, { schedule: [] });
+    const ev = run(st, 40);
+    expect(ev.filter((e) => e.type === 'partFired' && e.partId === 1)).toHaveLength(4);
+  });
+  it('the build preview has no steady power, and shows the inlet as a blinker', () => {
+    const d = day({ x: 3, y: 3 });
+    const pv = powerPreview(d, c);
+    expect(pv.inputs.get(1)).toEqual({ c: 0, t: 0 });
+    const b = blinkerFloods(c, pv, d);
+    expect(b.map((x) => x.id)).toEqual([INLET_PART_ID]);
+    expect(b[0]!.powerT[key(4, 3)]).toBe(14);
   });
 });

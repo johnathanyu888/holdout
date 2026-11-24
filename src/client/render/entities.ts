@@ -10,7 +10,18 @@
 
 import Phaser from 'phaser';
 import { GRID, TILE, TILE_COUNT, key, tileToWorld } from '@shared/grid';
-import { blinkerFloods, hasPartDef, partDef, partInput, powerPreview, type SimState } from '@shared/sim';
+import { workingFixtures } from '@shared/build/fixtures';
+import {
+  INLET_BLINK_STEPS,
+  INLET_PART_ID,
+  blinkerFloods,
+  hasPartDef,
+  partDef,
+  partInput,
+  powerPreview,
+  type SimState,
+} from '@shared/sim';
+import type { PlacedPart } from '@shared/types/build';
 import type { Contraption } from '@shared/types/build';
 import type { DayConfig } from '@shared/types/day';
 import { JOIN_SCALE, PART_SCALE, TEX } from '../core/assets';
@@ -21,6 +32,22 @@ import { DEPTH } from './layers';
 const WIRE_DIM = 0x8c7a6c;
 
 /** Neighbour offsets with the quarter turns that point a west-facing wire_end at them. */
+/** A small round warning badge with a wrench: "broken, tap to repair". */
+function brokenBadge(scene: Phaser.Scene): string {
+  const key = 'broken-badge';
+  if (scene.textures.exists(key)) return key;
+  const g = scene.add.graphics();
+  g.fillStyle(0x0d1116, 1).fillCircle(13, 13, 13);
+  g.fillStyle(0xf2b544, 1).fillCircle(13, 13, 10.5);
+  // wrench: a handle and an open jaw
+  g.lineStyle(3.2, 0x2a1d05, 1).lineBetween(8, 18, 15, 11);
+  g.fillStyle(0x2a1d05, 1).fillCircle(16.5, 9.5, 4);
+  g.fillStyle(0xf2b544, 1).fillCircle(18.5, 7.5, 2.2);
+  g.generateTexture(key, 26, 26);
+  g.destroy();
+  return key;
+}
+
 const SIDES: [dx: number, dy: number, turns: number][] = [
   [-1, 0, 0],
   [0, -1, 1],
@@ -61,6 +88,9 @@ export class EntityLayer {
   private readonly walls = new Map<number, Phaser.GameObjects.Image>();
   private readonly stubs = new Map<string, Stub>();
   private house: Phaser.GameObjects.Image | null = null;
+  private allParts: PlacedPart[] = [];
+  /** Broken map machines: the dark machine, a warning badge, and its sputtering sparks. */
+  private readonly broken = new Map<number, { sprite: Phaser.GameObjects.Image; badge: Phaser.GameObjects.Image; nextSpark: number }>();
   readonly inlet: Phaser.GameObjects.Image;
   private c: Contraption | null = null;
   private preview: ReturnType<typeof powerPreview> | null = null;
@@ -98,7 +128,10 @@ export class EntityLayer {
   sync(c: Contraption): void {
     this.c = c;
     this.preview = powerPreview(this.day, c);
-    this.blinkers = blinkerFloods(c, this.preview);
+    // The player's parts plus the map's repaired machines; broken ones draw apart.
+    this.allParts = [...c.parts, ...workingFixtures(this.day)];
+    this.syncBroken();
+    this.blinkers = blinkerFloods(c, this.preview, this.day);
 
     // House
     if (c.house) {
@@ -112,7 +145,7 @@ export class EntityLayer {
 
     // Parts (keyed by id)
     const seen = new Set<number>();
-    for (const part of c.parts) {
+    for (const part of this.allParts) {
       seen.add(part.id);
       const p = tileToWorld(part.x, part.y);
       const frame = partView(part.type).frame ?? part.type;
@@ -135,7 +168,12 @@ export class EntityLayer {
 
     // Wires: connect to wires, parts and the inlet.
     const wireSet = new Set(c.wires.map((w) => key(w.x, w.y)));
-    const linkSet = new Set<number>([key(this.day.inlet.x, this.day.inlet.y), ...c.parts.map((p) => key(p.x, p.y))]);
+    const fixtureTiles = (this.day.fixtures ?? []).map((f) => ({ x: f.x, y: f.y }));
+    const linkSet = new Set<number>([
+      key(this.day.inlet.x, this.day.inlet.y),
+      ...c.parts.map((p) => key(p.x, p.y)),
+      ...fixtureTiles.map((f) => key(f.x, f.y)),
+    ]);
     const inGrid = (x: number, y: number) => x >= 0 && y >= 0 && x < GRID && y < GRID;
     const linked = (x: number, y: number) => inGrid(x, y) && (wireSet.has(key(x, y)) || linkSet.has(key(x, y)));
     this.wireMask.clear();
@@ -148,7 +186,7 @@ export class EntityLayer {
 
     // Stubs: from each wire into a neighbouring part or the inlet.
     const want = new Map<string, { x: number; y: number; turns: number; from: number }>();
-    for (const t of [{ x: this.day.inlet.x, y: this.day.inlet.y }, ...c.parts])
+    for (const t of [{ x: this.day.inlet.x, y: this.day.inlet.y }, ...c.parts, ...fixtureTiles])
       for (const [dx, dy, turns] of SIDES) {
         const nx = t.x + dx;
         const ny = t.y + dy;
@@ -204,6 +242,48 @@ export class EntityLayer {
       }
   }
 
+  /** Creates / removes the broken-machine sprites to match the day's fixtures. */
+  private syncBroken(): void {
+    const fixtures = this.day.fixtures ?? [];
+    fixtures.forEach((f, i) => {
+      const have = this.broken.get(i);
+      if (!f.broken) {
+        if (have) {
+          have.sprite.destroy();
+          have.badge.destroy();
+          this.broken.delete(i);
+        }
+        return;
+      }
+      if (have) return;
+      const p = tileToWorld(f.x, f.y);
+      const frame = partView(f.type).frame ?? f.type;
+      const sprite = this.scene.add
+        .image(p.x, p.y, TEX.parts, frame)
+        .setScale(PART_SCALE)
+        .setAngle(f.rot * 90 - 8)
+        .setTint(0x6d6560)
+        .setDepth(DEPTH.parts + p.y);
+      const badge = this.scene.add
+        .image(p.x + 20, p.y - 20, brokenBadge(this.scene))
+        .setDepth(DEPTH.parts + p.y + 1);
+      this.broken.set(i, { sprite, badge, nextSpark: 0 });
+    });
+  }
+
+  /** Broken machines sputter: a dim flicker and the odd spark; the badge bobs. */
+  private updateBroken(time: number): void {
+    for (const [, b] of this.broken) {
+      const flicker = Math.sin(time * 23) > 0.92 ? 0x9a8f86 : 0x6d6560;
+      b.sprite.setTint(flicker);
+      b.badge.setScale(1 + 0.08 * Math.sin(time * 4)).setY(b.sprite.y - 20 + Math.sin(time * 2.2) * 1.5);
+      if (time > b.nextSpark) {
+        b.nextSpark = time + 0.7 + Math.random() * 1.6;
+        this.sparks.push({ x: b.sprite.x + (Math.random() - 0.5) * 30, y: b.sprite.y + (Math.random() - 0.5) * 30, until: time + 0.12, seed: Math.random() * 100 });
+      }
+    }
+  }
+
   /** Per-frame powered look. Pass the sim during a raid, null in build mode. */
   update(time: number, sim: SimState | null): void {
     if (!this.c) return;
@@ -236,13 +316,19 @@ export class EntityLayer {
     };
     for (const [k, s] of this.wires) wireLook(s, k);
     for (const st of this.stubs.values()) wireLook(st.sprite, st.from);
+    this.updateBroken(time);
     this.drawCurrent(time, powerC, powerT);
 
-    // The inlet always has power: a slow breath so it reads as live.
-    this.inlet.setScale(PART_SCALE * (1 + 0.035 * Math.sin(time * 3)));
+    // The inlet: a slow breath when steady; set to blink, it flashes with its beat.
+    if (this.c.inlet?.blink) {
+      const on = sim ? Math.floor(sim.tick / INLET_BLINK_STEPS) % 2 === 0 : blinkOn.has(INLET_PART_ID);
+      this.inlet.setScale(PART_SCALE * (on ? 1.07 : 1)).setTint(on ? 0xfff0c8 : 0x8f8f8f);
+    } else {
+      this.inlet.setScale(PART_SCALE * (1 + 0.035 * Math.sin(time * 3))).clearTint();
+    }
 
     const simParts = sim ? new Map(sim.parts.map((p) => [p.id, p])) : null;
-    for (const part of this.c.parts) {
+    for (const part of this.allParts) {
       const s = this.parts.get(part.id);
       if (!s) continue;
       const sp = simParts?.get(part.id) ?? null;
@@ -339,7 +425,76 @@ export class EntityLayer {
     }
   }
 
+  private glow: Phaser.GameObjects.Image | null = null;
+  private rangeG: Phaser.GameObjects.Graphics | null = null;
+
+  /**
+   * Range circles for ranged parts (e.g. the Tesla coil): a white, see-through
+   * disc showing how far it reaches. Faint on every working one; brighter and
+   * breathing on the selected one; a broken machine shows its range (dashed
+   * feel: outline only) when selected, so you can see what repairing it buys.
+   */
+  private drawRanges(sel: { x: number; y: number } | null, time: number): void {
+    this.rangeG ??= this.scene.add.graphics().setDepth(DEPTH.parts - 50);
+    const g = this.rangeG;
+    g.clear();
+    const pulse = 0.5 + 0.5 * Math.sin(time * 4.2);
+    const ring = (x: number, y: number, range: number, selected: boolean, broken: boolean) => {
+      const c = tileToWorld(x, y);
+      const r = range * TILE;
+      if (!broken) g.fillStyle(0xffffff, selected ? 0.1 + 0.05 * pulse : 0.05).fillCircle(c.x, c.y, r);
+      g.lineStyle(selected ? 3 : 2, 0xffffff, selected ? 0.55 + 0.3 * pulse : broken ? 0.4 : 0.28).strokeCircle(c.x, c.y, r);
+    };
+    for (const p of this.allParts) {
+      const range = hasPartDef(p.type) ? partDef(p.type).range : undefined;
+      if (range) ring(p.x, p.y, range, !!sel && sel.x === p.x && sel.y === p.y, false);
+    }
+    for (const f of this.day.fixtures ?? []) {
+      if (!f.broken || !sel || sel.x !== f.x || sel.y !== f.y) continue;
+      const range = hasPartDef(f.type) ? partDef(f.type).range : undefined;
+      if (range) ring(f.x, f.y, range, true, true);
+    }
+  }
+
+  /**
+   * Selection glow: an additive copy of the sprite on the selected tile (part,
+   * house or inlet) that breathes bright, fade, bright.
+   */
+  highlight(tile: { x: number; y: number } | null, time: number): void {
+    this.drawRanges(tile, time);
+    let s: Phaser.GameObjects.Image | null | undefined = null;
+    if (tile && this.c) {
+      const part = this.allParts.find((p) => p.x === tile.x && p.y === tile.y);
+      const bi = (this.day.fixtures ?? []).findIndex((f) => f.broken && f.x === tile.x && f.y === tile.y);
+      if (part) s = this.parts.get(part.id);
+      else if (bi >= 0) s = this.broken.get(bi)?.sprite;
+      else if (this.c.house && this.c.house.x === tile.x && this.c.house.y === tile.y) s = this.house;
+      else if (this.day.inlet.x === tile.x && this.day.inlet.y === tile.y) s = this.inlet;
+    }
+    if (!s) {
+      this.glow?.setVisible(false);
+      return;
+    }
+    this.glow ??= this.scene.add.image(0, 0, s.texture.key, s.frame.name).setBlendMode(Phaser.BlendModes.ADD);
+    const pulse = 0.5 + 0.5 * Math.sin(time * 4.2);
+    this.glow
+      .setTexture(s.texture.key, s.frame.name)
+      .setPosition(s.x, s.y)
+      .setRotation(s.rotation)
+      .setScale(s.scaleX * (1.02 + 0.03 * pulse), s.scaleY * (1.02 + 0.03 * pulse))
+      .setDepth(s.depth + 0.5)
+      .setTintFill(0xffffff)
+      .setAlpha(0.08 + 0.22 * pulse)
+      .setVisible(true);
+  }
+
   destroy(): void {
+    this.rangeG?.destroy();
+    for (const b of this.broken.values()) {
+      b.sprite.destroy();
+      b.badge.destroy();
+    }
+    this.glow?.destroy();
     this.zap.destroy();
     for (const m of [this.parts, this.wires, this.walls]) for (const s of m.values()) s.destroy();
     for (const st of this.stubs.values()) st.sprite.destroy();

@@ -3,11 +3,12 @@
 // server (validating a submitted contraption). Every op returns a new
 // Contraption (inputs are never mutated) or a reason it was refused.
 //
-// One thing per tile: house | part | wire | wall | the map's power inlet.
+// One thing per tile: house | part | wire | wall | the map's power inlet | a map machine.
 
 import { type Tile, edgeDistance, inLawn } from '../grid';
 import type { Contraption, PlacedPart, Rot, WallMaterial } from '../types/build';
 import type { DayConfig, Materials } from '../types/day';
+import { fixtureAt } from './fixtures';
 
 export const WIRE_COST = 1;
 export const WALL_COST = 3;
@@ -15,6 +16,7 @@ export const WALL_COST = 3;
 export type Occupant =
   | { kind: 'empty' }
   | { kind: 'inlet' }
+  | { kind: 'fixture'; index: number }
   | { kind: 'house' }
   | { kind: 'part'; part: PlacedPart }
   | { kind: 'wire' }
@@ -31,6 +33,8 @@ const same = (a: Tile, x: number, y: number) => a.x === x && a.y === y;
 
 export function occupantAt(day: DayConfig, c: Contraption, x: number, y: number): Occupant {
   if (same(day.inlet, x, y)) return { kind: 'inlet' };
+  const fx = fixtureAt(day, x, y);
+  if (fx >= 0) return { kind: 'fixture', index: fx };
   if (c.house && same(c.house, x, y)) return { kind: 'house' };
   const part = c.parts.find((p) => same(p, x, y));
   if (part) return { kind: 'part', part };
@@ -55,6 +59,7 @@ function needEmpty(day: DayConfig, c: Contraption, x: number, y: number): string
   const o = occupantAt(day, c, x, y);
   if (o.kind === 'empty') return null;
   if (o.kind === 'inlet') return 'The power inlet is here';
+  if (o.kind === 'fixture') return 'A machine is here';
   return 'Tile occupied';
 }
 
@@ -154,7 +159,9 @@ export function eraseAt(day: DayConfig, c: Contraption, x: number, y: number): R
     case 'empty':
       return { ok: false, reason: 'Nothing here' };
     case 'inlet':
-      return { ok: false, reason: "The power inlet can't be moved" };
+      return { ok: false, reason: "You can't remove the power inlet" };
+    case 'fixture':
+      return { ok: false, reason: "You can't remove a machine on the map" };
     case 'house':
       return { ok: true, c: { ...c, house: null } };
     case 'part':
@@ -169,6 +176,11 @@ export function eraseAt(day: DayConfig, c: Contraption, x: number, y: number): R
 export function rotatePart(c: Contraption, id: number, rot: Rot): Result {
   if (!c.parts.some((p) => p.id === id)) return { ok: false, reason: 'No such part' };
   return { ok: true, c: { ...c, parts: c.parts.map((p) => (p.id === id ? { ...p, rot } : p)) } };
+}
+
+/** Sets the power inlet to steady (blink 0) or blinking every 0.5s (blink 1). */
+export function configureInlet(c: Contraption, blink: number): Result {
+  return { ok: true, c: { ...c, inlet: blink ? { blink: 1 } : undefined } };
 }
 
 export function configurePart(c: Contraption, id: number, config: Record<string, number>): Result {
@@ -186,6 +198,7 @@ export function validate(day: DayConfig, c: Contraption): string[] {
   const claim = (x: number, y: number, what: string) => {
     if (!inLawn(x, y)) return problems.push(`${what} off the lawn at ${x},${y}`);
     if (same(day.inlet, x, y)) return problems.push(`${what} on the inlet`);
+    if (fixtureAt(day, x, y) >= 0) return problems.push(`${what} on a map machine`);
     const k = y * 1000 + x;
     if (seen.has(k)) problems.push(`two things on ${x},${y}`);
     seen.add(k);

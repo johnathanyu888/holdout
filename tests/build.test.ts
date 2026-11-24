@@ -101,10 +101,11 @@ describe('wires', () => {
 describe('walls and erase', () => {
   it('walls cost 3 of their material', () => {
     let c = emptyContraption();
-    for (let i = 0; i < 4; i++) c = ok(placeWall(day, c, 'wood', 3 + i, 5));
+    const walls = day.materials.wood / 3;
+    for (let i = 0; i < walls; i++) c = ok(placeWall(day, c, 'wood', 3 + (i % 10), 12 + Math.floor(i / 10)));
     expect(remaining(day, c).materials.wood).toBe(0);
-    expect(placeWall(day, c, 'wood', 3, 6)).toEqual({ ok: false, reason: 'Out of Wood' });
-    expect(placeWall(day, c, 'stone', 3, 6)).toEqual({ ok: false, reason: 'Out of Stone' });
+    expect(placeWall(day, c, 'wood', 3, 14)).toEqual({ ok: false, reason: 'Out of Wood' });
+    expect(placeWall(day, c, 'stone', 3, 14)).toEqual({ ok: false, reason: 'Out of Stone' });
   });
   it('erase refunds exactly', () => {
     let c = ok(placeHouse(day, emptyContraption(), 12, 12));
@@ -134,7 +135,7 @@ describe('validate', () => {
     const cheat: Contraption = {
       ...c,
       parts: [...c.parts, { id: 9, type: 'saw_blade', x: 3, y: 3, rot: 0 }],
-      walls: Array.from({ length: 5 }, (_, i) => ({ x: i + 5, y: 20, material: 'wood' as const })),
+      walls: Array.from({ length: day.materials.wood / 3 + 1 }, (_, i) => ({ x: i % 10, y: 14 - Math.floor(i / 10), material: 'wood' as const })),
     };
     const problems = validate(day, cheat);
     expect(problems).toContain('two things on 3,3');

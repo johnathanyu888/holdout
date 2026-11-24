@@ -108,6 +108,8 @@ export interface SimState {
   fieldDirty: boolean;
   outcome: Outcome;
   stats: { spawned: number; killed: number; breachBy: number | null };
+  /** 1 = the power inlet blinks (0.5s on as a tick, 0.5s off); 0 = steady. */
+  inletBlink: number;
 }
 
 /** Helpers handed to part and zombie code each step. */
@@ -141,6 +143,8 @@ export interface PartDef {
    * a part reads the strongest wire on any side and emits into all of them.
    */
   pins?: { in: number[]; out: number[] };
+  /** Ranged parts: how far (tiles, from the tile centre) they reach zombies. Drawn as a range circle. */
+  range?: number;
   /** Chips: in the build preview, does constant power in mean constant power out? (default true) */
   passesConstant?: boolean | ((config: Record<string, number>) => boolean);
   initState(part: SimPart): Record<string, number>;

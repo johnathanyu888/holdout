@@ -1,11 +1,12 @@
 // The DOM UI over the canvas. Reads the session; calls session.actions.
 
-import { useEffect, useState } from 'preact/hooks';
-import { WALL_COST, configurePart } from '@shared/build/rules';
+import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
+import { WALL_COST, configureInlet, configurePart } from '@shared/build/rules';
 import { hasPartDef, partDef, powerPreview } from '@shared/sim';
 import { useObs } from '../core/observable';
-import { buy, session, toast } from '../core/session';
-import { shopFor } from '../core/shop';
+import { buy, repairFixture, session, toast } from '../core/session';
+import { canAffordAny, shopFor } from '../core/shop';
+import { fixtureAt, workingFixtures } from '@shared/build/fixtures';
 import {
   IconErase,
   IconFit,
@@ -32,6 +33,8 @@ export function App() {
       {phase === 'build' && <Tray />}
       {phase === 'build' && session.mode === 'demo' && <Shop />}
       {phase === 'build' && <Inspector />}
+      {phase === 'build' && <InletCard />}
+      {phase === 'build' && session.mode === 'demo' && <TimeWarning />}
       {phase === 'raid' && <RaidBar />}
       {phase === 'result' && <Result />}
       {session.mode === 'sandbox' && (phase === 'build' || phase === 'raid') && <SandboxPanel />}
@@ -76,6 +79,7 @@ function TopBar() {
   const raidTime = useObs(session.raidTime);
   useObs(session.store.historyVersion);
   const building = phase === 'build';
+  const affordable = canAffordAny(shopFor(session.baseDay), left);
 
   let clock: preact.ComponentChildren = null;
   if (building && session.mode === 'demo')
@@ -87,7 +91,8 @@ function TopBar() {
         </div>
         <button
           class={`shop-btn ${shopOpen ? 'on' : ''}`}
-          title="Time Shop: trade build seconds for parts"
+          title={affordable ? 'Time Shop: trade build seconds for parts' : 'Not enough time left to buy anything'}
+          disabled={!affordable}
           onClick={() => session.shopOpen.set(!shopOpen)}
         >
           <IconCart />
@@ -158,6 +163,41 @@ function IconBtn(p: {
   );
 }
 
+/**
+ * A banner when the Build clock passes 2:00, 1:00 and 0:30: big, centred, there
+ * for a couple of seconds. The last one is red.
+ */
+function TimeWarning() {
+  const left = useObs(session.clock.left);
+  const prev = useRef(left);
+  const [msg, setMsg] = useState<{ text: string; urgent: boolean; id: number } | null>(null);
+  useEffect(() => {
+    const before = prev.current;
+    prev.current = left;
+    const hit = WARNINGS.find((w) => before > w.at && left <= w.at);
+    if (!hit) return;
+    setMsg({ text: hit.text, urgent: hit.at <= 30, id: Date.now() });
+  }, [left]);
+  useEffect(() => {
+    if (!msg) return;
+    const h = setTimeout(() => setMsg(null), 2600);
+    return () => clearTimeout(h);
+  }, [msg]);
+  if (!msg) return null;
+  return (
+    <div class={`time-warning ${msg.urgent ? 'urgent' : ''}`} key={msg.id} role="status">
+      <IconClock />
+      <span>{msg.text}</span>
+    </div>
+  );
+}
+
+const WARNINGS = [
+  { at: 120, text: '2 minutes left' },
+  { at: 60, text: '1 minute left' },
+  { at: 30, text: '30 seconds left' },
+];
+
 // ---- briefing -------------------------------------------------------------------
 
 const BRIEFING_SECONDS = 30;
@@ -168,50 +208,79 @@ function Briefing() {
     const t = setInterval(() => setLeft((n) => n - 1), 1000);
     return () => clearInterval(t);
   }, []);
+  // Leaving: the card lifts away and the night fades out, then building starts.
+  const [leaving, setLeaving] = useState(false);
+  const go = () => {
+    if (leaving) return;
+    setLeaving(true);
+    setTimeout(() => session.actions.startBuild(), 380);
+  };
   useEffect(() => {
-    if (left <= 0) session.actions.startBuild();
+    if (left <= 0) go();
   }, [left]);
   const { day } = session;
   const z = day.spawns.zombies.reduce((n, g) => n + g.count, 0);
+  const kit: { key: string; icon: string; label: string; n: string }[] = [
+    ...Object.entries(day.kit).map(([type, n]) => ({ key: type, icon: type, label: SHORT[type] ?? partLabel(type), n: `×${n}` })),
+    { key: 'wire', icon: 'wire', label: 'Wire', n: `${day.materials.wire}` },
+    ...(day.materials.wood > 0 ? [{ key: 'wood', icon: 'wood', label: 'Wood', n: `${day.materials.wood}` }] : []),
+  ];
   return (
-    <div class="modal-wrap">
-      <div class="card briefing">
-        <div class="eyebrow">NIGHT 1 · TONIGHT'S MUTATION</div>
-        <h1>{day.mutationName}</h1>
-        <p class="blurb">{day.mutationBlurb}</p>
-        <div class="facts">
-          <div>
+    <div class={`modal-wrap ${leaving ? 'leaving' : ''}`}>
+      <div class={`card briefing ${leaving ? 'leaving' : ''}`}>
+        <div class="brief-hero">
+          <div class="brief-portrait">
             <img src={icon('shambler')} alt="" />
-            <b>{z}</b> zombies, from every edge
           </div>
-          <div>
-            <img src={icon('power_inlet')} alt="" />
-            Power inlet at tile {day.inlet.x},{day.inlet.y}
+          <div class="brief-head">
+            <div class="eyebrow">NIGHT 1 · TONIGHT'S MUTATION</div>
+            <h1>{day.mutationName}</h1>
+            <p class="blurb">{day.mutationBlurb}</p>
           </div>
         </div>
+
+        <div class="brief-stats">
+          <div>
+            <b>{z}</b>
+            <span>zombies</span>
+          </div>
+          <div>
+            <b>4</b>
+            <span>sides</span>
+          </div>
+          <div>
+            <b>{fmtClock(day.buildSeconds)}</b>
+            <span>to build</span>
+          </div>
+        </div>
+
         <div class="section-label">YOUR KIT</div>
         <div class="kit">
-          {Object.entries(day.kit).map(([type, n]) => (
-            <div class="kit-item" key={type} title={partLabel(type)}>
-              <img src={icon(type)} alt="" />
-              <span>×{n}</span>
+          {kit.map((k) => (
+            <div class="kit-item" key={k.key} title={k.label}>
+              <img src={icon(k.icon)} alt="" />
+              <span class="kit-name">{k.label}</span>
+              <b>{k.n}</b>
             </div>
           ))}
-          <div class="kit-item" title="Wire">
-            <img src={icon('wire')} alt="" />
-            <span>{day.materials.wire}</span>
-          </div>
-          {day.materials.wood > 0 && (
-            <div class="kit-item" title="Wood">
-              <img src={icon('wood')} alt="" />
-              <span>{day.materials.wood}</span>
-            </div>
-          )}
         </div>
-        <p class="hint">Place your house. Build a machine that kills every zombie before one reaches it.</p>
-        <button class="big-btn" onClick={() => session.actions.startBuild()}>
-          Start building <span class="muted">({Math.max(0, left)})</span>
+
+        <div class="section-label">TONIGHT</div>
+        <ol class="brief-steps">
+          <li>Place your house anywhere inside the clearing.</li>
+          <li>Wire the power inlet to traps that kill.</li>
+          <li>Press Fight. Every zombie must fall before one reaches the house.</li>
+        </ol>
+
+        <button class="big-btn" onClick={go}>
+          Start building
         </button>
+        <div class="brief-auto">
+          <div class="brief-bar">
+            <i style={{ width: `${(Math.max(0, left) / BRIEFING_SECONDS) * 100}%` }} />
+          </div>
+          <span>Starts on its own in {Math.max(0, left)}s</span>
+        </div>
       </div>
     </div>
   );
@@ -227,13 +296,11 @@ function Tray() {
   const inv = session.store.inventory;
   const { day } = session;
   // Tapping the active slot again puts it away (back to tap-to-select). An empty
-  // slot opens the Time Shop instead.
+  // slot says where to get more.
   const pick = (id: string) => {
     const s = slot(id);
-    if (tool !== id && s.count !== undefined && s.count <= 0 && session.mode === 'demo') {
-      toast(`Out of ${s.label.toLowerCase()} · buy more in the Time Shop`);
-      session.shopOpen.set(true);
-    }
+    if (tool !== id && s.count !== undefined && s.count <= 0 && session.mode === 'demo')
+      toast(`Out of ${s.label.toLowerCase()} · you can buy more in the Time Shop`);
     session.tool.set(tool === id ? 'select' : id);
   };
   const ready = !!c.house;
@@ -273,11 +340,37 @@ function Tray() {
           : null
       : null;
 
+  // Centre the tag over its slot, kept inside the hotbar's edges.
+  const hotbarRef = useRef<HTMLDivElement>(null);
+  const tipRef = useRef<HTMLDivElement>(null);
+  const [tipLeft, setTipLeft] = useState<number | null>(null);
+  useLayoutEffect(() => {
+    const place = () => {
+      const bar = hotbarRef.current;
+      const tag = tipRef.current;
+      const btn = tipId ? bar?.querySelector<HTMLElement>(`[data-slot="${tipId}"]`) : null;
+      if (!bar || !tag || !btn) return setTipLeft(null);
+      const b = btn.getBoundingClientRect();
+      const r = bar.getBoundingClientRect();
+      const half = tag.offsetWidth / 2;
+      const centre = b.left + b.width / 2 - r.left;
+      setTipLeft(Math.max(half, Math.min(r.width - half, centre)));
+    };
+    place();
+    window.addEventListener('resize', place);
+    return () => window.removeEventListener('resize', place);
+  }, [tipId, tip?.title, tipDetail]);
+
   return (
     <div class="tray-wrap">
-      <div class="hotbar">
+      <div class="hotbar" ref={hotbarRef}>
         {tip && (
-          <div class="hotbar-tip" key={tipId ?? ''}>
+          <div
+            class="hotbar-tip"
+            key={tipId ?? ''}
+            ref={tipRef}
+            style={tipLeft === null ? { visibility: 'hidden' } : { left: `${tipLeft}px` }}
+          >
             <b>{tip.title ?? tip.label}</b>
             {tipDetail && <span>{tipDetail}</span>}
           </div>
@@ -331,6 +424,7 @@ function ToolBtn(p: {
       class={`tool ${on ? 'active' : ''} ${empty ? 'empty' : ''}`}
       aria-label={`${p.title ?? p.label} (${p.keyHint})`}
       aria-pressed={on}
+      data-slot={p.id}
       onClick={() => p.onPick(p.id)}
       onMouseEnter={() => p.onHover(p.id)}
     >
@@ -395,6 +489,15 @@ function IconCart() {
   );
 }
 
+function IconWrench() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M14.5 6.5 a4 4 0 0 0 5 5 L12 19 a2.1 2.1 0 0 1 -3 -3 Z" />
+      <path d="M14.5 6.5 L17 4 M19.5 11.5 L20 9" />
+    </svg>
+  );
+}
+
 function IconClock() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
@@ -418,20 +521,121 @@ function IconSwords() {
 }
 
 /** Rotation for the active part tool, or info about the selected part. */
-function Inspector() {
-  const tool = useObs(session.tool);
-  const rot = useObs(session.rot);
+/** Places a floating card above (or below, near the top) a screen anchor, kept on screen. */
+function useFloatingCard(anchor: { x: number; y: number; size: number } | null) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [w, setW] = useState(280);
+  useLayoutEffect(() => {
+    if (ref.current && ref.current.offsetWidth !== w) setW(ref.current.offsetWidth);
+  });
+  if (!anchor) return { ref, below: false, style: {} };
+  const below = anchor.y < 190;
+  const x = Math.max(10 + w / 2, Math.min(window.innerWidth - 10 - w / 2, anchor.x));
+  const arrow = Math.max(14, Math.min(w - 14, anchor.x - (x - w / 2)));
+  const style = { left: `${x}px`, top: `${below ? anchor.y + anchor.size + 12 : anchor.y - 12}px`, '--arrow': `${arrow}px` };
+  return { ref, below, style };
+}
+
+/**
+ * The power inlet's card: it's always on, and can run steady or blink every 0.5s
+ * (blinking sends ticks, like a Blink delay, so spikes punch on each beat).
+ */
+function InletCard() {
   const sel = useObs(session.selected);
+  const anchor = useObs(session.selAnchor);
   const c = useObs(session.store.contraption);
-  const placingType = tool.startsWith('part:') ? tool.slice(5) : null;
-  const selPart = sel ? c.parts.find((p) => p.x === sel.x && p.y === sel.y) : undefined;
-  const type = placingType ?? selPart?.type;
-  if (!type || !hasPartDef(type)) return null;
+  const isInlet = !!sel && sel.x === session.day.inlet.x && sel.y === session.day.inlet.y;
+  const { ref, below, style } = useFloatingCard(isInlet ? anchor : null);
+  if (!isInlet || !anchor) return null;
+  const blink = !!c.inlet?.blink;
+  const set = (b: number) => session.store.apply((cc) => configureInlet(cc, b));
+  return (
+    <div class={`inspector floating ${below ? 'below' : 'above'}`} ref={ref} style={style}>
+      <img src={icon('power_inlet')} alt="" />
+      <div class="insp-body">
+        <div class="insp-title">
+          Power inlet
+          <span class="insp-power ok">Always on · 15</span>
+        </div>
+        <div class="insp-sub">
+          {blink
+            ? 'Blinking: a tick every 0.5s, then a 0.5s gap. Spikes punch on every beat.'
+            : 'Steady: powers whatever it is wired to, non-stop.'}
+        </div>
+        <div class="insp-controls">
+          <div class="insp-seg" role="group" aria-label="Inlet mode">
+            <button class={!blink ? 'on' : ''} onClick={() => set(0)}>
+              Steady
+            </button>
+            <button class={blink ? 'on blink' : ''} onClick={() => set(1)}>
+              Blink 0.5s
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The part card: floats just above the selected part (below it near the top of
+ * the screen), centred on it and kept on screen. Only for a selected placed part.
+ */
+function Inspector() {
+  const sel = useObs(session.selected);
+  const anchor = useObs(session.selAnchor);
+  const c = useObs(session.store.contraption);
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [w, setW] = useState(280);
+  useObs(session.repaired);
+  const left = useObs(session.clock.left);
+  const fxIndex = sel ? fixtureAt(session.day, sel.x, sel.y) : -1;
+  const fixture = fxIndex >= 0 ? session.day.fixtures?.[fxIndex] : undefined;
+  const selPart = sel
+    ? (c.parts.find((p) => p.x === sel.x && p.y === sel.y) ??
+      workingFixtures(session.day).find((p) => p.x === sel.x && p.y === sel.y))
+    : undefined;
+  const type = selPart?.type ?? (fixture?.broken ? fixture.type : undefined);
+  useLayoutEffect(() => {
+    if (cardRef.current) setW(cardRef.current.offsetWidth);
+  });
+  if (!type || !hasPartDef(type) || !anchor) return null;
   const def = partDef(type);
+  const below = anchor.y < 190;
+  const vw = window.innerWidth;
+  const cardX = Math.max(10 + w / 2, Math.min(vw - 10 - w / 2, anchor.x));
+  const arrow = Math.max(14, Math.min(w - 14, anchor.x - (cardX - w / 2)));
+  const pos = below
+    ? { left: `${cardX}px`, top: `${anchor.y + anchor.size + 12}px`, '--arrow': `${arrow}px` }
+    : { left: `${cardX}px`, top: `${anchor.y - 12}px`, '--arrow': `${arrow}px` };
+
+  // A broken map machine: what it is, and the repair button.
+  if (fixture?.broken && fxIndex >= 0) {
+    const cost = fixture.repairSeconds;
+    const can = session.mode !== 'demo' || left - cost >= 5;
+    return (
+      <div class={`inspector floating ${below ? 'below' : 'above'}`} ref={cardRef} style={pos}>
+        <img src={icon(type)} alt="" class="insp-broken-img" />
+        <div class="insp-body">
+          <div class="insp-title">
+            {def.label}
+            <span class="insp-power bad">Broken</span>
+          </div>
+          <div class="insp-sub">{PART_INFO[type] ?? ''}. Repair it and it works where it stands.</div>
+          <button class="repair-btn" disabled={!can} onClick={() => repairFixture(fxIndex)}>
+            <IconWrench />
+            Repair · −{fmtClock(cost)}
+          </button>
+          {!can && <div class="insp-note">Not enough build time left</div>}
+        </div>
+      </div>
+    );
+  }
+  if (!selPart) return null;
 
   // Live power for a selected placed part (the build preview: inlet + chips, no zombies).
   let power: { text: string; ok: boolean } | null = null;
-  if (selPart && !placingType) {
+  {
     const got = powerPreview(session.day, c).inputs.get(selPart.id) ?? { c: 0, t: 0 };
     const s = Math.max(got.c, got.t);
     if (def.kind === 'action')
@@ -444,7 +648,7 @@ function Inspector() {
     selPart && session.store.apply((cc) => configurePart(cc, selPart.id, { ...selPart.config, ...patch }));
 
   return (
-    <div class="inspector">
+    <div class={`inspector floating ${below ? 'below' : 'above'}`} ref={cardRef} style={pos}>
       <img src={icon(type)} alt="" />
       <div class="insp-body">
         <div class="insp-title">
@@ -475,7 +679,6 @@ function Inspector() {
       {def.rotatable && (
         <button class="icon-btn" title="Turn (R)" onClick={() => session.actions.rotate()}>
           <IconRotate />
-          {placingType && <span class="rot">{['E', 'S', 'W', 'N'][rot]}</span>}
         </button>
       )}
     </div>
@@ -490,8 +693,9 @@ const PART_INFO: Record<string, string> = {
   pressure_plate: 'Powers its wires (10) while a zombie stands on it',
   tripwire: 'Sends a tick (10) when a zombie walks through the cord',
   delay: 'Passes power on after a wait · in on the left, out on the right',
+  tesla_coil: 'Zaps the nearest zombie for 70, arcing on to a second · needs 6',
   saw_blade: 'Cuts 60 damage a second while powered · needs 2',
-  spike_floor: 'Tick: a 45-damage punch · constant: 20/s and slows · needs 2',
+  spike_floor: 'Tick: a 45-damage punch each time · steady power: one 20 stab per zombie, and slows · needs 2',
 };
 
 // ---- raid -----------------------------------------------------------------------

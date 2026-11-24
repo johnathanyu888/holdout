@@ -17,14 +17,22 @@ export interface ShopItem {
 }
 
 export const SHOP: ShopItem[] = [
-  { id: 'saw_blade', label: 'Saw blade', icon: 'saw_blade', price: 20, give: { part: 'saw_blade', n: 1 }, blurb: '60 damage a second' },
-  { id: 'spike_floor', label: 'Spike floor', icon: 'spike_floor', price: 15, give: { part: 'spike_floor', n: 1 }, blurb: 'Punch or hold and slow' },
-  { id: 'pressure_plate', label: 'Pressure plate', icon: 'pressure_plate', price: 10, give: { part: 'pressure_plate', n: 1 }, blurb: 'Power while stepped on' },
-  { id: 'tripwire', label: 'Tripwire', icon: 'tripwire', price: 8, give: { part: 'tripwire', n: 1 }, blurb: 'A tick when crossed' },
-  { id: 'delay', label: 'Delay', icon: 'delay', price: 8, give: { part: 'delay', n: 1 }, blurb: 'Waits, then passes on' },
-  { id: 'wire', label: 'Wire ×10', icon: 'wire', price: 10, give: { material: 'wire', n: 10 }, blurb: 'Ten more wire tiles' },
-  { id: 'wood', label: 'Wood ×3', icon: 'wood', price: 8, give: { material: 'wood', n: 3 }, blurb: 'One more wood wall' },
+  { id: 'saw_blade', label: 'Saw blade', icon: 'saw_blade', price: 35, give: { part: 'saw_blade', n: 1 }, blurb: '60 damage a second' },
+  { id: 'spike_floor', label: 'Spike floor', icon: 'spike_floor', price: 25, give: { part: 'spike_floor', n: 1 }, blurb: 'Punches on every tick' },
+  { id: 'pressure_plate', label: 'Pressure plate', icon: 'pressure_plate', price: 18, give: { part: 'pressure_plate', n: 1 }, blurb: 'Power while stepped on' },
+  { id: 'tripwire', label: 'Tripwire', icon: 'tripwire', price: 15, give: { part: 'tripwire', n: 1 }, blurb: 'A tick when crossed' },
+  { id: 'delay', label: 'Delay', icon: 'delay', price: 15, give: { part: 'delay', n: 1 }, blurb: 'Waits, then passes on' },
+  { id: 'wire', label: 'Wire ×10', icon: 'wire', price: 20, give: { material: 'wire', n: 10 }, blurb: 'Ten more wire tiles' },
+  { id: 'wood', label: 'Wood ×3', icon: 'wood', price: 15, give: { material: 'wood', n: 3 }, blurb: 'One more wood wall' },
 ];
+
+/** Buying can't take the Build clock below this many seconds. */
+export const MIN_LEFT_AFTER_BUY = 5;
+
+/** Can anything on sale still be bought with this much time left? */
+export function canAffordAny(items: ShopItem[], left: number): boolean {
+  return items.some((i) => left - i.price >= MIN_LEFT_AFTER_BUY);
+}
 
 /** The day's kit with `bought` (counts per shop item id) added to the base day. */
 export function applyPurchases(base: DayConfig, into: DayConfig, bought: Record<string, number>): void {

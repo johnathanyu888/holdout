@@ -10,7 +10,7 @@ import type { DayConfig } from '@shared/types/day';
 import { type ApiClient, createApi, local } from './api';
 import { Obs } from './observable';
 import { PhaseClock } from './phaseClock';
-import { type ShopItem, applyPurchases } from './shop';
+import { MIN_LEFT_AFTER_BUY, type ShopItem, applyPurchases } from './shop';
 import { BuildStore } from './store';
 
 export type Mode = 'demo' | 'sandbox';
@@ -57,13 +57,30 @@ function createSession() {
   const baseDay: DayConfig = mode === 'sandbox' ? sandboxDay : demoDay;
   // The player's own copy: Time Shop purchases add to its kit.
   const day: DayConfig = structuredClone(baseDay);
+  // A reload starts the night completely fresh (no build, purchases, repairs or
+  // spent time). Only the sandbox remembers its build across reloads.
+  const restore = mode === 'sandbox';
   const boughtKey = `bought:${day.id}`;
-  const bought0 = local.load<Record<string, number>>(boughtKey) ?? {};
+  const bought0 = (restore && local.load<Record<string, number>>(boughtKey)) || {};
   applyPurchases(baseDay, day, bought0);
   const saveKey = `contraption:${day.id}`;
-  const saved = local.load<Contraption>(saveKey);
+  const saved = restore ? local.load<Contraption>(saveKey) : null;
   const store = new BuildStore(day, saved && validate(day, saved).length === 0 ? saved : undefined);
   store.contraption.subscribe((c) => local.save(saveKey, c));
+
+  const clock = new PhaseClock(day.buildSeconds);
+
+  // Repaired map machines (fixture indices), saved like purchases.
+  const repairedKey = `repaired:${day.id}`;
+  const applyRepairs = (list: number[]) =>
+    (day.fixtures ?? []).forEach((f, i) => (f.broken = (baseDay.fixtures?.[i]?.broken ?? false) && !list.includes(i)));
+  const repaired0 = (restore && local.load<number[]>(repairedKey)) || [];
+  applyRepairs(repaired0);
+  const repaired = new Obs<number[]>(repaired0);
+  repaired.subscribe((list) => {
+    applyRepairs(list);
+    local.save(repairedKey, list);
+  });
 
   const bought = new Obs<Record<string, number>>(bought0);
   bought.subscribe((b) => {
@@ -80,14 +97,18 @@ function createSession() {
     store,
     /** Time Shop purchases (counts per shop item id). */
     bought,
+    /** Map machines the player has repaired (indices into day.fixtures). */
+    repaired,
     shopOpen: new Obs(false),
     phase: new Obs<Phase>('boot'),
-    clock: new PhaseClock(day.buildSeconds),
+    clock,
     tool: new Obs<ToolId>('select'),
     rot: new Obs<Rot>(0),
     handMode: new Obs(false),
     /** Tile the select tool picked (sandbox spawns use it too). */
     selected: new Obs<{ x: number; y: number } | null>(null),
+    /** Screen position of the selected tile's top centre (CSS px) and its size, for the floating part card. */
+    selAnchor: new Obs<{ x: number; y: number; size: number } | null>(null),
     toast: new Obs<{ text: string; id: number } | null>(null),
     raid: new Obs<RaidStatus | null>(null),
     /** Raid clock in seconds, updated every frame (tenths), for a smoothly running timer. */
@@ -115,6 +136,20 @@ function createSession() {
 export const session = createSession();
 export type Session = typeof session;
 
+/** Repairs a broken map machine for its repair time off the Build clock (free in the sandbox). */
+export function repairFixture(index: number): string | null {
+  const f = session.day.fixtures?.[index];
+  if (!f || !f.broken) return null;
+  if (session.phase.value !== 'build') return 'You can only repair while building';
+  if (session.mode === 'demo') {
+    if (session.clock.left.value - f.repairSeconds < MIN_LEFT_AFTER_BUY) return 'Not enough time left';
+    session.clock.spend(f.repairSeconds);
+  }
+  session.repaired.set([...session.repaired.value, index]);
+  toast(`Repaired · −${Math.floor(f.repairSeconds / 60)}:${String(f.repairSeconds % 60).padStart(2, '0')}`);
+  return null;
+}
+
 /** Buys one of a shop item with Build seconds. Returns why not, or null. */
 export function buy(item: ShopItem): string | null {
   if (session.mode !== 'demo' || session.phase.value !== 'build') return 'The shop is open while you build';
@@ -125,9 +160,6 @@ export function buy(item: ShopItem): string | null {
   toast(`${item.label} bought · −${item.price}s`);
   return null;
 }
-
-/** Buying can't take the clock below this. */
-const MIN_LEFT_AFTER_BUY = 5;
 
 let toastId = 0;
 /** Shows a short message (e.g. why a placement was refused). */

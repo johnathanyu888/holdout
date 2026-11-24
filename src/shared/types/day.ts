@@ -49,4 +49,21 @@ export interface DayConfig {
   spawns: SpawnSpec;
   /** The designer's score for the day (stars: >=70% = 2, beat it = 3). */
   par: number;
+  /** Machines already on the map (wire into them, can't move or remove them). */
+  fixtures?: Fixture[];
+}
+
+/**
+ * A machine the day places on the map. A broken one does nothing until the
+ * player repairs it, which costs `repairSeconds` off the Build clock; then it
+ * works like a part of its type, where it stands.
+ */
+export interface Fixture {
+  type: string;
+  x: number;
+  y: number;
+  /** Quarter turns clockwise (as PlacedPart.rot). */
+  rot: 0 | 1 | 2 | 3;
+  broken: boolean;
+  repairSeconds: number;
 }
