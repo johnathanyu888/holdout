@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" width="96" height="96">
+  <!-- Crusher (killer): a heavy block that slams down on its tile when pulsed. -->
+  <defs><pattern id="haz" width="14" height="14" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="14" height="14" fill="#FFD34D"/><rect width="7" height="14" fill="#25282C"/></pattern></defs>
+  <g transform="translate(3 4)" fill="#000" opacity=".22"><rect x="8" y="8" width="80" height="80" rx="6"/></g>
+  <rect x="8" y="8" width="80" height="80" rx="6" fill="url(#haz)" stroke="#25282C" stroke-width="3"/>
+  <rect x="19" y="19" width="58" height="58" rx="4" fill="#6B7580" stroke="#25282C" stroke-width="3"/>
+  <rect x="27" y="27" width="42" height="42" rx="3" fill="#7E8892" stroke="#25282C" stroke-width="2.5"/>
+  <path d="M25 25 H60" stroke="#A8B0B8" stroke-width="3" stroke-linecap="round"/>
+  <path d="M38 48 H58 M48 38 V58" stroke="#4A5260" stroke-width="4" stroke-linecap="round"/>
+  <g fill="#C9D0D8" stroke="#25282C" stroke-width="1.5"><circle cx="24" cy="24" r="2.5"/><circle cx="72" cy="24" r="2.5"/><circle cx="24" cy="72" r="2.5"/><circle cx="72" cy="72" r="2.5"/></g>
+</svg>

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <!-- Raw material: Stone. Spent on stone barricades. -->
+  <g transform="translate(3 4)" fill="#000" opacity=".22"><path d="M16 96 L28 58 L58 42 L86 50 L98 80 L90 106 L32 110 Z"/><path d="M84 102 L94 78 L114 74 L120 100 L106 112 Z"/></g>
+  <path d="M16 96 L28 58 L58 42 L86 50 L98 80 L90 106 L32 110 Z" fill="#9AA0A6"/>
+  <path d="M58 74 L98 80 L90 106 L52 108 Z" fill="#7A8088"/>
+  <path d="M28 58 L58 42 L86 50 L58 74 Z" fill="#C4C9CE"/>
+  <path d="M16 96 L28 58 L58 74 L52 108 L32 110 Z" fill="#A9AEB4"/>
+  <path d="M16 96 L28 58 L58 42 L86 50 L98 80 L90 106 L32 110 Z" fill="none" stroke="#25282C" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M84 102 L94 78 L114 74 L120 100 L106 112 Z" fill="#8C9298" stroke="#25282C" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M94 78 L114 74 L106 88 Z" fill="#C4C9CE"/>
+  <path d="M84 102 L94 78 L114 74 L120 100 L106 112 Z" fill="none" stroke="#25282C" stroke-width="4" stroke-linejoin="round"/>
+</svg>

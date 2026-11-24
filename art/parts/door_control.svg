@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" width="96" height="96">
+  <!-- Door control (steering): a switch box wired to a map door; a pulse opens or shuts it. -->
+  <g transform="translate(3 4)" fill="#000" opacity=".22"><rect x="18" y="12" width="60" height="72" rx="8"/></g>
+  <rect x="18" y="12" width="60" height="72" rx="8" fill="#4A5260" stroke="#25282C" stroke-width="3"/>
+  <path d="M24 18 H54" stroke="#6B7686" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="36" cy="28" r="5.5" fill="#7FE6A0" stroke="#25282C" stroke-width="2"/>
+  <circle cx="60" cy="28" r="5.5" fill="#E0483A" stroke="#25282C" stroke-width="2"/>
+  <rect x="41" y="40" width="14" height="36" rx="7" fill="#25282C"/>
+  <path d="M48 66 V50" stroke="#8E98A2" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="48" cy="48" r="9" fill="#FFD34D" stroke="#25282C" stroke-width="2.5"/>
+  <path d="M44 45 A5 5 0 0 1 48 43" fill="none" stroke="#FFF4C2" stroke-width="2" stroke-linecap="round"/>
+</svg>

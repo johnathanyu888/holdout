@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <!-- Raw material: Wood. Spent on wood barricades. -->
+  <g transform="translate(3 4)" fill="#000" opacity=".22"><circle cx="42" cy="86" r="23"/><circle cx="86" cy="86" r="23"/><circle cx="64" cy="48" r="23"/></g>
+  <circle cx="42" cy="86" r="23" fill="#8E5528" stroke="#25282C" stroke-width="4"/>
+  <circle cx="42" cy="86" r="17" fill="#E8B878"/>
+  <circle cx="42" cy="86" r="10.5" fill="none" stroke="#C68A48" stroke-width="2.5"/>
+  <circle cx="42" cy="86" r="3.5" fill="#C68A48"/>
+  <path d="M30 77 A15 15 0 0 1 39 71" fill="none" stroke="#FFF0CC" stroke-width="3" stroke-linecap="round"/>  <circle cx="86" cy="86" r="23" fill="#8E5528" stroke="#25282C" stroke-width="4"/>
+  <circle cx="86" cy="86" r="17" fill="#E8B878"/>
+  <circle cx="86" cy="86" r="10.5" fill="none" stroke="#C68A48" stroke-width="2.5"/>
+  <circle cx="86" cy="86" r="3.5" fill="#C68A48"/>
+  <path d="M74 77 A15 15 0 0 1 83 71" fill="none" stroke="#FFF0CC" stroke-width="3" stroke-linecap="round"/>  <circle cx="64" cy="48" r="23" fill="#8E5528" stroke="#25282C" stroke-width="4"/>
+  <circle cx="64" cy="48" r="17" fill="#E8B878"/>
+  <circle cx="64" cy="48" r="10.5" fill="none" stroke="#C68A48" stroke-width="2.5"/>
+  <circle cx="64" cy="48" r="3.5" fill="#C68A48"/>
+  <path d="M52 39 A15 15 0 0 1 61 33" fill="none" stroke="#FFF0CC" stroke-width="3" stroke-linecap="round"/>
+</svg>

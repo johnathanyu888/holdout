@@ -88,21 +88,108 @@ One global rule that changes how parts behave:
 
 ## 4. Building
 
-### 4.1 Parts (redstone-like)
-★ = in the demo's starting set. The rest unlock over time (section 8).
+### 4.1 How a circuit works (3 components)
 
-| Group | Parts |
-| --- | --- |
-| Power | The map's power inlet (always on, not a part), Battery (stores pulses from sensors) |
-| Signal | ★ Wire tile, ★ Delay, NOT, AND, Latch |
-| Sensors (each makes its own pulse) | ★ Pressure plate, ★ Tripwire, Motion sensor, Clock |
-| Killers | ★ Saw blade, ★ Spike floor, Flame vent, Tesla coil, Trapdoor pit, Crusher, Wrecking ball (swings a 3-tile arc), Shredder (2×2 grinding floor) |
-| Steering | Piston (push 1 tile), ★ Barricade (Wood / Stone), Door control |
-| Lures | Floodlight (light), Siren (noise) |
+Every circuit is the same three things in a row:
 
-- **No portable generator.** Power is the inlet (always on) or a sensor's pulse when a zombie triggers it. A Battery can save up pulses.
+```
+ 1. TRIGGER / POWER   →   2. WIRE + SIGNAL STRENGTH   →   3. ACTION
+ (inlet, sensors,         (wire tiles, chips;              (saw, spikes, flame,
+  clock, battery)          strength drops per tile)         piston, lure, door…)
+```
 
-### 4.2 Lures
+**1. Trigger / power: makes the signal.** Every signal is one of two kinds:
+
+| Kind | What it is | Made by |
+| --- | --- | --- |
+| **Constant** | On for as long as the source is on. | Power inlet (all raid), pressure plate (while a zombie stands on it), motion sensor (while a zombie is in range), battery (while charged) |
+| **Tick** | One short pulse: on for **0.5s**, then off. | Tripwire (each crossing), clock (every few seconds) |
+
+- **No portable generator.** All power is either the map's inlet or a sensor that a zombie sets off. Chips never make power; they only route it.
+
+**2. Wire + signal strength: carries it.**
+- Each source sends its signal out at a **strength**: inlet 15, sensors and battery 10.
+- Strength drops **1 per wire tile**. At 0 the signal stops.
+- Each action part has a **minimum strength** it needs to work (the "Needs" column below). Long wire runs make power too weak for the heavy parts.
+- A **Delay** chip refreshes the signal back to 10: that's how you carry power across the map.
+- Wire tiles can branch (tee, cross) without losing extra strength. Each branch keeps counting down from where it splits.
+- Signals arrive instantly along the wire. Only a Delay adds time.
+- The kind passes through untouched: a tick stays a tick, a constant stays a constant. Only a Battery turns ticks into constant power.
+
+**3. Action: does the thing.** Every action part reacts differently to the two kinds:
+- **Constant** = keeps running for as long as power holds. A saw blade spins and keeps cutting.
+- **Tick** = runs once, briefly. A saw blade gives one 0.5s spin, then stops.
+- Damage is listed **per second (DPS)** for parts that run continuously, and **per hit** for parts that fire once and then cool down.
+
+**Reference zombies** (Mutations scale these): Shambler 100 HP at 0.9 tiles/s (~1.1s to cross a tile), Runner 60 HP at 1.8 tiles/s (~0.55s a tile), Brute 250 HP at 0.6 tiles/s (~1.7s a tile).
+
+**Engine:** the raid runs at **10 sim steps per second**. Each step:
+1. Read the sensors.
+2. Flood-fill power out from every source along the wires, lowering strength 1 per tile and keeping the highest strength that reaches each tile.
+3. Update the chips.
+4. Run the action parts.
+5. Move the zombies.
+
+### 4.2 Parts: full specs
+★ = in the demo's starting set. The rest unlock over time (section 8). Numbers are starting values for tuning. Every part is 1 tile unless noted. **Shop** = its Time Shop price in seconds off the Build clock.
+
+#### 4.2a Triggers / power (component 1)
+
+| Part | Output | Strength | When it fires | Re-arm / limits | Shop | Notes / engine |
+| --- | --- | --- | --- | --- | --- | --- |
+| Power inlet *(fixed, one per map)* | Constant | 15 | Always, all raid | — | — | Map feature, not a part. Can't be moved. |
+| ★ Pressure plate | Constant | 10 | While ≥1 zombie stands on it (on for at least 0.5s) | None | 10s | Flush with the ground; zombies don't avoid it. Checks tile occupancy each step. |
+| ★ Tripwire | Tick | 10 | Each time a zombie walks through it | Re-arms after 1s | 8s | Sits on a tile edge between two stakes. Fires on edge-crossing, not occupancy. |
+| Motion sensor | Constant | 10 | While any zombie is within 2 tiles | 0.3s reaction delay | 15s | Radius check from the tile centre; sees through walls. |
+| Clock | Tick | 10 | Every 2s from the raid's start (set to 1 / 2 / 3s while building) | — | 12s | Fires whether or not zombies are near. Good for timed killers (crusher, ball). |
+| Battery | Constant | 10 | While it holds charge | Holds up to 8s of charge. Each tick in adds 2s; constant in adds 1s per second. Drains 1s per second while it outputs. | 15s | Turns ticks into constant power. Keeps working through a Blackout. Its charge is shown as bars on the sprite. |
+
+#### 4.2b Wire + chips (component 2)
+
+| Part | Pins | Behaviour | Strength out | Cost | Shop | Notes / engine |
+| --- | --- | --- | --- | --- | --- | --- |
+| ★ Wire tile | 4 edges | Carries power to every wire it touches | In − 1 | 1 Wire | — | Drawn by dragging a path. The sprite picks itself from its neighbours: straight / corner / tee / cross / end. Zombies walk over it; it can't be damaged. Glows when powered. |
+| ★ Delay | In (left) → out (right) | Passes the signal on after 0.5s (set to 0.5 / 1 / 2s). Keeps the kind (tick or constant). | Refreshed to 10 | — | 8s | The only way to boost a weak signal. Queue the input with a timestamp. |
+| NOT | Control (left), supply (bottom) → out (right) | Passes the supply through **except** while the control is on | Supply's | — | 10s | Needs a powered supply, so it can't make power from nothing. |
+| AND | Input A (left), input B (bottom) → out (right) | Passes A through only while B is also on | A's | — | 10s | E.g. a plate AND a motion sensor = "only fire when two zombies are close". |
+| Latch | Toggle (left), supply (bottom) → out (right) | A tick on the toggle flips it on or off. While on, it passes the supply through. | Supply's | — | 12s | Memory: one tripwire can switch a lure on for the rest of the raid. Edge-triggered: a rising signal on the toggle flips it. |
+
+#### 4.2c Actions: killers (component 3)
+
+| Part | Needs | On constant power | On a tick | Damage | Cooldown | Area | Shop | Countered by | Notes / engine |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| ★ Saw blade | 2 | Spins non-stop | One 0.5s spin | **60 DPS** (~30 per tick) | None (0.2s spin-up) | Its tile | 20s | — | One saw doesn't quite kill a Shambler walking across. Two in a row does. Damage each step to zombies on its tile. |
+| ★ Spike floor | 2 | Spikes stay up: 20 DPS and zombies on it slow 50% | Spikes punch up once | **45 per hit** (tick); 20 DPS (held up) | 1s between punches | Its tile | 15s | Jumper (leaps it) | Pair it with a pressure plate on the same tile for a self-triggering trap. |
+| Flame vent | 4 | Fire jet in its facing direction | A 1s burst | **40 DPS** + burning 10 DPS for 3s | Overheats after 4s of non-stop fire, then 2s off | 2 tiles in front (3 in Heatwave) | 25s | Fireproof | Rain: half damage. Wind bends the jet 1 tile. Rotatable. |
+| Tesla coil | 6 | Zaps automatically every 1.5s | One zap | **70 per zap** to the nearest zombie, then jumps to 1 more | 1.5s | 1.5 tiles round it; jumps across every connected wet tile | 30s | Insulated | Rain makes wet tiles carry the jump. Pick the nearest target each zap. |
+| Trapdoor pit | 3 | Doors stay open: a pit that zombies path round | Doors drop open for 1.5s | **Instant kill** on anyone on the tile | 2s to reset | Its tile | 25s | Heavy (breaks the doors and walks on) | The pit holds 3 zombies, then it's full and acts as floor. A piston pushing zombies in is the classic combo. |
+| Crusher | 5 | Slams every 3s | One slam (0.4s wind-up) | **150 per slam** | 3s | Its tile | 30s | Runners (often clear the wind-up) | Hits only what's on the tile when the slam lands. Clocks pair well with it. |
+| Wrecking ball | 6 | Swings back and forth every 4s | One swing | **90 per hit** + knocks back 1 tile | 4s | 3-tile arc in front of the pivot | 35s | Heavy (no knock-back) | Hit each zombie at most once per swing. Rotatable. |
+| Shredder *(2×2)* | 8 | Grinds non-stop | A 0.5s grind | **50 DPS** to everything on it, and slows 30% | None | Its 4 tiles | 45s | — | The strongest killer, but needs strength 8: put it near the inlet or behind a Delay. |
+
+#### 4.2d Actions: steering + lures (component 3)
+
+| Part | Needs | On constant power | On a tick | HP | Cooldown | Area | Cost / Shop | Countered by | Notes / engine |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| ★ Wood barricade | — (no power) | — | — | **120** | — | A thin wall on the tile's centre line; blocks the tile for pathing | 3 Wood | Climber (climbs over) | Loses 4 HP per bump from a zombie (at most once per second per zombie). Deliberately bashed at 20 HP/s per zombie when no open route exists. |
+| Stone barricade | — (no power) | — | — | **300** | — | Same as wood | 3 Stone | Climber | Same contact rules as wood. Quake: both kinds start at half HP. |
+
+- **Walls are thin, not tile-sized blocks.** A wall is about **1/3 of a tile thick** and runs along the tile's centre line. Placing walls in neighbouring tiles joins them into one continuous wall.
+  - **Pathing:** a wall tile is still blocked, so zombies route round it on the grid.
+  - **Hitbox:** only the thin band. Zombies walking down the open tiles beside a wall graze it, and that's where contact damage comes from.
+  - **Look:** the whole top of the wall is one texture: stone walls are brick courses, wood walls are rows of planks, laid edge to edge with no overlapping pieces.
+  - **Sprites:** in `art/parts/walls/`. There are 16 pieces per material, one for every combination of neighbours, and 3 variants of each: `wall_<wood|stone>_<sides>_<a|b|c>.svg`. Sides are listed in n-e-s-w order (`ew` = east-west straight, `nesw` = cross, `post` = alone).
+    - The engine picks the piece from the 4 neighbours, and the variant from the tile position, e.g. `(row*7 + col*13) % 3`.
+    - Variants change the brick and plank layout. At corners and junctions they also change which direction runs straight through, so long walls don't repeat.
+  - Walls **can't be rotated**: the strip of south face drawn under each wall must always be at the bottom.
+| Piston | 3 | Pushes once and stays out: the head acts as a wall | Pushes, then pulls back | Push into a wall or barricade: **20** to the zombie | 1s | The tile in front | 15s | Heavy (can't be pushed) | Pushes everything on the front tile 1 tile on. Into a pit, saw or shredder is the point. Rotatable. |
+| Door control | 2 | Holds the linked map door open | Flips the door (open ↔ shut) | Door: 400 | 0.5s | One map door (linked during Build) | 10s | — | Only on maps with doors (themes, section 11). |
+| Floodlight *(lure)* | 3 | Lit: pulls zombies within 4 tiles that can see it | Flashes for 2s | **80** | — | 4 tiles, line of sight | 15s | Blind | Zombies attack it when they reach it, then carry on (4.3). |
+| Siren *(lure)* | 3 | Sounding: pulls zombies within 4 tiles, through walls | Wails for 2s | **60** | — | 4 tiles (8 in Echo) | 15s | Deaf | Noise ignores walls, so it pulls more zombies than a floodlight but breaks sooner. |
+
+- **Gears upgrade** one placed part: +25% damage, or +1 tile of range or area (player's pick). One upgrade per part.
+
+### 4.3 Lures
 - Lures **attract** zombies (never repel).
 - They only work **while powered**, and only on zombies **within their radius** (~4 tiles). Farther away, zombies keep heading for the house.
 - Zombies that reach a lure **attack it**: it has HP and breaks. Then they carry on to the house.
@@ -114,27 +201,27 @@ One global rule that changes how parts behave:
   - sensor-driven lures only pulse when you design them to
   - Deaf and Blind Mutations ignore them
 
-### 4.3 Walls and zombies
+### 4.4 Walls and zombies
 - Zombies take the shortest open route to the house, bent by lures.
 - **Walls lose HP on contact:** whenever a zombie brushes or bumps a barricade's hitbox (squeezing past, being pushed into it, crowding), the barricade loses HP. Wall mazes wear down over the raid.
 - Zombies only **deliberately attack** a wall when there's no route left without a wall in the way. Then they bash the weakest one.
 - Walls steer but never win on their own. You have to kill.
 
-### 4.4 Raw materials, Stockpile, Blueprints
+### 4.5 Raw materials, Stockpile, Blueprints
 - **Daily kit:** parts + a raw-material drop, the same for everyone.
 - **Wire tiles cost Wire**; barricades cost Wood or Stone. Every working defense spends raw materials, so they always matter.
 
 | Material | Use |
 | --- | --- |
-| Wire | Wire tiles |
-| Wood / Stone | Barricades |
-| Gears | Upgrade a part (+damage or +range) |
+| Wire | Wire tiles (1 each) |
+| Wood / Stone | Barricades (3 each) |
+| Gears | Upgrade a part (+25% damage or +1 range) |
 | Scrap | Discount in the Time Shop |
 
 - **Stockpile:** unused raw materials carry over to tomorrow, up to a cap that grows with progression. Being frugal is a real choice.
 - **Blueprints:** save a contraption, then print it on a later day in one go by paying its raw materials + a small fee. The Stockpile is what makes blueprints useful.
 
-### 4.5 Time Shop
+### 4.6 Time Shop
 - Spend seconds from the 4:00 Build clock on extra parts (e.g. Saw = 20s). Scrap lowers prices.
 - Trade-off: more tools, less time to place them.
 

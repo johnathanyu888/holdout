@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" width="96" height="96">
+  <!-- Spike floor (killer): spikes punch up while powered. Flush with the ground. -->
+  <rect x="8" y="8" width="80" height="80" rx="6" fill="#4A5260" stroke="#25282C" stroke-width="3"/>
+  <path d="M14 14 H50" stroke="#6B7580" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="26" cy="26" r="9" fill="#2E3540"/>
+  <path d="M26 15 L34 26 L26 37 L18 26 Z" fill="#AEB6BF" stroke="#25282C" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M26 15 L18 26 L26 26 Z" fill="#EEF2F5"/>
+  <circle cx="48" cy="26" r="9" fill="#2E3540"/>
+  <path d="M48 15 L56 26 L48 37 L40 26 Z" fill="#AEB6BF" stroke="#25282C" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M48 15 L40 26 L48 26 Z" fill="#EEF2F5"/>
+  <circle cx="70" cy="26" r="9" fill="#2E3540"/>
+  <path d="M70 15 L78 26 L70 37 L62 26 Z" fill="#AEB6BF" stroke="#25282C" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M70 15 L62 26 L70 26 Z" fill="#EEF2F5"/>
+  <circle cx="26" cy="48" r="9" fill="#2E3540"/>
+  <path d="M26 37 L34 48 L26 59 L18 48 Z" fill="#AEB6BF" stroke="#25282C" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M26 37 L18 48 L26 48 Z" fill="#EEF2F5"/>
+  <circle cx="48" cy="48" r="9" fill="#2E3540"/>
+  <path d="M48 37 L56 48 L48 59 L40 48 Z" fill="#AEB6BF" stroke="#25282C" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M48 37 L40 48 L48 48 Z" fill="#EEF2F5"/>
+  <circle cx="70" cy="48" r="9" fill="#2E3540"/>
+  <path d="M70 37 L78 48 L70 59 L62 48 Z" fill="#AEB6BF" stroke="#25282C" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M70 37 L62 48 L70 48 Z" fill="#EEF2F5"/>
+  <circle cx="26" cy="70" r="9" fill="#2E3540"/>
+  <path d="M26 59 L34 70 L26 81 L18 70 Z" fill="#AEB6BF" stroke="#25282C" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M26 59 L18 70 L26 70 Z" fill="#EEF2F5"/>
+  <circle cx="48" cy="70" r="9" fill="#2E3540"/>
+  <path d="M48 59 L56 70 L48 81 L40 70 Z" fill="#AEB6BF" stroke="#25282C" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M48 59 L40 70 L48 70 Z" fill="#EEF2F5"/>
+  <circle cx="70" cy="70" r="9" fill="#2E3540"/>
+  <path d="M70 59 L78 70 L70 81 L62 70 Z" fill="#AEB6BF" stroke="#25282C" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M70 59 L62 70 L70 70 Z" fill="#EEF2F5"/>
+
+</svg>

@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" width="96" height="96">
+  <!-- Wood barricade, piece 'ns' (sides that connect), variant b. Top-down: a thin wall of planks laid in three rows, a third of a tile thick, on the tile's centre line; south face shows below. Pick the piece from the 4 neighbours and the variant from the tile position. -->
+  <g transform="translate(0 12)" fill="#000" opacity=".22"><rect x="28" y="0" width="40" height="96" /></g>
+  <g transform="translate(0 8)"><rect x="28" y="0" width="40" height="96" fill="#25282C"/><rect x="31" y="0" width="34" height="96" fill="#6A401E"/></g>
+  <rect x="28" y="0" width="40" height="96" fill="#25282C"/>
+  <rect x="31" y="0" width="34" height="96" fill="#4E321A"/>
+  <rect x="32" y="1" width="9.3" height="32.9" rx="1.5" fill="#B37840"/>
+  <path d="M35.7 11.1 V22.9" stroke="#93602F" stroke-width="1.3" stroke-linecap="round"/>
+  <circle cx="36.7" cy="4" r="1.3" fill="#5E3A1C"/>
+  <circle cx="36.7" cy="30.9" r="1.3" fill="#5E3A1C"/>
+  <rect x="32" y="35.9" width="9.3" height="32.1" rx="1.5" fill="#B87A3D"/>
+  <path d="M37.8 45.7 V64.3" stroke="#93602F" stroke-width="1.3" stroke-linecap="round"/>
+  <circle cx="36.7" cy="38.9" r="1.3" fill="#5E3A1C"/>
+  <circle cx="36.7" cy="64.9" r="1.3" fill="#5E3A1C"/>
+  <rect x="32" y="69.9" width="9.3" height="25.1" rx="1.5" fill="#B87A3D"/>
+  <path d="M38.6 77 V86.3" stroke="#93602F" stroke-width="1.3" stroke-linecap="round"/>
+  <rect x="43.3" y="1" width="9.3" height="34.9" rx="1.5" fill="#BF8244"/>
+  <path d="M50.1 5 V26.3" stroke="#93602F" stroke-width="1.3" stroke-linecap="round"/>
+  <circle cx="48" cy="4" r="1.3" fill="#5E3A1C"/>
+  <circle cx="48" cy="32.9" r="1.3" fill="#5E3A1C"/>
+  <rect x="43.3" y="37.9" width="9.3" height="27.2" rx="1.5" fill="#BF8244"/>
+  <path d="M48.6 44 V54.3" stroke="#93602F" stroke-width="1.3" stroke-linecap="round"/>
+  <rect x="43.3" y="67.1" width="9.3" height="27.9" rx="1.5" fill="#BF8244"/>
+  <path d="M48.6 70.5 V86.1" stroke="#93602F" stroke-width="1.3" stroke-linecap="round"/>
+  <rect x="54.7" y="1" width="9.3" height="30.6" rx="1.5" fill="#C68A48"/>
+  <path d="M60.1 5.3 V22.4" stroke="#93602F" stroke-width="1.3" stroke-linecap="round"/>
+  <circle cx="59.3" cy="4" r="1.3" fill="#5E3A1C"/>
+  <circle cx="59.3" cy="28.6" r="1.3" fill="#5E3A1C"/>
+  <rect x="54.7" y="33.6" width="9.3" height="29.7" rx="1.5" fill="#B37840"/>
+  <path d="M57.9 43 V57.8" stroke="#93602F" stroke-width="1.3" stroke-linecap="round"/>
+  <rect x="54.7" y="65.3" width="9.3" height="29.7" rx="1.5" fill="#C68A48"/>
+  <path d="M57.3 69.4 V90.8" stroke="#93602F" stroke-width="1.3" stroke-linecap="round"/>
+
+</svg>

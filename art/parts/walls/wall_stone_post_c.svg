@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" width="96" height="96">
+  <!-- Stone barricade, piece 'post' (sides that connect), variant c. Top-down: a thin wall of stone bricks laid in two courses, a third of a tile thick, on the tile's centre line; south face shows below. Pick the piece from the 4 neighbours and the variant from the tile position. -->
+  <g transform="translate(0 12)" fill="#000" opacity=".22"><rect x="28" y="28" width="40" height="40" /></g>
+  <g transform="translate(0 8)"><rect x="28" y="28" width="40" height="40" fill="#25282C"/><rect x="31" y="31" width="34" height="34" fill="#474B51"/></g>
+  <rect x="28" y="28" width="40" height="40" fill="#25282C"/>
+  <rect x="31" y="31" width="34" height="34" fill="#585D64"/>
+  <path d="M33.7 31.5 L45 31.6 L46.5 33.1 L47.6 45.1 L46.1 46.6 L33.7 46.5 L32.2 45 L32.2 33 Z" fill="#9EA4AA"/>
+  <path d="M33.8 44 V34 H44" fill="none" stroke="#D3D8DC" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" opacity=".85"/>
+  <path d="M35 45.4 H45.4 V35" fill="none" stroke="#6C7278" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" opacity=".9"/>
+  <ellipse cx="38" cy="39.5" rx="3.3" ry="2.4" fill="#8C9298" opacity=".7"/>
+  <path d="M50 32.2 L62.3 32.6 L63.8 34.1 L64.2 42.1 L60.2 46.6 L50.7 47.2 L49.2 45.7 L48.5 33.7 Z" fill="#A8A79E"/>
+  <path d="M50.8 44 V34 H61" fill="none" stroke="#D3D8DC" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" opacity=".85"/>
+  <path d="M52 45.4 H62.4 V35" fill="none" stroke="#6C7278" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" opacity=".9"/>
+  <ellipse cx="55.7" cy="38.6" rx="3.3" ry="2.4" fill="#8C9298" opacity=".7"/>
+  <path d="M33.9 48.9 L45.6 48.3 L47.1 49.8 L47.9 63.1 L46.4 64.6 L33.8 63.7 L32.3 62.2 L32.4 50.4 Z" fill="#B3B9BF"/>
+  <path d="M33.8 61 V51 H44.3" fill="none" stroke="#D3D8DC" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" opacity=".85"/>
+  <path d="M35 62.4 H45.7 V52" fill="none" stroke="#6C7278" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" opacity=".9"/>
+  <circle cx="38.3" cy="54.9" r="0.7" fill="#7D838A"/>
+  <circle cx="38.3" cy="58.3" r="0.7" fill="#7D838A"/>
+  <ellipse cx="41.4" cy="58.2" rx="3.3" ry="2.4" fill="#8C9298" opacity=".7"/>
+  <path d="M50.3 49.6 L63.2 49 L64.7 50.5 L63.3 61.8 L61.8 63.3 L51.3 64.4 L49.8 62.9 L48.8 51.1 Z" fill="#9EA4AA"/>
+  <path d="M51.1 61 V51 H61" fill="none" stroke="#D3D8DC" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" opacity=".85"/>
+  <path d="M52.3 62.4 H62.4 V52" fill="none" stroke="#6C7278" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" opacity=".9"/>
+  <circle cx="54.1" cy="55.9" r="1.1" fill="#7D838A"/>
+  <circle cx="55.7" cy="59.7" r="1" fill="#7D838A"/>
+
+</svg>

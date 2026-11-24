@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192">
+  <!-- Shredder (killer), 2x2: grinding rollers that chew anything crossing while powered. Flush with the ground. -->
+  <defs><pattern id="haz" width="14" height="14" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="14" height="14" fill="#FFD34D"/><rect width="7" height="14" fill="#25282C"/></pattern></defs>
+  <rect x="8" y="8" width="176" height="176" rx="10" fill="url(#haz)" stroke="#25282C" stroke-width="3.5"/>
+  <rect x="22" y="22" width="148" height="148" rx="6" fill="#25282C" stroke="#25282C" stroke-width="3"/>
+  <rect x="30" y="32" width="132" height="22" rx="5" fill="#8E98A2" stroke="#25282C" stroke-width="2.5"/>
+  <path d="M38 34 V52 M50 34 V52 M62 34 V52 M74 34 V52 M86 34 V52 M98 34 V52 M110 34 V52 M122 34 V52 M134 34 V52 M146 34 V52" stroke="#C9D0D8" stroke-width="4"/>
+  <path d="M34 37 H158" stroke="#25282C" stroke-width="1.5" opacity=".35"/>
+  <rect x="30" y="68" width="132" height="22" rx="5" fill="#8E98A2" stroke="#25282C" stroke-width="2.5"/>
+  <path d="M38 70 V88 M50 70 V88 M62 70 V88 M74 70 V88 M86 70 V88 M98 70 V88 M110 70 V88 M122 70 V88 M134 70 V88 M146 70 V88" stroke="#C9D0D8" stroke-width="4"/>
+  <path d="M34 73 H158" stroke="#25282C" stroke-width="1.5" opacity=".35"/>
+  <rect x="30" y="104" width="132" height="22" rx="5" fill="#8E98A2" stroke="#25282C" stroke-width="2.5"/>
+  <path d="M38 106 V124 M50 106 V124 M62 106 V124 M74 106 V124 M86 106 V124 M98 106 V124 M110 106 V124 M122 106 V124 M134 106 V124 M146 106 V124" stroke="#C9D0D8" stroke-width="4"/>
+  <path d="M34 109 H158" stroke="#25282C" stroke-width="1.5" opacity=".35"/>
+  <rect x="30" y="140" width="132" height="22" rx="5" fill="#8E98A2" stroke="#25282C" stroke-width="2.5"/>
+  <path d="M38 142 V160 M50 142 V160 M62 142 V160 M74 142 V160 M86 142 V160 M98 142 V160 M110 142 V160 M122 142 V160 M134 142 V160 M146 142 V160" stroke="#C9D0D8" stroke-width="4"/>
+  <path d="M34 145 H158" stroke="#25282C" stroke-width="1.5" opacity=".35"/>
+  <g fill="#5E6670" stroke="#25282C" stroke-width="2"><rect x="24" y="28" width="8" height="140" rx="3"/><rect x="160" y="28" width="8" height="140" rx="3"/></g>
+</svg>

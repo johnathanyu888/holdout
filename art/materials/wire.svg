@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <!-- Raw material: Wire. Spent on wire tiles. -->
+  <g transform="translate(3 4)" fill="#000" opacity=".22"><rect x="26" y="22" width="76" height="84" rx="6"/></g>
+  <rect x="34" y="34" width="60" height="60" fill="#D9823B" stroke="#25282C" stroke-width="4"/>
+  <path d="M34 44 H94 M34 54 H94 M34 64 H94 M34 74 H94 M34 84 H94" stroke="#A85A24" stroke-width="3"/>
+  <path d="M44 38 V90" stroke="#F5B26B" stroke-width="4" stroke-linecap="round"/>
+  <rect x="24" y="20" width="80" height="16" rx="5" fill="#B87A3D" stroke="#25282C" stroke-width="4"/>
+  <rect x="24" y="92" width="80" height="16" rx="5" fill="#8E5528" stroke="#25282C" stroke-width="4"/>
+  <path d="M30 26 H70" stroke="#D9A066" stroke-width="3" stroke-linecap="round"/>
+  <path d="M94 60 C110 62 114 78 106 86 C100 92 108 102 118 100" fill="none" stroke="#25282C" stroke-width="8" stroke-linecap="round"/>
+  <path d="M94 60 C110 62 114 78 106 86 C100 92 108 102 118 100" fill="none" stroke="#D9823B" stroke-width="3.5" stroke-linecap="round"/>
+</svg>

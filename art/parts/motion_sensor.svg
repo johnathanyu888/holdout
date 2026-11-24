@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" width="96" height="96">
+  <!-- Motion sensor: sends a pulse when a zombie moves within 2 tiles. -->
+  <g transform="translate(3 4)" fill="#000" opacity=".22"><circle cx="48" cy="48" r="30"/></g>
+  <circle cx="48" cy="48" r="30" fill="#5E6670" stroke="#25282C" stroke-width="3"/>
+  <circle cx="48" cy="48" r="21" fill="#DDE3E8" stroke="#25282C" stroke-width="2.5"/>
+  <path d="M33 42 A16 16 0 0 1 44 32" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="48" cy="50" r="9" fill="#E0483A" stroke="#25282C" stroke-width="2.5"/>
+  <circle cx="45" cy="47" r="2.5" fill="#FFB2A8"/>
+  <g fill="#8E98A2" stroke="#25282C" stroke-width="1.5"><circle cx="48" cy="21" r="2.5"/><circle cx="48" cy="75" r="2.5"/><circle cx="21" cy="48" r="2.5"/><circle cx="75" cy="48" r="2.5"/></g>
+</svg>

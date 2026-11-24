@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" width="96" height="96">
+  <!-- NOT chip: passes the supply (bottom pin) to the output, except while the control (left pin) is on. -->
+  <g transform="translate(3 4)" fill="#000" opacity=".22"><rect x="16" y="16" width="64" height="64" rx="8"/></g>
+  <g fill="#D9823B" stroke="#25282C" stroke-width="2.5"><rect x="4" y="41" width="16" height="14" rx="2"/><rect x="41" y="76" width="14" height="16" rx="2"/><rect x="76" y="41" width="16" height="14" rx="2"/></g>
+  <rect x="16" y="16" width="64" height="64" rx="8" fill="#3A4250" stroke="#25282C" stroke-width="3"/>
+  <rect x="21" y="21" width="54" height="54" rx="5" fill="none" stroke="#FF8A7A" stroke-width="2.5" opacity=".8"/>
+  <path d="M26 24 H52" stroke="#5E6878" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="48" cy="16" r="4.5" fill="#25282C"/>
+  <path d="M35 34 L58 48 L35 62 Z" fill="none" stroke="#FF8A7A" stroke-width="3.5" stroke-linejoin="round"/>
+  <circle cx="63.5" cy="48" r="4.5" fill="none" stroke="#FF8A7A" stroke-width="3"/>
+</svg>
