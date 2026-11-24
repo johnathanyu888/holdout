@@ -431,8 +431,8 @@ export class EntityLayer {
   /**
    * Range circles for ranged parts (e.g. the Tesla coil): a white, see-through
    * disc showing how far it reaches. Faint on every working one; brighter and
-   * breathing on the selected one; a broken machine shows its range (dashed
-   * feel: outline only) when selected, so you can see what repairing it buys.
+   * breathing on the selected one; a broken machine shows its range when
+   * selected, so you can see what repairing it buys.
    */
   private drawRanges(sel: { x: number; y: number } | null, time: number): void {
     this.rangeG ??= this.scene.add.graphics().setDepth(DEPTH.parts - 50);
@@ -442,7 +442,7 @@ export class EntityLayer {
     const ring = (x: number, y: number, range: number, selected: boolean, broken: boolean) => {
       const c = tileToWorld(x, y);
       const r = range * TILE;
-      if (!broken) g.fillStyle(0xffffff, selected ? 0.1 + 0.05 * pulse : 0.05).fillCircle(c.x, c.y, r);
+      g.fillStyle(0xffffff, selected ? 0.12 + 0.05 * pulse : 0.07).fillCircle(c.x, c.y, r);
       g.lineStyle(selected ? 3 : 2, 0xffffff, selected ? 0.55 + 0.3 * pulse : broken ? 0.4 : 0.28).strokeCircle(c.x, c.y, r);
     };
     for (const p of this.allParts) {
