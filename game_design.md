@@ -33,12 +33,12 @@ A day is built from **five independent layers**, each rolled from the daily seed
 - The map itself is a **clean, open floor** in the day's theme: no clutter, no lanes, no corridors.
 - **Zombies can walk in from any edge tile, on all four sides.** There are no entry lanes, so you defend every direction.
 - What the daily seed places on it:
-  - **terrain zones** (for the Frozen Lake: slick-ice patches and pressure ridges, section 11)
+  - **terrain zones** (per theme, section 11)
   - the **fixed structures** (3.3)
-- **Demo:** the placements are hand-made, not generated.
+- **Demo:** one fixed day on the prebuilt wilderness map (`art/maps/wilderness_map.svg`). No seed generation; placements are hand-made.
 
 ### 3.1b Map size
-- **24×24 tiles.** Art is drawn at **64px a tile**, so a full map is 1536×1536px.
+- **24×24 tiles.** Art is drawn at **64px a tile**, so the play area is 1536×1536px. The map file is 2048×2048 (32×32 tiles); the play area sits at x/y 256..1792 and the forest round it is scenery.
 - On screen: a phone shows the whole map at ~16px a tile (overview); you build zoomed in at 2–3× with pinch and pan. Desktop fits it at 32px a tile.
 - Why 24: from the middle to an edge is 12 tiles, so Shamblers (~0.9 tiles/s) arrive in ~13s, Runners (~1.8) in ~7s, Brutes (~0.6) in ~20s. That fits a ~30s raid. A full ring defense round the home takes ~13×13, leaving room for killing fields on every side.
 - Home in a corner = zombies from the far side walk ~34 tiles; that's the player's trade-off (or the outer 2-tile band can be off-limits for the home).
@@ -54,14 +54,15 @@ A day is built from **five independent layers**, each rolled from the daily seed
 | Upside | Even ground on every side: one symmetric ring of traps can work | The far sides walk a long way, so you have lots of tiles to kill them on |
 | Downside | Pressure from all four sides at once: you need defense everywhere | Zombies spawning on the near edge are on you almost immediately: that side needs a tight, fast killer |
 
-- **Middle** = balanced but you guard 360°. **Near an edge** = the far sides are easy, the near side is a knife-edge.- Placement also plays off the power inlet (3.3): a house near it makes powered defenses cheap to wire.
+- **Middle** = balanced but you guard 360°. **Near an edge** = the far sides are easy, the near side is a knife-edge.
+- Placement also plays off the power inlet (3.3): a house near it makes powered defenses cheap to wire.
 
 ### 3.3 Fixed map features (you wire into them, can't move them)
 - **Power inlet:** every map has exactly **one** spot where power comes up from underground. Anything wired to it is **always on**.
   - Everywhere else, power is **made by sensors**: a pressure plate, tripwire or motion sensor sends a pulse when it fires.
   - Where today's inlet sits (near the entries or far from them) is a big part of the puzzle.
 - **Salvage machines:** a broken crusher, a fuel tank (one big ignition), a live cable, a blast door. **One per day.**
-- **Keep it sparse:** a day places only the power inlet, one salvage machine and one or two terrain pieces (e.g. one slick-ice patch and one pressure ridge). The map should stay mostly open.
+- **Keep it sparse:** a day places only the power inlet, one salvage machine and one or two terrain pieces. The map should stay mostly open.
 - **Terrain:** water (conducts electricity), pits, rubble (slows), doors (can be wired to open and shut).
 
 ### 3.4 Condition (the day's rule)
@@ -84,7 +85,7 @@ One global rule that changes how parts behave:
   - The Mutation sets the rhythm: a steady trickle, a few bursts, or a slow start with a surge near the end.
   - The seed can lean the pressure toward one or two sides (e.g. "most come from the north today"), shown in the Briefing.
 
-**Why it works:** the layers interact. A Rain day with Insulated zombies and the inlet next to a slick-ice patch plays nothing like a Wind day with Climbers and the inlet in a far corner. More content = adding to any one pool.
+**Why it works:** the layers interact. A Rain day with Insulated zombies and the inlet next to a pool of water plays nothing like a Wind day with Climbers and the inlet in a far corner. More content = adding to any one pool.
 
 ## 4. Building
 
@@ -173,6 +174,10 @@ Every circuit is the same three things in a row:
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | ★ Wood barricade | — (no power) | — | — | **120** | — | A thin wall on the tile's centre line; blocks the tile for pathing | 3 Wood | Climber (climbs over) | Loses 4 HP per bump from a zombie (at most once per second per zombie). Deliberately bashed at 20 HP/s per zombie when no open route exists. |
 | Stone barricade | — (no power) | — | — | **300** | — | Same as wood | 3 Stone | Climber | Same contact rules as wood. Quake: both kinds start at half HP. |
+| Piston | 3 | Pushes once and stays out: the head acts as a wall | Pushes, then pulls back | Push into a wall or barricade: **20** to the zombie | 1s | The tile in front | 15s | Heavy (can't be pushed) | Pushes everything on the front tile 1 tile on. Into a pit, saw or shredder is the point. Rotatable. |
+| Door control | 2 | Holds the linked map door open | Flips the door (open ↔ shut) | Door: 400 | 0.5s | One map door (linked during Build) | 10s | — | Only on maps with doors (themes, section 11). |
+| Floodlight *(lure)* | 3 | Lit: pulls zombies within 4 tiles that can see it | Flashes for 2s | **80** | — | 4 tiles, line of sight | 15s | Blind | Zombies attack it when they reach it, then carry on (4.3). |
+| Siren *(lure)* | 3 | Sounding: pulls zombies within 4 tiles, through walls | Wails for 2s | **60** | — | 4 tiles (8 in Echo) | 15s | Deaf | Noise ignores walls, so it pulls more zombies than a floodlight but breaks sooner. |
 
 - **Walls are thin, not tile-sized blocks.** A wall is about **1/3 of a tile thick** and runs along the tile's centre line. Placing walls in neighbouring tiles joins them into one continuous wall.
   - **Pathing:** a wall tile is still blocked, so zombies route round it on the grid.
@@ -182,10 +187,6 @@ Every circuit is the same three things in a row:
     - The engine picks the piece from the 4 neighbours, and the variant from the tile position, e.g. `(row*7 + col*13) % 3`.
     - Variants change the brick and plank layout. At corners and junctions they also change which direction runs straight through, so long walls don't repeat.
   - Walls **can't be rotated**: the strip of south face drawn under each wall must always be at the bottom.
-| Piston | 3 | Pushes once and stays out: the head acts as a wall | Pushes, then pulls back | Push into a wall or barricade: **20** to the zombie | 1s | The tile in front | 15s | Heavy (can't be pushed) | Pushes everything on the front tile 1 tile on. Into a pit, saw or shredder is the point. Rotatable. |
-| Door control | 2 | Holds the linked map door open | Flips the door (open ↔ shut) | Door: 400 | 0.5s | One map door (linked during Build) | 10s | — | Only on maps with doors (themes, section 11). |
-| Floodlight *(lure)* | 3 | Lit: pulls zombies within 4 tiles that can see it | Flashes for 2s | **80** | — | 4 tiles, line of sight | 15s | Blind | Zombies attack it when they reach it, then carry on (4.3). |
-| Siren *(lure)* | 3 | Sounding: pulls zombies within 4 tiles, through walls | Wails for 2s | **60** | — | 4 tiles (8 in Echo) | 15s | Deaf | Noise ignores walls, so it pulls more zombies than a floodlight but breaks sooner. |
 
 - **Gears upgrade** one placed part: +25% damage, or +1 tile of range or area (player's pick). One upgrade per part.
 
@@ -267,12 +268,12 @@ Every circuit is the same three things in a row:
   1. *(black screen, distant groans)* "Shh. They're coming."
   2. "They can smell you. We need to hide you." → finger drags the house onto a highlighted open tile
   3. "Every night, they come back… different." → Mutation card slides in: "Shamblers. Slow. Hungry."
-  4. "We can't fight them. But we can build." → finger on a pressure plate, then on a lane tile
+  4. "We can't fight them. But we can build." → finger on a pressure plate, then on an open tile between the house and the nearest edge
   5. "Something sharp. Right there." → finger drags a saw blade next to the plate
   6. "Wire them together. Plate… to blade." → finger traces the wire; the Wire counter ticks down ("Don't waste it.")
   7. "The clock's running. Every second counts." → the clock appears; finger on the Time Shop: buy a second saw for 20s
   8. "Now we wait. Trust the machine." → raid: the plate clicks, the saw spins, first kill
-  9. "One's slipping past…" → a zombie takes the other lane, scrapes a barricade (it loses HP), dies on the second saw
+  9. "One's slipping past…" → a zombie comes in from another side, scrapes a barricade (it loses HP), dies on the second saw
   10. "You made it. One night." *(beat)* "Tomorrow… they climb." → result card; the first Radio transmission crackles
 - Later first-time events (new part, new Condition, new ability, first boss) each get one line + the finger.
 
@@ -308,11 +309,7 @@ Every circuit is the same three things in a row:
 
 ## 11. Themes
 
-**Demo: Frozen Lake.** A clean sheet of blue ice with a snowy shoreline; zombies come out of the snow along the shore. Its terrain:
-- **Slick ice** (patches of tiles): zombies on it move faster and slide, keeping straight and turning slowly.
-- **Pressure ridges** (2×1, pointed one way): a zombie that hits one at speed is **launched ~3 tiles** in its direction, flying over whatever's below (traps, walls).
-- So the ice cuts both ways: slide zombies straight into a saw line, or watch a ridge fling them over your defenses.
-- The home is an ice-fishing shack.
+**Demo: Wilderness.** The prebuilt `art/maps/wilderness_map.svg`: an open mown lawn ringed by forest. No special terrain; zombies come out of the trees on all four sides. (Frozen Lake and Volcano are cut.)
 
 **Future themes** (each brings its own terrain and fixed features):
 
