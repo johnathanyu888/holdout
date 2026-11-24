@@ -10,6 +10,7 @@ import type { DayConfig } from '@shared/types/day';
 import { type ApiClient, createApi, local } from './api';
 import { Obs } from './observable';
 import { PhaseClock } from './phaseClock';
+import { type ShopItem, applyPurchases } from './shop';
 import { BuildStore } from './store';
 
 export type Mode = 'demo' | 'sandbox';
@@ -53,18 +54,33 @@ const noop = () => {};
 function createSession() {
   const params = new URLSearchParams(location.search);
   const mode: Mode = params.has('sandbox') ? 'sandbox' : 'demo';
-  const day: DayConfig = mode === 'sandbox' ? sandboxDay : demoDay;
+  const baseDay: DayConfig = mode === 'sandbox' ? sandboxDay : demoDay;
+  // The player's own copy: Time Shop purchases add to its kit.
+  const day: DayConfig = structuredClone(baseDay);
+  const boughtKey = `bought:${day.id}`;
+  const bought0 = local.load<Record<string, number>>(boughtKey) ?? {};
+  applyPurchases(baseDay, day, bought0);
   const saveKey = `contraption:${day.id}`;
   const saved = local.load<Contraption>(saveKey);
   const store = new BuildStore(day, saved && validate(day, saved).length === 0 ? saved : undefined);
   store.contraption.subscribe((c) => local.save(saveKey, c));
 
+  const bought = new Obs<Record<string, number>>(bought0);
+  bought.subscribe((b) => {
+    applyPurchases(baseDay, day, b);
+    local.save(boughtKey, b);
+  });
+
   return {
     api: createApi() as ApiClient,
     init: null as InitResponse | null,
     mode,
+    baseDay,
     day,
     store,
+    /** Time Shop purchases (counts per shop item id). */
+    bought,
+    shopOpen: new Obs(false),
     phase: new Obs<Phase>('boot'),
     clock: new PhaseClock(day.buildSeconds),
     tool: new Obs<ToolId>('select'),
@@ -96,6 +112,20 @@ function createSession() {
 
 export const session = createSession();
 export type Session = typeof session;
+
+/** Buys one of a shop item with Build seconds. Returns why not, or null. */
+export function buy(item: ShopItem): string | null {
+  if (session.mode !== 'demo' || session.phase.value !== 'build') return 'The shop is open while you build';
+  const left = session.clock.left.value;
+  if (left - item.price < MIN_LEFT_AFTER_BUY) return 'Not enough time left';
+  session.clock.spend(item.price);
+  session.bought.set({ ...session.bought.value, [item.id]: (session.bought.value[item.id] ?? 0) + 1 });
+  toast(`${item.label} bought · −${item.price}s`);
+  return null;
+}
+
+/** Buying can't take the clock below this. */
+const MIN_LEFT_AFTER_BUY = 5;
 
 let toastId = 0;
 /** Shows a short message (e.g. why a placement was refused). */

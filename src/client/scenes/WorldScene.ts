@@ -198,6 +198,8 @@ export class WorldScene extends Phaser.Scene {
   private restart(): void {
     this.endRaidVisuals();
     session.store.load({ house: null, parts: [], wires: [], walls: [], nextId: 1 });
+    session.bought.set({});
+    session.shopOpen.set(false);
     session.result.set(null);
     session.clock.reset(session.day.buildSeconds);
     session.clock.stop();

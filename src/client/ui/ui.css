@@ -499,8 +499,57 @@
 
 .insp-sub {
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 600;
+  line-height: 1.35;
+  color: #b9c3cd;
+}
+
+.inspector {
+  max-width: min(380px, calc(100vw - 20px));
+}
+
+.insp-body {
+  min-width: 0;
+}
+
+.insp-power {
+  margin-left: 8px;
+  padding: 1px 7px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 800;
+  vertical-align: 2px;
+}
+
+.insp-power.ok {
+  background: rgba(127, 230, 240, 0.16);
   color: var(--power);
+}
+
+.insp-power.bad {
+  background: rgba(232, 87, 74, 0.16);
+  color: #ff9c90;
+}
+
+.insp-seg {
+  display: flex;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.insp-seg button {
+  min-width: 42px;
+  height: 26px;
+  border: 1.5px solid rgba(255, 255, 255, 0.14);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.insp-seg button.on {
+  border-color: #fff;
+  background: rgba(255, 255, 255, 0.2);
 }
 
 /* ---- cards (briefing, result) ------------------------------------------------- */
@@ -722,6 +771,188 @@
   font-size: 12px;
   font-weight: 800;
   color: var(--muted);
+}
+
+/* ---- Time Shop ---------------------------------------------------------------- */
+
+.clock-group {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+}
+
+.shop-btn {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px;
+  border: 1.5px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  background: var(--glass);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--accent) !important;
+}
+
+.shop-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+.shop-btn:hover,
+.shop-btn.on {
+  border-color: var(--accent);
+}
+
+.shop {
+  pointer-events: auto;
+  position: absolute;
+  top: calc(var(--safe-t) + 62px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(380px, calc(100% - 20px));
+  padding: 14px 14px 12px;
+  border-radius: 12px;
+  background: rgba(14, 18, 24, 0.96);
+  border: 1.5px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.45);
+  animation: shop-in 180ms ease-out;
+}
+
+@keyframes shop-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -8px);
+  }
+}
+
+.shop-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.shop-head .eyebrow {
+  color: var(--accent);
+}
+
+.shop-title {
+  margin-top: 3px;
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.shop-close {
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.07);
+  font-size: 20px;
+  line-height: 1;
+}
+
+.shop-list {
+  display: grid;
+  gap: 6px;
+}
+
+.shop-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 6px 6px 8px;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.shop-item img {
+  width: 36px;
+  height: 36px;
+  flex: 0 0 auto;
+}
+
+.shop-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.shop-text b {
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.shop-text span {
+  font-size: 12px;
+  font-weight: 600;
+  color: #aab4bf;
+}
+
+.shop-owned {
+  margin-left: 6px;
+  padding: 0 6px;
+  border-radius: 5px;
+  background: rgba(108, 203, 95, 0.18);
+  color: var(--good) !important;
+  font-size: 11px !important;
+  font-weight: 800 !important;
+}
+
+.shop-buy {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 32px;
+  padding: 0 11px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--accent);
+  color: var(--accent-ink) !important;
+  font-size: 13px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+
+.shop-buy svg {
+  width: 15px;
+  height: 15px;
+}
+
+.shop-buy:not(:disabled):hover {
+  filter: brightness(1.08);
+}
+
+.shop-buy:not(:disabled):active {
+  transform: translateY(1px);
+}
+
+.shop-foot {
+  margin-top: 10px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--muted);
+  text-align: center;
+}
+
+@media (max-width: 480px) {
+  .shop-btn span {
+    display: none;
+  }
+  .shop-btn {
+    padding: 0 10px;
+  }
+  .shop {
+    top: calc(var(--safe-t) + 56px);
+  }
 }
 
 /* ---- night (raid) ------------------------------------------------------------ */
@@ -1049,6 +1280,31 @@
 @media (max-width: 480px) {
   .btn-row .icon-btn:nth-last-child(-n + 3) {
     display: none; /* zoom buttons: pinch instead */
+  }
+  /* compact top bar: chip, clock, shop and three buttons on one line */
+  .topbar {
+    gap: 6px;
+  }
+  .chip {
+    padding: 6px 10px 7px;
+  }
+  .chip-title {
+    font-size: 14px;
+  }
+  .pill {
+    padding: 6px 10px;
+    font-size: 19px;
+  }
+  .clock .pill-label {
+    display: none;
+  }
+  .btn-row {
+    flex-wrap: nowrap;
+    gap: 5px;
+  }
+  .icon-btn {
+    width: 38px;
+    height: 38px;
   }
   .raidbar {
     gap: 8px;

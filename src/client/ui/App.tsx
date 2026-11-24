@@ -1,10 +1,11 @@
 // The DOM UI over the canvas. Reads the session; calls session.actions.
 
 import { useEffect, useState } from 'preact/hooks';
-import { WALL_COST } from '@shared/build/rules';
-import { hasPartDef, partDef } from '@shared/sim';
+import { WALL_COST, configurePart } from '@shared/build/rules';
+import { hasPartDef, partDef, powerPreview } from '@shared/sim';
 import { useObs } from '../core/observable';
-import { session } from '../core/session';
+import { buy, session, toast } from '../core/session';
+import { shopFor } from '../core/shop';
 import {
   IconErase,
   IconFit,
@@ -29,6 +30,7 @@ export function App() {
       <TopBar />
       {phase === 'briefing' && <Briefing />}
       {phase === 'build' && <Tray />}
+      {phase === 'build' && session.mode === 'demo' && <Shop />}
       {phase === 'build' && <Inspector />}
       {phase === 'raid' && <RaidBar />}
       {phase === 'result' && <Result />}
@@ -70,15 +72,26 @@ function TopBar() {
   const left = useObs(session.clock.left);
   const raid = useObs(session.raid);
   const hand = useObs(session.handMode);
+  const shopOpen = useObs(session.shopOpen);
   useObs(session.store.historyVersion);
   const building = phase === 'build';
 
   let clock: preact.ComponentChildren = null;
   if (building && session.mode === 'demo')
     clock = (
-      <div class={`pill clock ${left <= 30 ? 'warn' : ''}`} title="Build time left">
-        <span class="pill-label">BUILD</span>
-        {fmtClock(left)}
+      <div class="clock-group">
+        <div class={`pill clock ${left <= 30 ? 'warn' : ''}`} title="Build time left">
+          <span class="pill-label">BUILD</span>
+          {fmtClock(left)}
+        </div>
+        <button
+          class={`shop-btn ${shopOpen ? 'on' : ''}`}
+          title="Time Shop: trade build seconds for parts"
+          onClick={() => session.shopOpen.set(!shopOpen)}
+        >
+          <IconCart />
+          <span>Shop</span>
+        </button>
       </div>
     );
   else if ((phase === 'raid' || phase === 'result') && raid)
@@ -209,10 +222,19 @@ function Briefing() {
 function Tray() {
   const tool = useObs(session.tool);
   const c = useObs(session.store.contraption);
+  useObs(session.bought); // purchases change the counts
   const inv = session.store.inventory;
   const { day } = session;
-  // Tapping the active slot again puts it away (back to tap-to-select).
-  const pick = (id: string) => session.tool.set(tool === id ? 'select' : id);
+  // Tapping the active slot again puts it away (back to tap-to-select). An empty
+  // slot opens the Time Shop instead.
+  const pick = (id: string) => {
+    const s = slot(id);
+    if (tool !== id && s.count !== undefined && s.count <= 0 && session.mode === 'demo') {
+      toast(`Out of ${s.label.toLowerCase()} · buy more in the Time Shop`);
+      session.shopOpen.set(true);
+    }
+    session.tool.set(tool === id ? 'select' : id);
+  };
   const ready = !!c.house;
   // One name tag above the hotbar: the slot under the pointer, else the active one.
   const [hover, setHover] = useState<string | null>(null);
@@ -319,6 +341,68 @@ function ToolBtn(p: {
   );
 }
 
+/** The Time Shop: trade seconds off the Build clock for parts and materials. */
+function Shop() {
+  const open = useObs(session.shopOpen);
+  const left = useObs(session.clock.left);
+  const bought = useObs(session.bought);
+  if (!open) return null;
+  return (
+    <div class="shop" role="dialog" aria-label="Time Shop">
+      <div class="shop-head">
+        <div>
+          <div class="eyebrow">TIME SHOP</div>
+          <div class="shop-title">Trade seconds for parts</div>
+        </div>
+        <button class="shop-close" aria-label="Close" onClick={() => session.shopOpen.set(false)}>
+          ×
+        </button>
+      </div>
+      <div class="shop-list">
+        {shopFor(session.baseDay).map((item) => {
+          const can = left - item.price >= 5;
+          const n = bought[item.id] ?? 0;
+          return (
+            <div class="shop-item" key={item.id}>
+              <img src={icon(item.icon)} alt="" />
+              <div class="shop-text">
+                <b>
+                  {item.label}
+                  {n > 0 && <span class="shop-owned">+{n}</span>}
+                </b>
+                <span>{item.blurb}</span>
+              </div>
+              <button class="shop-buy" disabled={!can} onClick={() => buy(item)}>
+                <IconClock />−{item.price}s
+              </button>
+            </div>
+          );
+        })}
+      </div>
+      <div class="shop-foot">Every second you spend here is a second less to build.</div>
+    </div>
+  );
+}
+
+function IconCart() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3 4 H5.5 L7.6 15 H18 L20 7.5 H6.4" />
+      <circle cx="9" cy="19.5" r="1.6" />
+      <circle cx="16.5" cy="19.5" r="1.6" />
+    </svg>
+  );
+}
+
+function IconClock() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M12 7.5 V12 L15 14" />
+    </svg>
+  );
+}
+
 function IconSwords() {
   return (
     <svg viewBox="0 0 24 24" class="swords" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
@@ -339,17 +423,43 @@ function Inspector() {
   const type = placingType ?? selPart?.type;
   if (!type || !hasPartDef(type)) return null;
   const def = partDef(type);
+
+  // Live power for a selected placed part (the build preview: inlet + chips, no zombies).
+  let power: { text: string; ok: boolean } | null = null;
+  if (selPart && !placingType) {
+    const got = powerPreview(session.day, c).inputs.get(selPart.id) ?? { c: 0, t: 0 };
+    const s = Math.max(got.c, got.t);
+    if (def.kind === 'action')
+      power = s >= def.needs ? { text: `Powered · ${s}`, ok: true } : s > 0 ? { text: `Too weak · ${s} of ${def.needs}`, ok: false } : { text: 'No power yet', ok: false };
+    else if (def.kind === 'chip') power = s > 0 ? { text: `Input · ${s}`, ok: true } : { text: 'No input yet', ok: false };
+  }
+  const delay = selPart?.type === 'delay' ? (selPart.config?.delay ?? 5) : null;
+
   return (
     <div class="inspector">
       <img src={icon(type)} alt="" />
-      <div>
-        <div class="insp-title">{def.label}</div>
-        <div class="insp-sub">
-          {def.kind === 'action' ? `Needs power ${def.needs}+` : def.kind === 'trigger' ? 'Makes power (10)' : 'Logic chip'}
+      <div class="insp-body">
+        <div class="insp-title">
+          {def.label}
+          {power && <span class={`insp-power ${power.ok ? 'ok' : 'bad'}`}>{power.text}</span>}
         </div>
+        <div class="insp-sub">{PART_INFO[type] ?? ''}</div>
+        {delay !== null && selPart && (
+          <div class="insp-seg" role="group" aria-label="Delay">
+            {DELAY_STEPS.map((d) => (
+              <button
+                key={d}
+                class={d === delay ? 'on' : ''}
+                onClick={() => session.store.apply((cc) => configurePart(cc, selPart.id, { delay: d }))}
+              >
+                {d / 10}s
+              </button>
+            ))}
+          </div>
+        )}
       </div>
       {def.rotatable && (
-        <button class="icon-btn" title="Rotate (R)" onClick={() => session.actions.rotate()}>
+        <button class="icon-btn" title="Turn (R)" onClick={() => session.actions.rotate()}>
           <IconRotate />
           {placingType && <span class="rot">{['E', 'S', 'W', 'N'][rot]}</span>}
         </button>
@@ -357,6 +467,17 @@ function Inspector() {
     </div>
   );
 }
+
+const DELAY_STEPS = [5, 10, 20];
+
+/** One line on what each part does (the inspector card). */
+const PART_INFO: Record<string, string> = {
+  pressure_plate: 'Powers its wires (10) while a zombie stands on it',
+  tripwire: 'Sends a tick (10) when a zombie walks through the cord',
+  delay: 'Passes power on after a wait · in on the left, out on the right',
+  saw_blade: 'Cuts 60 damage a second while powered · needs 2',
+  spike_floor: 'Tick: a 45-damage punch · constant: 20/s and slows · needs 2',
+};
 
 // ---- raid -----------------------------------------------------------------------
 

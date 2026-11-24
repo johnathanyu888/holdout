@@ -44,6 +44,18 @@ Registries fill through `import.meta.glob`: adding a part, zombie, tool or view 
 | 9 | Tutorial and narrative | **Track 2** | 3, 7 |
 | 10 | Integration, polish, ship | both | all |
 
+**Status (branch `track-1`):**
+- **Phase 4:** tripwire, delay and spike floor are in, with tests.
+- **Directional pins:** a delay reads only its input side and writes only its output side.
+- **Build preview:** passes constant power through chips.
+- **Phase 6:** the Time Shop is in (parts and materials for build seconds).
+- **Phase 3.7, part visuals:**
+  - spikes retract and pop up
+  - the delay blinks while it counts down
+  - the tripwire twangs
+  - tick power runs amber and constant power runs cyan
+  - the inspector shows live power and the delay timing
+
 **Base** = phases 1, 2 and the framework half of 3, plus a thin engine skeleton (2.5), so the viewport and basic functions run. **Track 1** (the machine) = phases 4, 6 plus part visuals/tools from 3. **Track 2** (the fight) = phases 5, 7, 8, 9 plus zombie visuals from 3. Each track has its own branch, rebases on `main` often, and tests alone in the sandbox scene, so neither waits on the other.
 
 ---

@@ -133,6 +133,16 @@ export interface PartDef {
   rotatable: boolean;
   /** Default config for new parts (e.g. { delay: 5 }). */
   defaultConfig?: Record<string, number>;
+  /**
+   * Directional pins (chips). Sides are quarter turns for rot 0: 0 = east, 1 = south,
+   * 2 = west, 3 = north, turned with the part. With pins, the part only reads power
+   * from the wires on its `in` sides and only emits into the wires on its `out`
+   * sides (so a chip can't feed its own output back into its input). Without pins,
+   * a part reads the strongest wire on any side and emits into all of them.
+   */
+  pins?: { in: number[]; out: number[] };
+  /** Chips: in the build preview, does constant power in mean constant power out? (default true) */
+  passesConstant?: boolean;
   initState(part: SimPart): Record<string, number>;
   /** Triggers: read the world, return what to emit into this step's flood. */
   sense?(ctx: SimCtx, part: SimPart): Signal | null;

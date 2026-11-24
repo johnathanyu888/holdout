@@ -97,7 +97,8 @@ export class EntityLayer {
         this.parts.set(part.id, s);
       }
       const rotatable = hasPartDef(part.type) && partDef(part.type).rotatable;
-      s.setPosition(p.x, p.y).setFrame(frame).setDepth(DEPTH.parts + p.y);
+      // The frame is set once at creation: views may swap it (e.g. spikes up/down).
+      s.setPosition(p.x, p.y).setDepth(DEPTH.parts + p.y);
       // Spinning parts manage their own rotation; only set it for rotatable ones.
       if (rotatable) s.setAngle(part.rot * 90);
     }
@@ -232,6 +233,10 @@ export class EntityLayer {
       const s = strength(k);
       if (s <= 0) continue;
       live.push(k);
+      // Constant power runs cyan; a tick (tripwire pulse) runs amber.
+      const tick = (powerT?.[k] ?? 0) > (powerC?.[k] ?? 0);
+      const glow = tick ? 0xffa53a : 0x3fd8ff;
+      const core = tick ? 0xfff0c8 : 0xd8fbff;
       const x = k % GRID;
       const y = Math.floor(k / GRID);
       const c = tileToWorld(x, y);
@@ -257,8 +262,8 @@ export class EntityLayer {
           const ay = c.y + dy * half * u0;
           const bx = c.x + dx * half * u1;
           const by = c.y + dy * half * u1;
-          g.lineStyle(9, 0x3fd8ff, 0.18 * a).lineBetween(ax, ay, bx, by);
-          g.lineStyle(3.5, 0xd8fbff, 0.85 * a).lineBetween(ax, ay, bx, by);
+          g.lineStyle(9, glow, 0.18 * a).lineBetween(ax, ay, bx, by);
+          g.lineStyle(3.5, core, 0.85 * a).lineBetween(ax, ay, bx, by);
         }
       }
     }

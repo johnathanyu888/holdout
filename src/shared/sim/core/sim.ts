@@ -15,15 +15,17 @@ import type { Contraption, WallMaterial } from '../../types/build';
 import type { DayConfig } from '../../types/day';
 import type { SimEvent } from './events';
 import { FIELD_INF, computeField, nextTile } from './pathing';
-import { type Source, flood, inputAt } from './power';
+import { type Source, flood, inputAt, inputFromSides, sideKey } from './power';
 import { hasPartDef, partDef, zombieDef } from './registry';
 import { seedRng } from './rng';
 import { buildSchedule } from './spawn';
 import {
   INLET_STRENGTH,
+  SOURCE_STRENGTH,
   STEP_SECONDS,
   STEPS_PER_SECOND,
   type PowerIn,
+  type Signal,
   type SimCtx,
   type SimPart,
   type SimState,
@@ -220,9 +222,23 @@ export function step(st: SimState): SimEvent[] {
 
 function runFlood(st: SimState): void {
   const sources: Source[] = [{ k: key(st.day.inlet.x, st.day.inlet.y), layer: 'c', strength: INLET_STRENGTH }];
-  for (const p of st.parts) if (p.output) sources.push({ k: key(p.x, p.y), ...p.output });
+  for (const p of st.parts) if (p.output) sources.push(...partSources(p, p.output));
   flood(st.wire, sources, st.powerC, st.powerT);
-  for (const p of st.parts) p.input = inputAt(key(p.x, p.y), st.powerC, st.powerT);
+  for (const p of st.parts) p.input = partInput(p, st.powerC, st.powerT);
+}
+
+/** Where a part's output goes: all four sides, or only its `out` pins. */
+function partSources(p: { x: number; y: number; rot: number; type: string }, out: Signal): Source[] {
+  const k = key(p.x, p.y);
+  const pins = hasPartDef(p.type) ? partDef(p.type).pins : undefined;
+  if (!pins) return [{ k, ...out }];
+  return pins.out.map((s) => sideKey(p.x, p.y, s, p.rot)).filter((n) => n >= 0).map((to) => ({ k, ...out, to }));
+}
+
+/** What reaches a part: the strongest wire on any side, or only on its `in` pins. */
+function partInput(p: { x: number; y: number; rot: number; type: string }, powerC: Uint8Array, powerT: Uint8Array): PowerIn {
+  const pins = hasPartDef(p.type) ? partDef(p.type).pins : undefined;
+  return pins ? inputFromSides(p.x, p.y, p.rot, pins.in, powerC, powerT) : inputAt(key(p.x, p.y), powerC, powerT);
 }
 
 function moveZombies(st: SimState, events: SimEvent[]): void {
@@ -349,8 +365,10 @@ export function snapshot(st: SimState): SimState {
 }
 
 /**
- * Build-mode power preview: floods from the inlet only (no zombies, so no
- * triggers fire) and reports what reaches each part. Needs no house.
+ * Build-mode power preview: the steady state with no zombies. Floods from the
+ * inlet, and lets chips pass constant power through (a delay fed constant power
+ * outputs constant power once it has waited), repeating until nothing changes.
+ * Triggers don't fire (no zombies). Reports what reaches each part. Needs no house.
  */
 export function powerPreview(
   day: DayConfig,
@@ -360,9 +378,26 @@ export function powerPreview(
   for (const w of c.wires) wire[key(w.x, w.y)] = 1;
   const powerC = new Uint8Array(TILE_COUNT);
   const powerT = new Uint8Array(TILE_COUNT);
-  flood(wire, [{ k: key(day.inlet.x, day.inlet.y), layer: 'c', strength: INLET_STRENGTH }], powerC, powerT);
+  const inlet: Source = { k: key(day.inlet.x, day.inlet.y), layer: 'c', strength: INLET_STRENGTH };
+  const chips = c.parts.filter((p) => hasPartDef(p.type) && partDef(p.type).kind === 'chip');
+  const passing = new Set<number>();
+  for (let pass = 0; pass <= chips.length; pass++) {
+    const sources: Source[] = [inlet];
+    for (const p of chips) if (passing.has(p.id)) sources.push(...partSources(p, { layer: 'c', strength: SOURCE_STRENGTH }));
+    flood(wire, sources, powerC, powerT);
+    let changed = false;
+    for (const p of chips) {
+      const on = partInput(p, powerC, powerT).c > 0 && partDef(p.type).passesConstant !== false;
+      if (on !== passing.has(p.id)) {
+        changed = true;
+        if (on) passing.add(p.id);
+        else passing.delete(p.id);
+      }
+    }
+    if (!changed) break;
+  }
   const inputs = new Map<number, PowerIn>();
-  for (const p of c.parts) inputs.set(p.id, inputAt(key(p.x, p.y), powerC, powerT));
+  for (const p of c.parts) inputs.set(p.id, partInput(p, powerC, powerT));
   return { powerC, powerT, inputs };
 }
 

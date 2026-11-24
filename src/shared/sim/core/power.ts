@@ -8,10 +8,43 @@ import { GRID, TILE_COUNT } from '../../grid';
 import type { Layer, PowerIn } from './types';
 
 export interface Source {
-  /** Tile key (y * 24 + x). */
+  /** Tile key (y * GRID + x). */
   k: number;
   layer: Layer;
   strength: number;
+  /** Only emit into this neighbour tile (directional pins); all four sides when absent. */
+  to?: number;
+}
+
+const SIDE_DX = [1, 0, -1, 0];
+const SIDE_DY = [0, 1, 0, -1];
+
+/** Tile key of the neighbour of (x, y) on `side` (0 E, 1 S, 2 W, 3 N) turned by rot, or -1 off the lawn. */
+export function sideKey(x: number, y: number, side: number, rot: number): number {
+  const d = (side + rot) % 4;
+  const nx = x + (SIDE_DX[d] as number);
+  const ny = y + (SIDE_DY[d] as number);
+  return nx < 0 || ny < 0 || nx >= GRID || ny >= GRID ? -1 : ny * GRID + nx;
+}
+
+/** Strongest wire on the given sides of a part, per layer. */
+export function inputFromSides(
+  x: number,
+  y: number,
+  rot: number,
+  sides: readonly number[],
+  powerC: Uint8Array,
+  powerT: Uint8Array,
+): PowerIn {
+  let c = 0;
+  let t = 0;
+  for (const s of sides) {
+    const n = sideKey(x, y, s, rot);
+    if (n < 0) continue;
+    c = Math.max(c, powerC[n] ?? 0);
+    t = Math.max(t, powerT[n] ?? 0);
+  }
+  return { c, t };
 }
 
 const MAX_STRENGTH = 15;
@@ -38,7 +71,8 @@ export function floodLayer(wire: Uint8Array, sources: readonly Source[], out: Ui
       buckets[v]?.push(n);
     }
   };
-  for (const s of sources) for (const n of neighbours4(s.k)) relax(n, Math.min(MAX_STRENGTH, s.strength) - 1);
+  for (const s of sources)
+    for (const n of s.to !== undefined ? [s.to] : neighbours4(s.k)) relax(n, Math.min(MAX_STRENGTH, s.strength) - 1);
   for (let v = MAX_STRENGTH; v > 0; v--) {
     const b = buckets[v] ?? [];
     for (let i = 0; i < b.length; i++) {
