@@ -257,7 +257,7 @@ One global rule that changes how parts behave:
   - ghost preview while placing a part
 - **Zombies:** top-down circle body, arms reaching forward. Each ability gets one visual tell (Climber = hooked hands, Insulated = rubber-grey skin, Fireproof = ash-black, etc.).
 - **Effects:** damage numbers with an outline, white flash on hit, defeated zombies squash flat and fade, white arcs on swings, rings from sirens.
-- The earlier map and region SVGs are not used; the demo gets new Frozen Lake art (`art/maps/frozen_lake_mockup.svg`, structures in `art/structures/`).
+- The earlier map and region SVGs are not used; the base map is `art/maps/wilderness_map.svg`, with structures from `art/structures/` drawn on top.
 - Maps are clean floors; everything placed on them (structures, terrain zones, the home) is a separate sprite. The red entry-edge overlay runs along all four edges.
 
 ## 13. Expansion (not in the demo)
