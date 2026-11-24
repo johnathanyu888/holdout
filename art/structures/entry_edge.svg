@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 96" width="320" height="96">
+  <!-- Zombie entry zone: overlays any stretch of the map edge (top of this image = the edge, bottom = toward the map).
+       No lane or bridge: zombies can walk in anywhere along it, so it reads as "they come from this side". Tile it to any length. -->
+  <defs>
+    <linearGradient id="haze" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#B8282A" stop-opacity=".75"/><stop offset=".55" stop-color="#B8282A" stop-opacity=".25"/><stop offset="1" stop-color="#B8282A" stop-opacity="0"/></linearGradient>
+    <linearGradient id="fadeX" x1="0" x2="1"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".12" stop-color="#fff"/><stop offset=".88" stop-color="#fff"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
+    <mask id="ends"><rect width="320" height="96" fill="url(#fadeX)"/></mask>
+  </defs>
+  <g mask="url(#ends)">
+    <rect width="320" height="96" fill="url(#haze)"/>
+    <!-- ragged dark rim right at the edge -->
+    <path d="M0 0 H320 V10 Q300 18 280 10 Q260 4 240 12 Q220 20 200 10 Q180 2 160 12 Q140 20 120 10 Q100 4 80 12 Q60 20 40 10 Q20 4 0 12 Z" fill="#5A1E1E" opacity=".7"/>
+  </g>
+</svg>

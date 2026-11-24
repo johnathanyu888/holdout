@@ -29,35 +29,39 @@ This file covers the proof-of-concept demo. Bigger ideas are in **Expansion** (s
 
 A day is built from **five independent layers**, each rolled from the daily seed. Each pool is small; together they make a different puzzle every day.
 
-### 3.1 Layout (procedural, built from hand-made pieces)
-- The map is a grid (e.g. 16×12), assembled Spelunky-style from **hand-designed chunks** (rooms, corridors, yards, junctions) from the theme's pool.
-- 30–40 chunks per theme → thousands of layouts, every piece readable and fair.
-- The layout decides:
-  - lanes and chokepoints
-  - open yards vs narrow halls
-  - dead ends
-  - loops (zombies get multiple routes)
-- **Demo:** layouts are hand-made, not generated.
+### 3.1 Layout (an open map; the seed places what's on it)
+- The map itself is a **clean, open floor** in the day's theme: no clutter, no lanes, no corridors.
+- **Zombies can walk in from any edge tile, on all four sides.** There are no entry lanes, so you defend every direction.
+- What the daily seed places on it:
+  - **terrain zones** (for the Frozen Lake: slick-ice patches and pressure ridges, section 11)
+  - the **fixed structures** (3.3)
+- **Demo:** the placements are hand-made, not generated.
+
+### 3.1b Map size
+- **24×24 tiles.** Art is drawn at **64px a tile**, so a full map is 1536×1536px.
+- On screen: a phone shows the whole map at ~16px a tile (overview); you build zoomed in at 2–3× with pinch and pan. Desktop fits it at 32px a tile.
+- Why 24: from the middle to an edge is 12 tiles, so Shamblers (~0.9 tiles/s) arrive in ~13s, Runners (~1.8) in ~7s, Brutes (~0.6) in ~20s. That fits a ~30s raid. A full ring defense round the home takes ~13×13, leaving room for killing fields on every side.
+- Home in a corner = zombies from the far side walk ~34 tiles; that's the player's trade-off (or the outer 2-tile band can be off-limits for the home).
 
 ### 3.2 Your house (you place it; it sets the zombies' goal)
-- During Build you place your **house** (the survivor's hideout) **anywhere on open ground**.
+- During Build you place your **house** (the survivor's hideout, **1×1 tile**) **anywhere on open ground**.
 - Zombies **sense the survivor** and path toward the house. **You lose if any zombie reaches it.**
-- Where you put it decides where zombies go and how long they walk. Example: a map with 2 tunnel entries (west and east):
+- Where you put it decides how far zombies walk and from which sides they reach you. Zombies come from every edge tile:
 
-| | House far from the entries (middle) | House close to one entry (by the west tunnel) |
+| | House in the middle | House near one edge |
 | --- | --- | --- |
-| Zombie walk | Long: ~20 tiles from either tunnel | ~5 tiles from the west tunnel, ~25 from the east |
-| Upside | Lots of tiles for traps to get hits in | The west lane is short, so one chokepoint saw covers it; the east horde walks a long way |
-| Downside | Paths from both tunnels and side corridors reach the middle by different routes, so you cover several lanes and spend more parts and Wire | Almost no time to kill west-side zombies: one miss and they're on you |
+| Zombie walk | ~12 tiles from every side, all arriving about together | ~3 tiles from the near edge, ~21 from the far edge |
+| Upside | Even ground on every side: one symmetric ring of traps can work | The far sides walk a long way, so you have lots of tiles to kill them on |
+| Downside | Pressure from all four sides at once: you need defense everywhere | Zombies spawning on the near edge are on you almost immediately: that side needs a tight, fast killer |
 
-- **Far** = more time to kill, more routes to guard. **Near an entry** = fewer routes, tiny margin for error on that side.
-- Placement also plays off the power inlet (3.3): a house near it makes powered defenses cheap to wire.
+- **Middle** = balanced but you guard 360°. **Near an edge** = the far sides are easy, the near side is a knife-edge.- Placement also plays off the power inlet (3.3): a house near it makes powered defenses cheap to wire.
 
 ### 3.3 Fixed map features (you wire into them, can't move them)
 - **Power inlet:** every map has exactly **one** spot where power comes up from underground. Anything wired to it is **always on**.
   - Everywhere else, power is **made by sensors**: a pressure plate, tripwire or motion sensor sends a pulse when it fires.
   - Where today's inlet sits (near the entries or far from them) is a big part of the puzzle.
-- **Salvage machines:** a broken crusher, a fuel tank (one big ignition), a live cable, an elevator platform. A few per day.
+- **Salvage machines:** a broken crusher, a fuel tank (one big ignition), a live cable, a blast door. **One per day.**
+- **Keep it sparse:** a day places only the power inlet, one salvage machine and one or two terrain pieces (e.g. one slick-ice patch and one pressure ridge). The map should stay mostly open.
 - **Terrain:** water (conducts electricity), pits, rubble (slows), doors (can be wired to open and shut).
 
 ### 3.4 Condition (the day's rule)
@@ -76,9 +80,11 @@ One global rule that changes how parts behave:
 ### 3.5 Mutation + kit
 - **Mutation:** zombie stats (HP, speed, damage, count, wave timing) + one ability (section 5).
 - **Kit:** a fixed parts list + raw materials (section 4).
-- **Waves:** entries open on a staggered schedule (e.g. a second entry opens at 15s).
+- **Zombies never arrive all at once.** They trickle in over the raid in small groups from random edge tiles, a few every couple of seconds.
+  - The Mutation sets the rhythm: a steady trickle, a few bursts, or a slow start with a surge near the end.
+  - The seed can lean the pressure toward one or two sides (e.g. "most come from the north today"), shown in the Briefing.
 
-**Why it works:** the layers interact. A Rain day with Insulated zombies and the inlet next to a flooded tunnel plays nothing like a Wind day with Climbers and the inlet in a far corner. More content = adding to any one pool.
+**Why it works:** the layers interact. A Rain day with Insulated zombies and the inlet next to a slick-ice patch plays nothing like a Wind day with Climbers and the inlet in a far corner. More content = adding to any one pool.
 
 ## 4. Building
 
@@ -215,18 +221,20 @@ One global rule that changes how parts behave:
 
 ## 11. Themes
 
-**Demo: Subway Station** (new art). Best fit for a circuit game:
-- the live third rail is a natural power source; the power inlet is a live junction box on it
-- tunnels are clear zombie entries
-- platforms and maintenance rooms make natural chunks
+**Demo: Frozen Lake.** A clean sheet of blue ice with a snowy shoreline; zombies come out of the snow along the shore. Its terrain:
+- **Slick ice** (patches of tiles): zombies on it move faster and slide, keeping straight and turning slowly.
+- **Pressure ridges** (2×1, pointed one way): a zombie that hits one at speed is **launched ~3 tiles** in its direction, flying over whatever's below (traps, walls).
+- So the ice cuts both ways: slide zombies straight into a saw line, or watch a ridge fling them over your defenses.
+- The home is an ice-fishing shack.
 
-**Future themes** (each brings its own chunk pool and fixed features):
+**Future themes** (each brings its own terrain and fixed features):
 
 | Theme | Signature feature |
 | --- | --- |
+| Subway platform | Live third rail, tunnel mouths |
 | Suburban cul-de-sac | Garages, fences, a pool (water) |
 | Shopping mall | Escalators as moving lanes, shutter doors |
-| Hospital | Long corridors, generators, elevators |
+| Hospital | Long corridors, generators |
 | Shipping port | Containers as movable walls, a crane, seawater |
 | Farmstead | Silos, a barn, fences, wind |
 | Ski lodge | Ice that slides zombies, a chairlift |
@@ -249,7 +257,8 @@ One global rule that changes how parts behave:
   - ghost preview while placing a part
 - **Zombies:** top-down circle body, arms reaching forward. Each ability gets one visual tell (Climber = hooked hands, Insulated = rubber-grey skin, Fireproof = ash-black, etc.).
 - **Effects:** damage numbers with an outline, white flash on hit, defeated zombies squash flat and fade, white arcs on swings, rings from sirens.
-- The earlier map and region SVGs are not used; the demo gets new Subway art.
+- The earlier map and region SVGs are not used; the demo gets new Frozen Lake art (`art/maps/frozen_lake_mockup.svg`, structures in `art/structures/`).
+- Maps are clean floors; everything placed on them (structures, terrain zones, the home) is a separate sprite. The red entry-edge overlay runs along all four edges.
 
 ## 13. Expansion (not in the demo)
 
@@ -261,9 +270,8 @@ One global rule that changes how parts behave:
 
 ## 14. Open questions
 
-- Grid size (16×12?) and chunk size.
 - Score weights; how the designer's par is set each day for the demo.
 - Stockpile cap and how fast it grows.
-- House size (1×1 or 2×2); whether some tiles are off-limits for it (e.g. right on an entry).
+- Whether some tiles are off-limits for the house (e.g. right on an entry edge).
 - Boss day: a fixed weekday, or any time in a 48h window.
 - Name and tech stack.

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- Lava fissure, 1 tile, tiles seamlessly into patches of any shape.
+       Zombies can walk across it but burn while they do (Fireproof ones don't). Glowing cracks run edge to edge so tiles join. -->
+  <rect width="64" height="64" fill="#2A1E1E"/>
+  <rect width="64" height="64" fill="#5A2418" opacity=".45"/>
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M0 22 L14 26 L24 18 L38 28 L52 24 L64 30 M24 18 L28 0 M38 28 L34 46 L44 64 M14 26 L8 44 L0 48 M52 24 L58 46 L64 50" stroke="#FF5A1F" stroke-width="7" opacity=".55"/>
+    <path d="M0 22 L14 26 L24 18 L38 28 L52 24 L64 30 M24 18 L28 0 M38 28 L34 46 L44 64 M14 26 L8 44 L0 48 M52 24 L58 46 L64 50" stroke="#FF9A2E" stroke-width="3.5"/>
+    <path d="M0 22 L14 26 L24 18 L38 28 L52 24 L64 30" stroke="#FFE066" stroke-width="1.5"/>
+  </g>
+  <g fill="#FFB02E"><circle cx="44" cy="12" r="1.8"/><circle cx="18" cy="54" r="1.4"/></g>
+</svg>

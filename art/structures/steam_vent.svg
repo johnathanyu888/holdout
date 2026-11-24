@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" width="96" height="96">
+  <!-- Steam vent, top-down, 1 tile. Every few seconds it erupts, blasting zombies on and next to it ~2 tiles straight away from it. -->
+  <defs>
+    <filter id="sh" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="2.5"/></filter>
+    <filter id="soft" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="1.5"/></filter>
+    <radialGradient id="heat"><stop offset="0" stop-color="#FF9A2E" stop-opacity=".8"/><stop offset="1" stop-color="#FF5A1F" stop-opacity="0"/></radialGradient>
+  </defs>
+  <circle cx="48" cy="50" r="44" fill="url(#heat)" opacity=".5"/>
+  <!-- crater rim -->
+  <ellipse cx="51" cy="54" rx="36" ry="34" fill="#000" opacity=".35" filter="url(#sh)"/>
+  <path d="M14 48 Q16 22 42 14 Q66 10 80 30 Q88 50 78 70 Q62 86 38 82 Q16 74 14 48 Z" fill="#5A5258" stroke="#25282C" stroke-width="3.5" stroke-linejoin="round"/>
+  <path d="M22 44 Q26 26 44 22 Q62 20 72 34" fill="none" stroke="#7A7076" stroke-width="4" stroke-linecap="round"/>
+  <!-- the vent mouth, glowing -->
+  <ellipse cx="48" cy="50" rx="18" ry="16" fill="#1A1214" stroke="#25282C" stroke-width="3"/>
+  <ellipse cx="48" cy="52" rx="11" ry="9" fill="#FF5A1F"/>
+  <ellipse cx="48" cy="53" rx="6" ry="5" fill="#FFE066"/>
+  <!-- rising steam -->
+  <g filter="url(#soft)" opacity=".85"><circle cx="44" cy="38" r="10" fill="#E2E6EA"/><circle cx="56" cy="30" r="12" fill="#EEF1F3"/><circle cx="46" cy="20" r="9" fill="#F6F8F9"/></g>
+  <!-- blast ring markers -->
+  <g fill="none" stroke="#FFD34D" stroke-width="3" stroke-linecap="round" stroke-dasharray="6 7" opacity=".9"><circle cx="48" cy="50" r="40"/></g>
+</svg>

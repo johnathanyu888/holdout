@@ -1,23 +1,11 @@
 # Art
 
-io style with light shading: thick `#25282C` outlines, two or three flat tones per shape, a small top-left highlight, a soft drop shadow (rules in `game_design.md`, section 2). All art is hand-written SVG.
+Flat io style: thick `#25282C` outlines, two or three flat tones per shape, no blur or fake 3D. All art is hand-written SVG, top-down, on a 64px tile grid.
 
 ## Folders
 
 | Folder | What's in it |
 | --- | --- |
-| `map/` | `world_map.svg`: the square world map. The homestead sits in the middle of the woods; Dead City, Jade Temple, Ironroot Caves, Scorched Dunes and the Scrapyard sit around it. |
-| `map/src/` | `map_template.svg`, `forest.svgfrag`, `build.ps1`: run `build.ps1` to rebuild `world_map.svg`. |
-| `regions/` | One zoomed-in scene per region (1000×700): `01_wildwood`, `02_dead_city`, `03_jade_temple`, `04_ironroot_caves`, `05_scorched_dunes`, `06_scrapyard`. `index.html` shows all six. |
-| `regions/src/` | Scene sources and `build.ps1`: run it to rebuild the scenes. `build.ps1 -WithUI` also draws the HUD, the white "tap me" flash and a details card (for mockups). |
-| `icons/materials/` | The 8 raw materials (128×128). |
-| `icons/craftables/` | The 12 craftable items (128×128). |
-| `icons/consumables/` | Bandage, repair kit, firecracker (128×128). |
-| `icons/` | `preview.html` (the materials and craftables tables with icons), `sheet.html` (every icon at full size). |
-| `kit/` | `kit2.svgfrag`: the shared asset kit (trees, rocks, crates, barrels, logs, textures). Both build scripts paste it in. |
-
-## Searchable objects in the region scenes
-
-Every object the player can search is its own group with an id starting `o_` (for example `o_bus`, `o_guardian`, `o_vines`). The game makes these flash white to hint that they can be tapped, and only shows the details (search time, possible loot, danger) after a tap. The scenes themselves carry no UI.
-
-Indoor scenes (`03_jade_temple`, `04_ironroot_caves`) have a dark vignette at the edges; outdoor scenes don't.
+| `maps/` | `wilderness_map.svg` is **the engine base map**: 2048×2048 (32×32 tiles of 64px). The 24×24 gridded lawn at x/y 256..1792 is the play area; the forest around it is scenery. It's standalone (no external files). The game draws the day's structures, the house and the zombies on top. Tile `(col,row)` has its top-left at `256 + col*64, 256 + row*64`. |
+| `maps/` (mockups) | `grass_mockup.svg`, `grass_mockup_big.svg`, `frozen_lake_mockup.svg`, `volcano_mockup.svg`: look-and-feel mockups with sample structures placed (they link to `../structures/`). |
+| `structures/` | The fixed map features the game places each day: `home` (the survivor's 1×1 steel shelter), `power_inlet`, `live_cable`, `fuel_tank`, `broken_crusher`, `blast_door`, `entry_edge`, and the terrain pieces `slick_ice`, `pressure_ridge`, `lava_fissure`, `steam_vent`. 1×1 pieces use a 96px canvas. `preview.html` shows them all. |
