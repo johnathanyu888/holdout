@@ -2,36 +2,62 @@
 // every change (create / update / destroy sprites by key) and refreshes the
 // powered look every frame from either the build-mode power preview or the
 // running sim.
+//
+// Joins: wires and walls draw at JOIN_SCALE so neighbouring tiles overlap by a
+// texel (no hairline seams). Where a wire meets a part or the inlet, a short wire
+// stub runs from the shared edge into the part's tile, under the part, so the
+// wire visibly plugs into it instead of stopping at the tile edge.
 
-import type Phaser from 'phaser';
-import { GRID, key, tileToWorld } from '@shared/grid';
+import Phaser from 'phaser';
+import { GRID, TILE, key, tileToWorld } from '@shared/grid';
 import { hasPartDef, partDef, powerPreview, type SimState } from '@shared/sim';
 import type { Contraption } from '@shared/types/build';
 import type { DayConfig } from '@shared/types/day';
-import { SPRITE_SCALE, TEX } from '../core/assets';
+import { JOIN_SCALE, PART_SCALE, TEX } from '../core/assets';
 import { partView } from '../views/registry';
 import { maskOf, wallSprite, wireSprite } from './autotile';
 import { DEPTH } from './layers';
 
 const WIRE_DIM = 0x8c7a6c;
 
+/** Neighbour offsets with the quarter turns that point a west-facing wire_end at them. */
+const SIDES: [dx: number, dy: number, turns: number][] = [
+  [-1, 0, 0],
+  [0, -1, 1],
+  [1, 0, 2],
+  [0, 1, 3],
+];
+
+interface Stub {
+  sprite: Phaser.GameObjects.Image;
+  /** Tile key of the wire it continues (its power is what it shows). */
+  from: number;
+}
+
 export class EntityLayer {
   private readonly parts = new Map<number, Phaser.GameObjects.Image>();
   private readonly wires = new Map<number, Phaser.GameObjects.Image>();
   private readonly walls = new Map<number, Phaser.GameObjects.Image>();
+  private readonly stubs = new Map<string, Stub>();
   private house: Phaser.GameObjects.Image | null = null;
   readonly inlet: Phaser.GameObjects.Image;
   private c: Contraption | null = null;
   private preview: ReturnType<typeof powerPreview> | null = null;
+  /** Wire tile key -> neighbour mask (N1 E2 S4 W8), for the electricity overlay. */
+  private readonly wireMask = new Map<number, number>();
+  /** Additive overlay: current running along powered wires. */
+  private readonly zap: Phaser.GameObjects.Graphics;
+  private sparks: { x: number; y: number; until: number; seed: number }[] = [];
 
   constructor(
     private readonly scene: Phaser.Scene,
     private readonly day: DayConfig,
   ) {
+    this.zap = scene.add.graphics().setDepth(DEPTH.wires + 5_000).setBlendMode(Phaser.BlendModes.ADD);
     const p = tileToWorld(day.inlet.x, day.inlet.y);
     this.inlet = scene.add
       .image(p.x, p.y, TEX.structures, 'power_inlet')
-      .setScale(SPRITE_SCALE)
+      .setScale(PART_SCALE)
       .setDepth(DEPTH.parts + p.y);
   }
 
@@ -52,7 +78,7 @@ export class EntityLayer {
     // House
     if (c.house) {
       const p = tileToWorld(c.house.x, c.house.y);
-      this.house ??= this.scene.add.image(0, 0, TEX.structures, 'home').setScale(SPRITE_SCALE);
+      this.house ??= this.scene.add.image(0, 0, TEX.structures, 'home').setScale(PART_SCALE);
       this.house.setPosition(p.x, p.y).setDepth(DEPTH.parts + p.y);
     } else if (this.house) {
       this.house.destroy();
@@ -67,14 +93,13 @@ export class EntityLayer {
       const frame = partView(part.type).frame ?? part.type;
       let s = this.parts.get(part.id);
       if (!s) {
-        s = this.scene.add.image(p.x, p.y, TEX.parts, frame).setScale(SPRITE_SCALE);
+        s = this.scene.add.image(p.x, p.y, TEX.parts, frame).setScale(PART_SCALE);
         this.parts.set(part.id, s);
       }
       const rotatable = hasPartDef(part.type) && partDef(part.type).rotatable;
-      s.setPosition(p.x, p.y)
-        .setFrame(frame)
-        .setAngle(rotatable ? part.rot * 90 : 0)
-        .setDepth(DEPTH.parts + p.y);
+      s.setPosition(p.x, p.y).setFrame(frame).setDepth(DEPTH.parts + p.y);
+      // Spinning parts manage their own rotation; only set it for rotatable ones.
+      if (rotatable) s.setAngle(part.rot * 90);
     }
     for (const [id, s] of this.parts)
       if (!seen.has(id)) {
@@ -82,19 +107,46 @@ export class EntityLayer {
         this.parts.delete(id);
       }
 
-    // Wires: connect to wires, parts, the inlet and the house.
+    // Wires: connect to wires, parts and the inlet.
     const wireSet = new Set(c.wires.map((w) => key(w.x, w.y)));
     const linkSet = new Set<number>([key(this.day.inlet.x, this.day.inlet.y), ...c.parts.map((p) => key(p.x, p.y))]);
-    const linked = (x: number, y: number) =>
-      x >= 0 && y >= 0 && x < GRID && y < GRID && (wireSet.has(key(x, y)) || linkSet.has(key(x, y)));
+    const inGrid = (x: number, y: number) => x >= 0 && y >= 0 && x < GRID && y < GRID;
+    const linked = (x: number, y: number) => inGrid(x, y) && (wireSet.has(key(x, y)) || linkSet.has(key(x, y)));
+    this.wireMask.clear();
     this.syncTiles(this.wires, c.wires, (w, s) => {
-      const { frame, turns } = wireSprite(maskOf(w.x, w.y, linked));
+      const mask = maskOf(w.x, w.y, linked);
+      this.wireMask.set(key(w.x, w.y), mask);
+      const { frame, turns } = wireSprite(mask);
       s.setFrame(frame).setAngle(turns * 90).setDepth(DEPTH.wires + w.y);
     });
 
+    // Stubs: from each wire into a neighbouring part or the inlet.
+    const want = new Map<string, { x: number; y: number; turns: number; from: number }>();
+    for (const t of [{ x: this.day.inlet.x, y: this.day.inlet.y }, ...c.parts])
+      for (const [dx, dy, turns] of SIDES) {
+        const nx = t.x + dx;
+        const ny = t.y + dy;
+        if (inGrid(nx, ny) && wireSet.has(key(nx, ny))) want.set(`${t.x},${t.y},${turns}`, { x: t.x, y: t.y, turns, from: key(nx, ny) });
+      }
+    for (const [k, st] of this.stubs)
+      if (!want.has(k)) {
+        st.sprite.destroy();
+        this.stubs.delete(k);
+      }
+    for (const [k, w] of want) {
+      let st = this.stubs.get(k);
+      if (!st) {
+        const p = tileToWorld(w.x, w.y);
+        st = { sprite: this.scene.add.image(p.x, p.y, TEX.parts, 'wire_end').setScale(JOIN_SCALE), from: w.from };
+        this.stubs.set(k, st);
+      }
+      st.from = w.from;
+      st.sprite.setAngle(w.turns * 90).setDepth(DEPTH.wires + w.y + 0.5);
+    }
+
     // Walls: connect to walls of either material.
     const wallSet = new Set(c.walls.map((w) => key(w.x, w.y)));
-    const walled = (x: number, y: number) => x >= 0 && y >= 0 && x < GRID && y < GRID && wallSet.has(key(x, y));
+    const walled = (x: number, y: number) => inGrid(x, y) && wallSet.has(key(x, y));
     this.syncTiles(this.walls, c.walls, (w, s) => {
       s.setFrame(wallSprite(w.material, maskOf(w.x, w.y, walled), w.x, w.y)).setDepth(
         DEPTH.walls + tileToWorld(w.x, w.y).y,
@@ -114,7 +166,7 @@ export class EntityLayer {
       let s = map.get(k);
       if (!s) {
         const p = tileToWorld(it.x, it.y);
-        s = this.scene.add.image(p.x, p.y, TEX.parts, '__DEFAULT').setScale(SPRITE_SCALE);
+        s = this.scene.add.image(p.x, p.y, TEX.parts, '__DEFAULT').setScale(JOIN_SCALE);
         map.set(k, s);
       }
       style(it, s);
@@ -131,7 +183,7 @@ export class EntityLayer {
     if (!this.c) return;
     const powerC = sim ? sim.powerC : this.preview?.powerC;
     const powerT = sim ? sim.powerT : this.preview?.powerT;
-    for (const [k, s] of this.wires) {
+    const wireLook = (s: Phaser.GameObjects.Image, k: number) => {
       const strength = Math.max(powerC?.[k] ?? 0, powerT?.[k] ?? 0);
       if (strength > 0) {
         // Brighter with strength; a gentle shimmer so live wires read as live.
@@ -140,7 +192,14 @@ export class EntityLayer {
       } else {
         s.setTint(WIRE_DIM).setAlpha(1);
       }
-    }
+    };
+    for (const [k, s] of this.wires) wireLook(s, k);
+    for (const st of this.stubs.values()) wireLook(st.sprite, st.from);
+    this.drawCurrent(time, powerC, powerT);
+
+    // The inlet always has power: a slow breath so it reads as live.
+    this.inlet.setScale(PART_SCALE * (1 + 0.035 * Math.sin(time * 3)));
+
     const simParts = sim ? new Map(sim.parts.map((p) => [p.id, p])) : null;
     for (const part of this.c.parts) {
       const s = this.parts.get(part.id);
@@ -155,8 +214,75 @@ export class EntityLayer {
     }
   }
 
+  /**
+   * Electricity on powered wires: bright pulses that run away from the power
+   * source (strength falls 1 per tile, so "distance from the source" is
+   * 16 - strength and the pulses travel down that gradient), plus the odd spark
+   * crackling at a random live tile.
+   */
+  private drawCurrent(time: number, powerC?: Uint8Array, powerT?: Uint8Array): void {
+    const g = this.zap;
+    g.clear();
+    const strength = (k: number) => Math.max(powerC?.[k] ?? 0, powerT?.[k] ?? 0);
+    const inletK = key(this.day.inlet.x, this.day.inlet.y);
+    const live: number[] = [];
+    const half = TILE / 2;
+    const SEGS = 4;
+    for (const [k, mask] of this.wireMask) {
+      const s = strength(k);
+      if (s <= 0) continue;
+      live.push(k);
+      const x = k % GRID;
+      const y = Math.floor(k / GRID);
+      const c = tileToWorld(x, y);
+      const d0 = 16 - s;
+      for (const [bit, dx, dy] of [
+        [1, 0, -1],
+        [2, 1, 0],
+        [4, 0, 1],
+        [8, -1, 0],
+      ] as const) {
+        if (!(mask & bit)) continue;
+        const nk = key(x + dx, y + dy);
+        const ns = nk === inletK ? 16 : this.wireMask.has(nk) ? strength(nk) : 0;
+        const dir = ns > s ? -1 : 1; // toward a stronger neighbour = back toward the source
+        for (let i = 0; i < SEGS; i++) {
+          const u0 = i / SEGS;
+          const u1 = (i + 1) / SEGS;
+          const d = d0 + dir * 0.5 * ((u0 + u1) / 2);
+          const wave = 0.5 + 0.5 * Math.sin(Math.PI * 2 * (time * 1.4 - d * 0.55));
+          const a = wave ** 6;
+          if (a < 0.03) continue;
+          const ax = c.x + dx * half * u0;
+          const ay = c.y + dy * half * u0;
+          const bx = c.x + dx * half * u1;
+          const by = c.y + dy * half * u1;
+          g.lineStyle(9, 0x3fd8ff, 0.18 * a).lineBetween(ax, ay, bx, by);
+          g.lineStyle(3.5, 0xd8fbff, 0.85 * a).lineBetween(ax, ay, bx, by);
+        }
+      }
+    }
+    // Sparks: a short zigzag that flickers for ~0.15s.
+    if (live.length && Math.random() < 0.06 + live.length * 0.004) {
+      const k = live[Math.floor(Math.random() * live.length)] as number;
+      const c = tileToWorld(k % GRID, Math.floor(k / GRID));
+      this.sparks.push({ x: c.x, y: c.y, until: time + 0.15, seed: Math.random() * 100 });
+    }
+    this.sparks = this.sparks.filter((sp) => sp.until > time);
+    for (const sp of this.sparks) {
+      const flick = Math.floor(time * 30 + sp.seed);
+      const r = (n: number) => Math.sin(sp.seed * 12.9 + n * 78.2 + flick) * 0.5;
+      g.lineStyle(2, 0xffffff, 0.9).beginPath();
+      g.moveTo(sp.x + r(1) * 10, sp.y + r(2) * 10);
+      for (let i = 3; i < 8; i += 2) g.lineTo(sp.x + r(i) * 22, sp.y + r(i + 1) * 22);
+      g.strokePath();
+    }
+  }
+
   destroy(): void {
+    this.zap.destroy();
     for (const m of [this.parts, this.wires, this.walls]) for (const s of m.values()) s.destroy();
+    for (const st of this.stubs.values()) st.sprite.destroy();
     this.house?.destroy();
     this.inlet.destroy();
   }

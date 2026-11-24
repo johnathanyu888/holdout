@@ -20,6 +20,10 @@ export class CameraController {
   private screen: Screen;
   /** True until the player moves the camera; a fitted camera re-fits on resize. */
   private fitted = true;
+  private anim: { from: View; t0: number; ms: number } | null = null;
+  private punchAmp = 0;
+  private punchT0 = 0;
+  private punchNow = 0;
 
   constructor(
     private readonly cam: Phaser.Cameras.Scene2D.Camera,
@@ -65,12 +69,53 @@ export class CameraController {
   }
 
   fit(): void {
+    this.anim = null;
     this.view = fittedView(this.screen);
     this.fitted = true;
     this.apply();
   }
 
+  /** Eases out to the fitted view over `ms` (driven by tick()). Any camera input cancels it. */
+  fitSmooth(now: number, ms = 550): void {
+    this.anim = { from: { ...this.view }, t0: now, ms };
+    this.fitted = true;
+  }
+
+  /**
+   * A heartbeat thump: the view kicks in by `amount` (fraction of the zoom) and
+   * settles back over ~200ms. Visual only: the logical view (and input) is untouched.
+   */
+  punch(now: number, amount: number): void {
+    this.punchAmp = amount;
+    this.punchT0 = now;
+  }
+
+  /** Advances a running fitSmooth() and any punch; call every frame. */
+  tick(now: number): void {
+    if (this.punchAmp) {
+      const t = (now - this.punchT0) / 1000;
+      // fast attack (~40ms), springy decay
+      const env = t < 0.04 ? t / 0.04 : Math.exp(-(t - 0.04) * 14) * Math.cos((t - 0.04) * 18);
+      this.punchNow = this.punchAmp * env;
+      if (t > 0.45) this.punchAmp = this.punchNow = 0;
+      if (!this.anim) this.apply();
+    }
+    const a = this.anim;
+    if (!a) return;
+    const to = fittedView(this.screen); // re-read: the HUD may change size mid-animation
+    const k = Math.min(1, (now - a.t0) / a.ms);
+    const e = 1 - (1 - k) ** 3;
+    this.view = {
+      cx: a.from.cx + (to.cx - a.from.cx) * e,
+      cy: a.from.cy + (to.cy - a.from.cy) * e,
+      zoom: a.from.zoom + (to.zoom - a.from.zoom) * e,
+    };
+    if (k >= 1) this.anim = null;
+    this.apply();
+  }
+
   set(v: View): void {
+    this.anim = null;
     this.view = clampView(v, this.screen);
     this.fitted = false;
     this.apply();
@@ -99,7 +144,7 @@ export class CameraController {
   }
 
   private apply(): void {
-    this.cam.setZoom(this.view.zoom * this.dpr);
+    this.cam.setZoom(this.view.zoom * this.dpr * (1 + this.punchNow));
     this.cam.centerOn(this.view.cx, this.view.cy);
   }
 }

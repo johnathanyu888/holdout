@@ -16,9 +16,9 @@ import { copyFileSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, w
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
-import { FAR_SCALE, MAP_SCALE, type MapChunk, farChunks, mapChunks } from '../src/client/core/assets';
+import { FAR_SCALE, MAP_SCALE, type MapChunk, canopyChunks, farChunks, mapChunks } from '../src/client/core/assets';
 import { FOREST_MAX, FOREST_MIN, MAP_PX } from '../src/shared/grid';
-import { buildWideMap, cropSvg } from './forest';
+import { buildWideMap, cropSvg, splitCanopy } from './forest';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const ART = join(ROOT, 'art');
@@ -150,11 +150,12 @@ async function bakeAtlas(spec: AtlasSpec, force: boolean): Promise<void> {
 // Chunk layouts live in the client's assets.ts so the game and this script agree.
 async function bakeMap(force: boolean): Promise<void> {
   const near = mapChunks();
+  const canopy = canopyChunks();
   const far = farChunks();
-  const all = [...near, ...far];
+  const all = [...near, ...canopy, ...far];
   const outs = all.map((c) => join(OUT, basename(c.file)));
   const sig = JSON.stringify({
-    v: 2,
+    v: 3,
     near: near.map((c) => [c.left, c.top, c.width, c.height]),
     far: far.map((c) => [c.left, c.top, c.width, c.height]),
     ring: [FOREST_MIN, FOREST_MAX],
@@ -173,7 +174,7 @@ async function bakeMap(force: boolean): Promise<void> {
   }
   // Remove chunks from an older layout.
   for (const f of readdirSync(OUT))
-    if (/^(map|far)(_\d+_\d+)?\.webp$/.test(f) && !outs.includes(join(OUT, f))) rmSync(join(OUT, f));
+    if (/^(map|far|canopy)(_\d+_\d+)?\.webp$/.test(f) && !outs.includes(join(OUT, f))) rmSync(join(OUT, f));
 
   const wide = buildWideMap(readFileSync(MAP_SVG, 'utf8'));
   const render = (svg: string, scale: number) => {
@@ -192,14 +193,17 @@ async function bakeMap(force: boolean): Promise<void> {
     }
     return bytes;
   };
-  const nearBytes = await cut(render(cropSvg(wide, 0, 0, MAP_PX, MAP_PX), MAP_SCALE), near, 90);
+  // Near map: the ground and the tree canopy as separate layers (zombies walk between them).
+  const { ground, canopy: trees } = splitCanopy(wide);
+  const nearBytes = await cut(render(cropSvg(ground, 0, 0, MAP_PX, MAP_PX), MAP_SCALE), near, 90);
+  const canopyBytes = await cut(render(cropSvg(trees, 0, 0, MAP_PX, MAP_PX), MAP_SCALE), canopy, 90);
   // The ring is mostly in the game's dark-woods shade, so lower quality is invisible.
   const farBytes = await cut(render(wide, FAR_SCALE), far, 80);
   writeFileSync(sigFile, sig);
   const kb = (n: number) => `${(n / 1024).toFixed(0)} KB`;
   console.log(
     `  map: ${near.length} chunks @${MAP_SCALE}x (${kb(nearBytes)}), ` +
-      `forest ring: ${far.length} chunks @${FAR_SCALE}x (${kb(farBytes)})`,
+      `canopy: ${canopy.length} chunks (${kb(canopyBytes)}), forest ring: ${far.length} chunks @${FAR_SCALE}x (${kb(farBytes)})`,
   );
 }
 

@@ -7,7 +7,7 @@ import { edgeDistance, edgeTiles, GRID, TILE, type Tile, tileOrigin, tileToWorld
 import { checkHouse, placeHouse, rotatePart } from '@shared/build/rules';
 import { hasPartDef, partDef, spawnZombie } from '@shared/sim';
 import type { Rot } from '@shared/types/build';
-import { FAR_SCALE, MAP_SCALE, SPRITE_SCALE, TEX, farChunks, mapChunks } from '../core/assets';
+import { FAR_SCALE, MAP_SCALE, PART_SCALE, SPRITE_SCALE, TEX, canopyChunks, farChunks, mapChunks } from '../core/assets';
 import { CameraController } from '../core/camera';
 import { InputRouter, type PointerInfo } from '../core/input';
 import { RaidRunner } from '../core/raid';
@@ -21,9 +21,12 @@ import { DEPTH } from '../render/layers';
 import { addWoodsShade } from '../render/woods';
 import { ZombieLayer } from '../render/zombies';
 import { type BuildTool, createTool } from '../tools/tools';
+import { hotbarTools } from '../ui/slots';
 
 /** Delay between the raid's last step and the result card. */
 const RESULT_DELAY_MS = 1200;
+/** Zombies closer than this (tiles) to the house start the danger effect. */
+const DANGER_FAR = 4.5;
 
 export class WorldScene extends Phaser.Scene {
   camera!: CameraController;
@@ -38,6 +41,7 @@ export class WorldScene extends Phaser.Scene {
   private tool: BuildTool | null = null;
   private raid: RaidRunner | null = null;
   private resultAt: number | null = null;
+  private nextBeat = 0;
   private readonly cleanup: (() => void)[] = [];
 
   constructor() {
@@ -53,7 +57,11 @@ export class WorldScene extends Phaser.Scene {
       this.add.image(c.x, c.y, c.key).setOrigin(0, 0).setScale(1 / FAR_SCALE).setDepth(DEPTH.ground - 1);
     for (const c of mapChunks())
       this.add.image(c.x, c.y, c.key).setOrigin(0, 0).setScale(1 / MAP_SCALE).setDepth(DEPTH.ground);
-    addWoodsShade(this, DEPTH.ground + 1);
+    // The trees, over everything on the ground (zombies walk out from under them),
+    // then the dark-woods shade over the trees.
+    for (const c of canopyChunks())
+      this.add.image(c.x, c.y, c.key).setOrigin(0, 0).setScale(1 / MAP_SCALE).setDepth(DEPTH.canopy);
+    addWoodsShade(this, DEPTH.canopy + 1);
     this.hoverG = this.add.graphics().setDepth(DEPTH.ghost - 1);
 
     this.entities = new EntityLayer(this, day);
@@ -173,6 +181,7 @@ export class WorldScene extends Phaser.Scene {
     this.resultAt = null;
     session.result.set(null);
     session.phase.set('raid');
+    this.camera.fitSmooth(this.time.now);
     this.publishRaid();
   }
 
@@ -199,9 +208,52 @@ export class WorldScene extends Phaser.Scene {
     this.raid = null;
     this.resultAt = null;
     session.raid.set(null);
+    session.danger.set(0);
     this.zombies.clear();
     this.fx.clear();
-    this.entities.houseSprite()?.clearTint().setScale(SPRITE_SCALE);
+    this.entities.houseSprite()?.clearTint().setScale(PART_SCALE);
+  }
+
+  /** Danger 0..1 from the nearest zombie on the lawn: 0 at DANGER_FAR tiles or more, 1 at the door. */
+  private updateDanger(): void {
+    const st = this.raid?.sim;
+    let d = Infinity;
+    if (st && st.outcome === 'running') {
+      const hx = st.house.x + 0.5;
+      const hy = st.house.y + 0.5;
+      for (const z of st.zombies)
+        if (!z.dead && !z.ext.enter) d = Math.min(d, Math.hypot(z.x - hx, z.y - hy));
+    } else if (st?.outcome === 'lost' && st.stats.breachBy !== null) d = 0;
+    const raw = Math.max(0, Math.min(1, (DANGER_FAR - d) / (DANGER_FAR - 0.6)));
+    const q = Math.round(raw * 20) / 20;
+    if (q !== session.danger.value) session.danger.set(q);
+  }
+
+  /**
+   * Heartbeat while zombies are near the house: a "lub-dub" every beat. Each thump
+   * kicks the camera in a touch (and the second, weaker one ~170ms later), with a
+   * small shake; the night overlay flashes red on the same beat (session.beat).
+   * Faster and harder the closer they are (~55 bpm far, ~110 bpm at the door).
+   */
+  private heartbeat(time: number): void {
+    const d = session.danger.value;
+    if (d <= 0 || session.phase.value !== 'raid') {
+      this.nextBeat = 0;
+      return;
+    }
+    if (this.nextBeat === 0) this.nextBeat = time;
+    if (time < this.nextBeat) return;
+    const period = 1100 - 560 * d;
+    this.nextBeat = time + period;
+    const thump = (strength: number) => {
+      this.camera.punch(this.time.now, 0.006 + 0.022 * d * strength);
+      this.cameras.main.shake(110, (0.0006 + 0.0028 * d) * strength);
+    };
+    thump(1);
+    session.beat.set(session.beat.value + 1);
+    this.time.delayedCall(170, () => {
+      if (session.danger.value > 0) thump(0.55);
+    });
   }
 
   private publishRaid(): void {
@@ -223,7 +275,7 @@ export class WorldScene extends Phaser.Scene {
       const ring = edgeTiles();
       t = ring[Math.floor(Math.random() * ring.length)] ?? { x: 0, y: 0 };
     }
-    spawnZombie(this.raid.sim, 'shambler', t.x, t.y);
+    spawnZombie(this.raid.sim, 'shambler', t.x, t.y, undefined, { walkIn: true });
   }
 
   // ---- tools ------------------------------------------------------------------
@@ -265,12 +317,15 @@ export class WorldScene extends Phaser.Scene {
     const px = 1 / this.cameras.main.zoom; // one device pixel in world units
     const dpr = (this.registry.get('viewport') as ViewportSize).dpr;
 
+    this.camera.tick(time);
     if (phase === 'build' && session.clock.tick()) this.startRaid();
 
     if (this.raid) {
       const events = this.raid.update(delta);
       if (events.length) this.fx.consume(events, time);
       this.zombies.update(this.raid.sim, this.raid.alpha, t);
+      this.updateDanger();
+      this.heartbeat(time);
       if (events.length || this.raid.sim.tick % 5 === 0) this.publishRaid();
       if (this.raid.done) {
         this.resultAt ??= time + RESULT_DELAY_MS;
@@ -376,8 +431,17 @@ export class WorldScene extends Phaser.Scene {
           session.tool.set('select');
           session.selected.set(null);
           break;
-        default:
-          return;
+        case 'Enter':
+          if (building && session.store.current.house) this.startRaid();
+          break;
+        default: {
+          // Hotbar: 1..9, 0 pick a slot; pressing the active slot's key puts it away.
+          if (!building || !/^[0-9]$/.test(e.key)) return;
+          const i = e.key === '0' ? 9 : Number(e.key) - 1;
+          const id = hotbarTools(session.day)[i];
+          if (!id) return;
+          session.tool.set(session.tool.value === id ? 'select' : id);
+        }
       }
     }
     e.preventDefault();

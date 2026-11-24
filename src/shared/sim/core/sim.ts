@@ -122,16 +122,47 @@ function makeCtx(st: SimState, events: SimEvent[]): SimCtx {
   };
 }
 
-/** Adds a zombie at a tile centre (used by the schedule and the sandbox). */
-export function spawnZombie(st: SimState, type: string, tx: number, ty: number, events?: SimEvent[]): Zombie {
+/** How far out in the forest (tiles past the lawn edge) walking-in zombies start. */
+export const WALK_IN_TILES = 3;
+
+/**
+ * Adds a zombie at a tile centre (used by the schedule and the sandbox).
+ * With walkIn and an edge tile, it starts WALK_IN_TILES out in the forest beyond
+ * that edge and walks straight in to the tile before it starts pathing.
+ */
+export function spawnZombie(
+  st: SimState,
+  type: string,
+  tx: number,
+  ty: number,
+  events?: SimEvent[],
+  opts: { walkIn?: boolean } = {},
+): Zombie {
   const def = zombieDef(type);
+  let x = tx + 0.5;
+  let y = ty + 0.5;
+  const ext: Record<string, number> = {};
+  if (opts.walkIn) {
+    const last = GRID - 1;
+    const ox = tx === 0 ? -1 : tx === last ? 1 : 0;
+    const oy = ty === 0 ? -1 : ty === last ? 1 : 0;
+    // Corners: come in along one axis (the one the schedule's side picked is unknown; prefer vertical).
+    const [dx, dy] = oy !== 0 ? [0, oy] : [ox, 0];
+    if (dx !== 0 || dy !== 0) {
+      ext.enter = 1;
+      ext.ex = x;
+      ext.ey = y;
+      x += dx * WALK_IN_TILES;
+      y += dy * WALK_IN_TILES;
+    }
+  }
   const z: Zombie = {
     id: st.nextZombieId++,
     type,
-    x: tx + 0.5,
-    y: ty + 0.5,
-    px: tx + 0.5,
-    py: ty + 0.5,
+    x,
+    y,
+    px: x,
+    py: y,
     hp: def.hp,
     maxHp: def.hp,
     speed: def.speed,
@@ -140,7 +171,7 @@ export function spawnZombie(st: SimState, type: string, tx: number, ty: number, 
     vx: 0,
     vy: 0,
     dead: false,
-    ext: {},
+    ext,
   };
   st.zombies.push(z);
   st.stats.spawned++;
@@ -156,7 +187,7 @@ export function step(st: SimState): SimEvent[] {
   // 1. spawn
   while (st.scheduleIdx < st.schedule.length && (st.schedule[st.scheduleIdx] as SpawnEntry).step <= st.tick) {
     const e = st.schedule[st.scheduleIdx++] as SpawnEntry;
-    spawnZombie(st, e.type, e.x, e.y, events);
+    spawnZombie(st, e.type, e.x, e.y, events, { walkIn: true });
   }
 
   // 2. sense (triggers) and chips (from last step's input)
@@ -202,6 +233,22 @@ function moveZombies(st: SimState, events: SimEvent[]): void {
   for (const z of live) {
     z.px = z.x;
     z.py = z.y;
+    if (z.ext.enter) {
+      // Walking in out of the forest: straight to the edge tile, then path as normal.
+      const dx = (z.ext.ex as number) - z.x;
+      const dy = (z.ext.ey as number) - z.y;
+      const len = Math.sqrt(dx * dx + dy * dy);
+      const stepLen = z.speed * STEP_SECONDS * z.slowMul;
+      if (len <= stepLen) {
+        z.x = z.ext.ex as number;
+        z.y = z.ext.ey as number;
+        z.ext.enter = 0;
+      } else {
+        z.x += (dx / len) * stepLen;
+        z.y += (dy / len) * stepLen;
+      }
+      continue;
+    }
     const cx = Math.floor(z.x);
     const cy = Math.floor(z.y);
     let tx: number;
@@ -258,6 +305,12 @@ function moveZombies(st: SimState, events: SimEvent[]): void {
   }
 
   for (const z of live) {
+    z.vx = z.x - z.px;
+    z.vy = z.y - z.py;
+    if (z.ext.enter) {
+      z.slowMul = 1;
+      continue; // still in the forest: no lawn clamp, walls or breach yet
+    }
     // Stay on the lawn and out of walls.
     z.x = Math.max(0.01, Math.min(GRID - 0.01, z.x));
     z.y = Math.max(0.01, Math.min(GRID - 0.01, z.y));

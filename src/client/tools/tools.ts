@@ -1,7 +1,8 @@
 // Build tools. Each turns router gestures (tap / drag on tiles) into store edits
 // through the shared build rules, and describes its ghost preview.
 //
-//   select       tap a tile to select it (rotate a selected part with R)
+//   select       the default (no hotbar slot): tap a tile to select it (rotate with R)
+//                Placing tools also select a placed part when you tap it (auto-select).
 //   house        tap to place or move the house
 //   part:<type>  tap to place a part at the current rotation
 //   wire         tap one tile, or drag an L-shaped path (one undo step)
@@ -58,6 +59,16 @@ function report(env: ToolEnv, reason: string | null): void {
   if (reason) env.toast(reason);
 }
 
+/**
+ * Auto-select: a placing tool tapped on a placed part selects it (to inspect or
+ * rotate) instead of refusing to place there. Returns true if it did.
+ */
+function autoSelect(env: ToolEnv, t: Tile): boolean {
+  if (occupantAt(env.day, env.store.current, t.x, t.y).kind !== 'part') return false;
+  env.select(t);
+  return true;
+}
+
 function selectTool(env: ToolEnv): BuildTool {
   return {
     id: 'select',
@@ -72,7 +83,8 @@ function houseTool(env: ToolEnv): BuildTool {
     id: 'house',
     capturesDrag: false,
     onTap: (p) => {
-      if (p.tile) report(env, env.store.apply((c) => placeHouse(env.day, c, p.tile!.x, p.tile!.y)));
+      if (!p.tile || autoSelect(env, p.tile)) return;
+      report(env, env.store.apply((c) => placeHouse(env.day, c, p.tile!.x, p.tile!.y)));
     },
     ghost: (t) =>
       t && {
@@ -90,7 +102,7 @@ function partTool(env: ToolEnv, type: string): BuildTool {
     id: `part:${type}`,
     capturesDrag: false,
     onTap: (p) => {
-      if (!p.tile) return;
+      if (!p.tile || autoSelect(env, p.tile)) return;
       const cfg = hasPartDef(type) ? partDef(type).defaultConfig : undefined;
       report(env, env.store.apply((c) => placePart(env.day, c, type, p.tile!.x, p.tile!.y, env.rot(), cfg)));
     },
@@ -122,7 +134,9 @@ function pathTool(
     id,
     capturesDrag: true,
     onTap: (p) => {
-      if (p.tile) report(env, opts.commit([p.tile]));
+      if (!p.tile) return;
+      if (id !== 'erase' && autoSelect(env, p.tile)) return;
+      report(env, opts.commit([p.tile]));
     },
     onDragStart: (p) => {
       const t = tileOf(p);

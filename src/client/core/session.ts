@@ -74,6 +74,10 @@ function createSession() {
     selected: new Obs<{ x: number; y: number } | null>(null),
     toast: new Obs<{ text: string; id: number } | null>(null),
     raid: new Obs<RaidStatus | null>(null),
+    /** 0..1: how close the nearest zombie is to the house during a raid (drives the danger effect). */
+    danger: new Obs(0),
+    /** Counts heartbeat thumps (the world scene times them; the night overlay pulses on each). */
+    beat: new Obs(0),
     result: new Obs<RaidResult | null>(null),
     actions: {
       startBuild: noop,

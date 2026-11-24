@@ -38,10 +38,11 @@ A day is built from **five independent layers**, each rolled from the daily seed
 - **Demo:** one fixed day on the prebuilt wilderness map (`art/maps/wilderness_map.svg`). No seed generation; placements are hand-made.
 
 ### 3.1b Map size
-- **24×24 tiles.** Art is drawn at **64px a tile**, so the play area is 1536×1536px. The map file is 2048×2048 (32×32 tiles); the play area sits at x/y 256..1792 and the forest round it is scenery.
-- On screen: a phone shows the whole map at ~16px a tile (overview); you build zoomed in at 2–3× with pinch and pan. Desktop fits it at 32px a tile.
-- Why 24: from the middle to an edge is 12 tiles, so Shamblers (~0.9 tiles/s) arrive in ~13s, Runners (~1.8) in ~7s, Brutes (~0.6) in ~20s. That fits a ~30s raid. A full ring defense round the home takes ~13×13, leaving room for killing fields on every side.
-- Home in a corner = zombies from the far side walk ~34 tiles; that's the player's trade-off (or the outer 2-tile band can be off-limits for the home).
+- **16×16 tiles** (the demo; shrunk from 24×24 so each part you place matters on screen). Art is drawn at **64px a tile**, so the play area is 1024×1024px. The map file is 1536×1536 (24×24 tiles); the play area sits at x/y 256..1280 and the forest round it is scenery.
+- On screen: a phone fits the whole lawn at ~22px a tile; you build zoomed in with pinch and pan. A laptop fits it at ~45px a tile.
+- Zombies don't appear on the edge tiles: they walk out of the forest, starting ~3 tiles back in the trees, then path to the house.
+- Why 16: from the middle to an edge is 8 tiles (plus the walk out of the trees), so Shamblers (~0.9 tiles/s) arrive in ~12s, Runners (~1.8) in ~6s, Brutes (~0.6) in ~18s. That still fits a ~30s raid, with room for a ring of traps and killing fields round the home.
+- Home near a corner = zombies from the far side walk ~22 tiles; that's the player's trade-off (the outer 2-tile band is off-limits for the home).
 
 ### 3.2 Your house (you place it; it sets the zombies' goal)
 - During Build you place your **house** (the survivor's hideout, **1×1 tile**) **anywhere on open ground**.
@@ -50,7 +51,7 @@ A day is built from **five independent layers**, each rolled from the daily seed
 
 | | House in the middle | House near one edge |
 | --- | --- | --- |
-| Zombie walk | ~12 tiles from every side, all arriving about together | ~3 tiles from the near edge, ~21 from the far edge |
+| Zombie walk | ~8 tiles from every side, all arriving about together | ~2 tiles from the near edge, ~14 from the far edge |
 | Upside | Even ground on every side: one symmetric ring of traps can work | The far sides walk a long way, so you have lots of tiles to kill them on |
 | Downside | Pressure from all four sides at once: you need defense everywhere | Zombies spawning on the near edge are on you almost immediately: that side needs a tight, fast killer |
 

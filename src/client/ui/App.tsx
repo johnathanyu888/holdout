@@ -15,16 +15,17 @@ import {
   IconPlus,
   IconRedo,
   IconRotate,
-  IconSelect,
   IconUndo,
   icon,
 } from './icons';
+import { hotbarTools, slotKey } from './slots';
 
 export function App() {
   const phase = useObs(session.phase);
   if (phase === 'boot') return null;
   return (
     <>
+      {(phase === 'raid' || phase === 'result') && <NightFx />}
       <TopBar />
       {phase === 'briefing' && <Briefing />}
       {phase === 'build' && <Tray />}
@@ -204,59 +205,85 @@ function Briefing() {
 
 // ---- build tray -----------------------------------------------------------------
 
+/** The build hotbar: square slots with number keys, plus the Fight button. */
 function Tray() {
   const tool = useObs(session.tool);
   const c = useObs(session.store.contraption);
   const inv = session.store.inventory;
   const { day } = session;
+  // Tapping the active slot again puts it away (back to tap-to-select).
   const pick = (id: string) => session.tool.set(tool === id ? 'select' : id);
-  const parts = Object.keys(day.kit);
+  const ready = !!c.house;
+  // One name tag above the hotbar: the slot under the pointer, else the active one.
+  const [hover, setHover] = useState<string | null>(null);
+  const tipId = hover ?? (tool !== 'select' ? tool : null);
+
+  const slot = (id: string): { label: string; title?: string; icon: preact.ComponentChildren; count?: number; badge?: string; alert?: boolean } => {
+    if (id === 'erase') return { label: 'Remove', icon: <IconErase /> };
+    if (id === 'house')
+      return { label: 'House', icon: <img src={icon('home')} alt="" />, badge: c.house ? '✓' : '!', alert: !c.house };
+    if (id === 'wire') return { label: 'Wire', icon: <img src={icon('wire_straight')} alt="" />, count: inv.materials.wire };
+    if (id.startsWith('wall:')) {
+      const m = id.slice(5) as 'wood' | 'stone';
+      return {
+        label: m === 'wood' ? 'Wood wall' : 'Stone wall',
+        title: `${m === 'wood' ? 'Wood' : 'Stone'} wall (${WALL_COST} ${m === 'wood' ? 'Wood' : 'Stone'})`,
+        icon: <img src={icon(`wall_${m}_ew_a`)} alt="" />,
+        count: Math.floor(inv.materials[m] / WALL_COST),
+      };
+    }
+    const type = id.slice(5);
+    return { label: SHORT[type] ?? partLabel(type), title: partLabel(type), icon: <img src={icon(type)} alt="" />, count: inv.parts[type] ?? 0 };
+  };
+
+  const tip = tipId ? slot(tipId) : null;
+  const tipDetail =
+    tip && tipId
+      ? tipId === 'house'
+        ? c.house
+          ? 'tap the lawn to move it'
+          : 'place it first'
+        : tip.count !== undefined
+          ? tip.count > 99
+            ? 'unlimited'
+            : `${tip.count} left`
+          : null
+      : null;
 
   return (
     <div class="tray-wrap">
-      <div class="tray" role="toolbar" aria-label="Build tools">
-        <ToolBtn id="select" label="Select" cur={tool} onPick={pick}>
-          <IconSelect />
-        </ToolBtn>
-        <ToolBtn id="house" label="House" cur={tool} onPick={pick} badge={c.house ? '✓' : '!'} alert={!c.house}>
-          <img src={icon('home')} alt="" />
-        </ToolBtn>
-        <div class="tray-sep" />
-        {parts.map((type) => (
-          <ToolBtn
-            key={type}
-            id={`part:${type}`}
-            label={SHORT[type] ?? partLabel(type)}
-            title={partLabel(type)}
-            cur={tool}
-            onPick={pick}
-            count={inv.parts[type] ?? 0}
-          >
-            <img src={icon(type)} alt="" />
-          </ToolBtn>
-        ))}
-        <div class="tray-sep" />
-        <ToolBtn id="wire" label="Wire" cur={tool} onPick={pick} count={inv.materials.wire}>
-          <img src={icon('wire_straight')} alt="" />
-        </ToolBtn>
-        {day.materials.wood > 0 && (
-          <ToolBtn id="wall:wood" label="Wood" title="Wood wall (3 Wood)" cur={tool} onPick={pick} count={Math.floor(inv.materials.wood / WALL_COST)}>
-            <img src={icon('wall_wood_ew_a')} alt="" />
-          </ToolBtn>
+      <div class="hotbar">
+        {tip && (
+          <div class="hotbar-tip" key={tipId ?? ''}>
+            <b>{tip.title ?? tip.label}</b>
+            {tipDetail && <span>{tipDetail}</span>}
+          </div>
         )}
-        {day.materials.stone > 0 && (
-          <ToolBtn id="wall:stone" label="Stone" title="Stone wall (3 Stone)" cur={tool} onPick={pick} count={Math.floor(inv.materials.stone / WALL_COST)}>
-            <img src={icon('wall_stone_ew_a')} alt="" />
-          </ToolBtn>
-        )}
-        <ToolBtn id="erase" label="Erase" cur={tool} onPick={pick}>
-          <IconErase />
-        </ToolBtn>
+        <div class="tray" role="toolbar" aria-label="Build tools" onMouseLeave={() => setHover(null)}>
+          {hotbarTools(day).map((id, i) => {
+            const s = slot(id);
+            return (
+              <ToolBtn key={id} id={id} keyHint={slotKey(i)} cur={tool} onPick={pick} onHover={setHover} {...s}>
+                {s.icon}
+              </ToolBtn>
+            );
+          })}
+        </div>
       </div>
-      <button class="start-btn" onClick={() => session.actions.startRaid()} disabled={!c.house && session.mode === 'sandbox'}>
-        <span>Start raid</span>
-        <IconPlay />
-      </button>
+      <div class="fight-dock">
+        <button
+          class={`fight-btn ${ready ? 'ready' : ''}`}
+          onClick={() => session.actions.startRaid()}
+          disabled={!ready}
+          title={ready ? 'Fight (Enter)' : 'Place your house first'}
+        >
+          <span class="fight-main">
+            <IconSwords />
+            <span>Fight</span>
+          </span>
+          <span class="fight-sub">{ready ? 'Enter' : 'Place your house'}</span>
+        </button>
+      </div>
     </div>
   );
 }
@@ -265,27 +292,39 @@ function ToolBtn(p: {
   id: string;
   label: string;
   title?: string;
+  keyHint: string;
   cur: string;
   onPick: (id: string) => void;
+  onHover: (id: string | null) => void;
   count?: number;
   badge?: string;
   alert?: boolean;
   children: preact.ComponentChildren;
 }) {
   const empty = p.count !== undefined && p.count <= 0;
+  const on = p.cur === p.id;
   return (
     <button
-      class={`tool ${p.cur === p.id ? 'active' : ''} ${empty ? 'empty' : ''}`}
-      title={p.title ?? p.label}
-      aria-label={p.title ?? p.label}
-      aria-pressed={p.cur === p.id}
+      class={`tool ${on ? 'active' : ''} ${empty ? 'empty' : ''}`}
+      aria-label={`${p.title ?? p.label} (${p.keyHint})`}
+      aria-pressed={on}
       onClick={() => p.onPick(p.id)}
+      onMouseEnter={() => p.onHover(p.id)}
     >
+      <span class="key">{p.keyHint}</span>
       <span class="tool-icon">{p.children}</span>
-      <span class="tool-label">{p.label}</span>
       {p.count !== undefined && <span class="count">{p.count > 99 ? '∞' : p.count}</span>}
-      {p.badge && <span class={`count ${p.alert ? 'alert' : 'ok'}`}>{p.badge}</span>}
+      {p.badge && <span class={`badge ${p.alert ? 'alert' : 'ok'}`}>{p.badge}</span>}
     </button>
+  );
+}
+
+function IconSwords() {
+  return (
+    <svg viewBox="0 0 24 24" class="swords" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4 3.5 L14.5 14 M13 17.5 L17.5 13 M16 16 L20.5 20.5" />
+      <path d="M20 3.5 L9.5 14 M6.5 13 L11 17.5 M8 16 L3.5 20.5" />
+    </svg>
   );
 }
 
@@ -320,6 +359,24 @@ function Inspector() {
 }
 
 // ---- raid -----------------------------------------------------------------------
+
+/**
+ * Night falls when the raid starts: a cold blue wash and a dark vignette over the
+ * world (under the HUD). When zombies close in on the house a red heartbeat
+ * pulses in from the screen edges, stronger and faster the closer they are.
+ */
+function NightFx() {
+  const danger = useObs(session.danger);
+  const beat = useObs(session.beat);
+  return (
+    <div class="nightfx" aria-hidden="true">
+      <div class="night-wash" />
+      <div class="vignette" />
+      {/* keyed by the beat count so the one-shot thump animation restarts on every heartbeat */}
+      <div key={beat} class={`danger ${danger > 0 ? 'on' : ''}`} style={{ '--danger': danger }} />
+    </div>
+  );
+}
 
 function RaidBar() {
   const r = useObs(session.raid);
@@ -360,6 +417,13 @@ function Result() {
         <div class="eyebrow">NIGHT 1 · {won ? 'SURVIVED' : 'OVERRUN'}</div>
         <h1>{won ? 'You held out.' : 'They got in.'}</h1>
         <p class="blurb">{why}</p>
+        <div class="stars" aria-label={won ? '1 star' : 'no stars'}>
+          {[0, 1, 2].map((i) => (
+            <span key={i} class={`star ${won && i === 0 ? 'on' : ''}`}>
+              <StarIcon />
+            </span>
+          ))}
+        </div>
         <div class="stats">
           <div>
             <b>
@@ -372,8 +436,8 @@ function Result() {
             <span>raid</span>
           </div>
           <div>
-            <b>{won ? '★' : '☆'}</b>
-            <span>{won ? '1 star' : 'no stars'}</span>
+            <b>{won ? '1' : '0'}/3</b>
+            <span>stars</span>
           </div>
         </div>
         <div class="btns">
@@ -386,6 +450,20 @@ function Result() {
         </div>
       </div>
     </div>
+  );
+}
+
+function StarIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        d="M12 2.5 L14.9 8.6 L21.5 9.4 L16.6 13.9 L17.9 20.5 L12 17.2 L6.1 20.5 L7.4 13.9 L2.5 9.4 L9.1 8.6 Z"
+        fill="currentColor"
+        stroke="#0d1116"
+        stroke-width="1.8"
+        stroke-linejoin="round"
+      />
+    </svg>
   );
 }
 

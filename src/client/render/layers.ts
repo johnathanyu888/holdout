@@ -10,6 +10,8 @@ export const DEPTH = {
   parts: 10_000,
   walls: 20_000,
   zombies: 30_000,
+  /** The forest's trees (baked canopy layer) and the dark-woods shade over them. */
+  canopy: 38_000,
   fx: 40_000,
   ghost: 50_000,
   ui: 60_000,

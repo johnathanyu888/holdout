@@ -3,10 +3,10 @@
 
 import Phaser from 'phaser';
 import type { SimEvent } from '@shared/sim';
-import { SPRITE_SCALE } from '../core/assets';
+import { PART_SCALE, ZOMBIE_SCALE } from '../core/assets';
 import type { EntityLayer } from './entities';
 import { DEPTH, tileUnitToWorld } from './layers';
-import type { ZombieLayer } from './zombies';
+import { type ZombieLayer, destroyView, flashView } from './zombies';
 
 /** Damage is summed per zombie and shown at most this often (saws hit every step). */
 const NUMBER_INTERVAL_MS = 300;
@@ -24,11 +24,8 @@ export class FxLayer {
     for (const e of events) {
       switch (e.type) {
         case 'hit': {
-          const s = this.zombies.get(e.id);
-          if (s) {
-            s.setTintFill(0xffffff);
-            this.scene.time.delayedCall(60, () => s.active && s.clearTint());
-          }
+          const v = this.zombies.get(e.id);
+          if (v) flashView(this.scene, v);
           const p = this.pending.get(e.id);
           if (p) {
             p.amount += e.amount;
@@ -39,18 +36,20 @@ export class FxLayer {
         }
         case 'death': {
           this.flushOne(e.id);
-          const s = this.zombies.release(e.id);
-          if (s) {
-            s.clearTint();
+          const v = this.zombies.release(e.id);
+          if (v) {
+            for (const p of [v.body, v.armL, v.armR]) p.clearTint();
+            v.root.setData('flash', false);
             this.scene.tweens.add({
-              targets: s,
-              scaleX: SPRITE_SCALE * 1.35,
-              scaleY: SPRITE_SCALE * 0.15,
+              targets: v.root,
+              scaleX: ZOMBIE_SCALE * 1.35,
+              scaleY: ZOMBIE_SCALE * 0.15,
               alpha: 0,
               duration: 380,
               ease: 'Quad.easeIn',
-              onComplete: () => s.destroy(),
+              onComplete: () => destroyView(v),
             });
+            this.scene.tweens.add({ targets: v.shadow, alpha: 0, duration: 380 });
           }
           break;
         }
@@ -59,7 +58,7 @@ export class FxLayer {
           if (s) {
             this.scene.tweens.add({
               targets: s,
-              scale: { from: SPRITE_SCALE * 1.18, to: SPRITE_SCALE },
+              scale: { from: PART_SCALE * 1.18, to: PART_SCALE },
               duration: 180,
               ease: 'Back.easeOut',
             });
@@ -70,7 +69,7 @@ export class FxLayer {
           const h = this.entities.houseSprite();
           if (h) {
             h.setTint(0xff6b6b);
-            this.scene.tweens.add({ targets: h, scale: SPRITE_SCALE * 1.15, yoyo: true, repeat: 3, duration: 120 });
+            this.scene.tweens.add({ targets: h, scale: PART_SCALE * 1.15, yoyo: true, repeat: 3, duration: 120 });
           }
           this.scene.cameras.main.shake(350, 0.006);
           break;

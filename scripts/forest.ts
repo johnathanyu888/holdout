@@ -5,7 +5,7 @@
 // layers (shadow, outline, base, highlight) with one line per tree, so tree i of
 // a tier is line i of each of its four layers. New trees are copies of existing
 // ones from the same tier (all four layers, moved together), placed on a
-// jittered grid in a ring around the original 2048 canvas. The original map is
+// jittered grid in a ring around the original MAP_PX canvas. The original map is
 // kept as-is and unclipped, so its edge trees continue into the new ring.
 
 import { FOREST_MAX, FOREST_MIN, MAP_PX } from '../src/shared/grid';
@@ -96,15 +96,45 @@ export function buildWideMap(svg: string): string {
   let wide = out.join('\n');
   // New canvas size, and ground under the whole ring (the original only fills 0..2048).
   wide = wide.replace(
-    /<svg([^>]*?)viewBox="0 0 2048 2048"([^>]*?)width="2048" height="2048"([^>]*)>/,
+    new RegExp(`<svg([^>]*?)viewBox="0 0 ${MAP_PX} ${MAP_PX}"([^>]*?)width="${MAP_PX}" height="${MAP_PX}"([^>]*)>`),
     `<svg$1viewBox="${FOREST_MIN} ${FOREST_MIN} ${span} ${span}"$2width="${span}" height="${span}"$3>`,
   );
   if (!wide.includes(`viewBox="${FOREST_MIN} `)) throw new Error('could not resize the map canvas');
   wide = wide.replace(
-    '<rect width="2048" height="2048" fill="#6DB042"/>',
+    `<rect width="${MAP_PX}" height="${MAP_PX}" fill="#6DB042"/>`,
     `<rect x="${FOREST_MIN}" y="${FOREST_MIN}" width="${span}" height="${span}" fill="#6DB042"/>`,
   );
   return wide;
+}
+
+/**
+ * Splits a map SVG into the ground (everything but the forest's tree tiers) and the
+ * canopy (only the tree tiers: their shadows, outlines, bases and lit tops, on a
+ * transparent background). The game draws the canopy above the zombies so they
+ * walk out from under the trees.
+ */
+export function splitCanopy(svg: string): { ground: string; canopy: string } {
+  const lines = svg.split(/\r?\n/);
+  const tiers = findTiers(lines);
+  const inTier = new Uint8Array(lines.length);
+  for (const t of tiers) {
+    const from = Math.min(...t.open);
+    const to = Math.max(...t.close);
+    for (let i = from; i <= to; i++) inTier[i] = 1;
+  }
+  const defsEnd = lines.findIndex((l) => l.trim() === '</defs>');
+  if (defsEnd < 0) throw new Error('map has no </defs>');
+  const ground: string[] = [];
+  const canopy: string[] = [];
+  lines.forEach((l, i) => {
+    if (i <= defsEnd) {
+      ground.push(l);
+      canopy.push(l);
+    } else if (inTier[i]) canopy.push(l);
+    else ground.push(l);
+  });
+  canopy.push('</svg>');
+  return { ground: ground.join('\n'), canopy: canopy.join('\n') };
 }
 
 /** The same SVG cropped to a world rectangle (content outside it is clipped). */

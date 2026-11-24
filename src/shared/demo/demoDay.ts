@@ -9,7 +9,7 @@ export const demoDay: DayConfig = {
   id: 'demo-1',
   mutationName: 'Shamblers',
   mutationBlurb: 'Slow. Hungry. They come from every side.',
-  inlet: { x: 15, y: 8 },
+  inlet: { x: 10, y: 5 },
   houseBand: 2,
   kit: {
     pressure_plate: 4,

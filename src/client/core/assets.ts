@@ -8,6 +8,24 @@ export const ART_SCALE = 2;
 export const ART_TILE_UNITS = 96;
 /** Draw scale that makes a one-tile sprite exactly one tile (64 world px): 64 / (96 * 2) = 1/3. */
 export const SPRITE_SCALE = 64 / (ART_TILE_UNITS * ART_SCALE);
+/**
+ * Parts, the house and the inlet draw a bit larger than their tile so they read at
+ * phone zoom (their art leaves a margin inside the 96 canvas; this fills it).
+ */
+export const PART_SCALE = SPRITE_SCALE * 1.2;
+/**
+ * Wires and walls run edge to edge and join their neighbours. Texture filtering
+ * softens a frame's outermost texel, which shows as a hairline gap between tiles,
+ * so they draw ~2 texels larger and overlap their neighbours slightly.
+ */
+export const JOIN_SCALE = SPRITE_SCALE * (1 + 4 / (ART_TILE_UNITS * ART_SCALE));
+/** Zombies draw larger than their hit circle so they read on a phone. */
+export const ZOMBIE_SCALE = SPRITE_SCALE * 1.6;
+
+/** Draw scale for an atlas frame placed on a tile. */
+export function scaleFor(frame: string): number {
+  return frame.startsWith('wire_') || frame.startsWith('wall_') ? JOIN_SCALE : PART_SCALE;
+}
 
 export const TEX = {
   parts: 'parts',
@@ -28,7 +46,7 @@ export const ASSET_FILES = {
  * Shared by scripts/bake-atlas.ts and the client so both agree on the layout.
  */
 export const MAP_SCALE = 2;
-export const MAP_TEXELS = 2048 * MAP_SCALE;
+export const MAP_TEXELS = MAP_PX * MAP_SCALE;
 export const MAP_CHUNKS = 3; // per side
 export const MAP_OVERLAP = 2; // texels
 
@@ -55,17 +73,34 @@ function grid(texels: number, n: number): { left: number; width: number }[] {
   });
 }
 
-/** The 2048 map area (lawn + near forest), sharp at 2x. */
-export function mapChunks(): MapChunk[] {
+/**
+ * The MAP_PX map area (lawn + near forest), sharp at 2x. "map" chunks are the
+ * ground (lawn, verge, bushes, rocks: no trees); "canopy" chunks are the trees
+ * alone on transparency, drawn above the zombies so they come out from under them.
+ */
+export function mapChunks(prefix: 'map' | 'canopy' = 'map'): MapChunk[] {
   const g = grid(MAP_TEXELS, MAP_CHUNKS);
   const out: MapChunk[] = [];
   for (let cy = 0; cy < MAP_CHUNKS; cy++)
     for (let cx = 0; cx < MAP_CHUNKS; cx++) {
       const { left, width } = g[cx] as { left: number; width: number };
       const { left: top, width: height } = g[cy] as { left: number; width: number };
-      out.push({ key: `map_${cx}_${cy}`, file: `assets/map_${cx}_${cy}.webp`, left, top, width, height, x: left / MAP_SCALE, y: top / MAP_SCALE });
+      out.push({
+        key: `${prefix}_${cx}_${cy}`,
+        file: `assets/${prefix}_${cx}_${cy}.webp`,
+        left,
+        top,
+        width,
+        height,
+        x: left / MAP_SCALE,
+        y: top / MAP_SCALE,
+      });
     }
   return out;
+}
+
+export function canopyChunks(): MapChunk[] {
+  return mapChunks('canopy');
 }
 
 /**

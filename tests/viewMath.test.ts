@@ -17,7 +17,7 @@ const phone = { w: 390, h: 844 };
 const laptop = { w: 1440, h: 900 };
 
 const MIN = -768;
-const MAX = 2816;
+const MAX = 2304;
 
 /** True if the whole screen shows scenery (no void past the forest's edge). */
 function coversScreen(v: { cx: number; cy: number; zoom: number }, s: { w: number; h: number }): boolean {
@@ -27,10 +27,10 @@ function coversScreen(v: { cx: number; cy: number; zoom: number }, s: { w: numbe
   return tl.x >= MIN - eps && tl.y >= MIN - eps && br.x <= MAX + eps && br.y <= MAX + eps;
 }
 
-/** True if the whole 24x24 lawn is on screen. */
+/** True if the whole 16x16 lawn is on screen. */
 function lawnVisible(v: { cx: number; cy: number; zoom: number }, s: { w: number; h: number }): boolean {
   const tl = worldToScreen(v, s, 256, 256);
-  const br = worldToScreen(v, s, 1792, 1792);
+  const br = worldToScreen(v, s, 1280, 1280);
   return tl.x >= -0.5 && tl.y >= -0.5 && br.x <= s.w + 0.5 && br.y <= s.h + 0.5;
 }
 
@@ -50,12 +50,12 @@ describe('zoom limits', () => {
       expect(minZoom(s), `${s.w}x${s.h}`).toBeLessThan(fitZoom(s) * 1.02);
       expect(lawnVisible(fittedView(s), s), `${s.w}x${s.h}`).toBe(true);
     }
-    expect(fitZoom(phone) * 64).toBeCloseTo(15, 0);
+    expect(fitZoom(phone) * 64).toBeCloseTo(22, 0);
   });
   it('very wide screens are held back by the forest edge', () => {
-    const ultrawide = { w: 2560, h: 1080 };
+    const ultrawide = { w: 3840, h: 1080 };
     expect(coverZoom(ultrawide)).toBeGreaterThan(fitZoom(ultrawide));
-    expect(minZoom(ultrawide)).toBeCloseTo(2560 / 3584);
+    expect(minZoom(ultrawide)).toBeCloseTo(3840 / 3072);
   });
   it('zoomAt clamps to max and min zoom', () => {
     const v = fittedView(laptop);
@@ -69,14 +69,14 @@ describe('zoomed-out view with HUD insets', () => {
     // Wide screen: the map fills the width exactly, leaving vertical room to shift.
     const s = { w: 1000, h: 600, insets: { top: 70, right: 0, bottom: 150, left: 0 } };
     const v = fittedView(s);
-    const p = worldToScreen(v, s, 1024, 1024);
+    const p = worldToScreen(v, s, 768, 768);
     expect(p.x).toBeCloseTo(500);
     expect(p.y).toBeCloseTo(70 + (600 - 70 - 150) / 2);
     expect(coversScreen(v, s)).toBe(true);
   });
   it('ignores insets that would leave almost no room', () => {
     const s = { w: 300, h: 300, insets: { top: 200, right: 0, bottom: 50, left: 0 } };
-    expect(fitZoom(s)).toBeCloseTo(300 / 1664);
+    expect(fitZoom(s)).toBeCloseTo(300 / 1152);
   });
 });
 
@@ -111,13 +111,14 @@ describe('clamping', () => {
     const small = { w: 400, h: 300 };
     const v = clampView({ cx: -500, cy: 5000, zoom: 1.5 }, small);
     expect(v.cx).toBe(256);
-    expect(v.cy).toBe(1792);
+    expect(v.cy).toBe(1280);
   });
   it('zoomed out: whichever is tighter, the forest edge or the lawn rule, wins', () => {
-    const z = minZoom(laptop); // half view ~1331 x 832 world px
-    const v = clampView({ cx: -5000, cy: -5000, zoom: z }, laptop);
-    expect(v.cx).toBeCloseTo(-768 + 720 / z); // forest edge (563) is tighter than the lawn (256)
-    expect(v.cy).toBe(256); // lawn rule (256) is tighter than the forest edge (64)
+    const wide = { w: 2560, h: 1080 };
+    const z = minZoom(wide); // half view ~1536 x 648 world px
+    const v = clampView({ cx: -5000, cy: -5000, zoom: z }, wide);
+    expect(v.cx).toBeCloseTo(-768 + 1280 / z); // forest edge (768) is tighter than the lawn (256)
+    expect(v.cy).toBe(256); // lawn rule (256) is tighter than the forest edge (-120)
   });
   it('a too-far-out zoom is raised to the minimum and stays inside the forest', () => {
     const v = clampView({ cx: 0, cy: 2048, zoom: 0.1 }, phone);

@@ -1,24 +1,24 @@
 // Tile <-> world math shared by the client and the sim.
-// World units are map pixels: the base map is 2048x2048 (32x32 tiles of 64px),
-// and the 24x24 play area ("lawn") sits at x/y 256..1792.
+// World units are map pixels: the base map is 1536x1536 (24x24 tiles of 64px),
+// and the 16x16 play area ("lawn") sits at x/y 256..1280.
 
 export const TILE = 64;
-export const GRID = 24;
-export const MAP_PX = 2048;
+export const GRID = 16;
+export const MAP_PX = 1536;
 export const LAWN_ORIGIN = 256;
-export const LAWN_PX = GRID * TILE; // 1536
-export const LAWN_END = LAWN_ORIGIN + LAWN_PX; // 1792
-export const TILE_COUNT = GRID * GRID; // 576
+export const LAWN_PX = GRID * TILE; // 1024
+export const LAWN_END = LAWN_ORIGIN + LAWN_PX; // 1280
+export const TILE_COUNT = GRID * GRID; // 256
 
 /**
- * World bounds of the drawn scenery: the original 2048 map plus a generated
+ * World bounds of the drawn scenery: the original 1536 map plus a generated
  * forest ring (scripts/forest.ts) that the client shades into dark woods, so the
  * camera can zoom out on tall or wide screens without showing past the trees.
  * 768 = 12 tiles each side.
  */
 export const FOREST_RING = 768;
 export const FOREST_MIN = -FOREST_RING;
-export const FOREST_MAX = MAP_PX + FOREST_RING; // 2816
+export const FOREST_MAX = MAP_PX + FOREST_RING; // 2304
 
 export interface Tile {
   x: number;
@@ -30,12 +30,12 @@ export interface Point {
   y: number;
 }
 
-/** True if (x, y) is a tile on the 24x24 lawn. */
+/** True if (x, y) is a tile on the 16x16 lawn. */
 export function inLawn(x: number, y: number): boolean {
   return Number.isInteger(x) && Number.isInteger(y) && x >= 0 && y >= 0 && x < GRID && y < GRID;
 }
 
-/** Flat index of a tile: y * 24 + x. Only valid for tiles on the lawn. */
+/** Flat index of a tile: y * GRID + x. Only valid for tiles on the lawn. */
 export function key(x: number, y: number): number {
   return y * GRID + x;
 }
@@ -57,7 +57,7 @@ export function tileOrigin(x: number, y: number): Point {
 
 /**
  * Tile under a world point. Returns tile coords even off the lawn
- * (they can be negative or >= 24); check with inLawn().
+ * (they can be negative or >= GRID); check with inLawn().
  */
 export function worldToTile(px: number, py: number): Tile {
   return { x: Math.floor((px - LAWN_ORIGIN) / TILE), y: Math.floor((py - LAWN_ORIGIN) / TILE) };
@@ -74,7 +74,7 @@ export function isEdgeTile(x: number, y: number): boolean {
   return inLawn(x, y) && (x === 0 || y === 0 || x === GRID - 1 || y === GRID - 1);
 }
 
-/** The ring of edge tiles (92 for a 24x24 grid), clockwise from the top-left corner. */
+/** The ring of edge tiles (60 for a 16x16 grid), clockwise from the top-left corner. */
 export function edgeTiles(): Tile[] {
   const out: Tile[] = [];
   const last = GRID - 1;
@@ -85,7 +85,7 @@ export function edgeTiles(): Tile[] {
   return out;
 }
 
-/** Chebyshev distance from the lawn edge: 0 on the ring, 11 in the middle. */
+/** Chebyshev distance from the lawn edge: 0 on the ring, 7 in the middle. */
 export function edgeDistance(x: number, y: number): number {
   return Math.min(x, y, GRID - 1 - x, GRID - 1 - y);
 }

@@ -28,7 +28,7 @@ export interface Screen {
 }
 
 /** The lawn plus a 64px margin each side, used for the fitted (overview) zoom. */
-export const FIT_SPAN = LAWN_PX + 128; // 1664
+export const FIT_SPAN = LAWN_PX + 128; // 1152
 export const MAX_ZOOM = 1.5; // 96 screen px per tile
 
 /** The part of the screen not covered by HUD panels. */

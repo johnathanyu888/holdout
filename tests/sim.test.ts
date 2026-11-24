@@ -48,7 +48,7 @@ describe('power flood', () => {
   const out = new Uint8Array(TILE_COUNT);
   it('drops 1 per wire tile, starting at S-1 next to the source', () => {
     wire.fill(0);
-    for (let x = 1; x <= 20; x++) wire[key(x, 0)] = 1;
+    for (let x = 1; x < GRID; x++) wire[key(x, 0)] = 1;
     floodLayer(wire, [{ k: key(0, 0), layer: 'c', strength: 15 }], out);
     expect(out[key(1, 0)]).toBe(14);
     expect(out[key(14, 0)]).toBe(1);
@@ -68,7 +68,7 @@ describe('power flood', () => {
   });
   it('a plate can reach at most 9 wire tiles', () => {
     wire.fill(0);
-    for (let x = 1; x <= 20; x++) wire[key(x, 0)] = 1;
+    for (let x = 1; x < GRID; x++) wire[key(x, 0)] = 1;
     floodLayer(wire, [{ k: key(0, 0), layer: 'c', strength: 10 }], out);
     expect(out[key(9, 0)]).toBe(1);
     expect(out[key(10, 0)]).toBe(0);
@@ -85,16 +85,16 @@ describe('power flood', () => {
 describe('flow field', () => {
   it('routes around walls without cutting corners', () => {
     const walls = new Int16Array(TILE_COUNT);
-    for (let x = 5; x <= 15; x++) walls[key(x, 10)] = 120; // wall across the middle
+    for (let x = 3; x <= 12; x++) walls[key(x, 10)] = 120; // wall across the middle
     const field = new Int32Array(TILE_COUNT);
-    computeField(walls, 10, 12, field);
-    expect(field[key(10, 12)]).toBe(0);
-    expect(field[key(10, 10)]).toBe(FIELD_INF);
-    // Straight down from (10, 8) is blocked: it must go round the end of the wall.
-    expect(field[key(10, 8)]!).toBeGreaterThan(40);
-    expect(nextTile(field, walls, 10, 11)).toEqual([10, 12]);
+    computeField(walls, 8, 12, field);
+    expect(field[key(8, 12)]).toBe(0);
+    expect(field[key(8, 10)]).toBe(FIELD_INF);
+    // Straight down from (8, 8) is blocked: it must go round the end of the wall.
+    expect(field[key(8, 8)]!).toBeGreaterThan(40);
+    expect(nextTile(field, walls, 8, 11)).toEqual([8, 12]);
     // At the wall's end, the diagonal past its corner is not allowed.
-    expect(nextTile(field, walls, 16, 9)).not.toEqual([15, 10]);
+    expect(nextTile(field, walls, 13, 9)).not.toEqual([12, 10]);
   });
   it('marks enclosed tiles unreachable', () => {
     const walls = new Int16Array(TILE_COUNT);
@@ -150,9 +150,9 @@ describe('raid', () => {
     const ev = run(st);
     expect(st.outcome).toBe('lost');
     expect(ev.at(-1)).toEqual({ type: 'end', outcome: 'lost', reason: 'breach' });
-    // ~13.5 tiles at 0.9 tiles/s ~= 150 steps
-    expect(st.tick).toBeGreaterThan(130);
-    expect(st.tick).toBeLessThan(170);
+    // 3 tiles walking in from the forest + ~13.5 on the lawn, at 0.9 tiles/s ~= 185 steps
+    expect(st.tick).toBeGreaterThan(165);
+    expect(st.tick).toBeLessThan(205);
   });
 
   it('two inlet-powered saws in a row kill a shambler', () => {
@@ -179,9 +179,9 @@ describe('raid', () => {
       house: { x: 12, y: 14 },
       parts: [
         { id: 1, type: 'pressure_plate', x: 12, y: 4, rot: 0 },
-        { id: 2, type: 'saw_blade', x: 16, y: 4, rot: 0 }, // off the zombie's path, wired to the plate
+        { id: 2, type: 'saw_blade', x: 15, y: 4, rot: 0 }, // off the zombie's path, wired to the plate
       ],
-      wires: lPath({ x: 13, y: 4 }, { x: 15, y: 4 }).map((t) => ({ ...t })), // saw gets 10-3 = 7
+      wires: lPath({ x: 13, y: 4 }, { x: 14, y: 4 }).map((t) => ({ ...t })), // saw gets 10-2 = 8
       walls: [],
       nextId: 3,
     };
@@ -209,11 +209,11 @@ describe('raid', () => {
     const c: Contraption = {
       house: { x: 12, y: 12 },
       parts: [
-        { id: 1, type: 'saw_blade', x: 16, y: 8, rot: 0 },
+        { id: 1, type: 'saw_blade', x: 14, y: 8, rot: 0 },
         { id: 2, type: 'pressure_plate', x: 6, y: 12, rot: 0 },
         { id: 3, type: 'saw_blade', x: 7, y: 12, rot: 0 },
       ],
-      wires: wiresOf([16, 9], [15, 9], [7, 13], [6, 13]),
+      wires: wiresOf([14, 9], [13, 9], [7, 13], [6, 13]),
       walls: [
         { x: 10, y: 10, material: 'wood' },
         { x: 11, y: 10, material: 'wood' },

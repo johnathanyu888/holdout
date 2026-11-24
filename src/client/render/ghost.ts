@@ -3,7 +3,7 @@
 
 import type Phaser from 'phaser';
 import { TILE, tileOrigin, tileToWorld } from '@shared/grid';
-import { SPRITE_SCALE } from '../core/assets';
+import { scaleFor } from '../core/assets';
 import { DEPTH } from './layers';
 
 export interface GhostTile {
@@ -44,12 +44,13 @@ export class GhostLayer {
       if (!t.frame) continue;
       let s = this.pool[used];
       if (!s) {
-        s = this.scene.add.image(0, 0, t.tex, t.frame).setScale(SPRITE_SCALE);
+        s = this.scene.add.image(0, 0, t.tex, t.frame);
         this.pool.push(s);
       }
       used++;
       const c = tileToWorld(t.x, t.y);
       s.setTexture(t.tex, t.frame)
+        .setScale(scaleFor(t.frame))
         .setPosition(c.x, c.y)
         .setAngle(t.angle)
         .setAlpha(0.72)
