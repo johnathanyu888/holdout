@@ -1,351 +1,269 @@
 # Holdout — Game Design (demo scope)
 
 Working name. Reddit Game of the Day hackathon (Devvit Web), due Dec 8, 2026.
-This file covers the proof-of-concept demo. Bigger ideas are in **Expansion** (section 12).
+This file covers the proof-of-concept demo. Bigger ideas are in **Expansion** (section 13).
 
 ---
 
 ## 1. Concept
 
-- Solo zombie survival on Reddit: build a fort, survive one raid per day
-- Your base is saved; your score is how many nights it has survived
-- Everyone faces the same daily Mutation and map seed, so players can compare and talk
-- Not a shooter, and no direct character control: strategy, not aim
-- You never walk anywhere: you teleport (costs time), and during the raid you hide
+- A daily zombie-defense puzzle on Reddit: read the briefing, build a machine, watch it work.
+- Every day **everyone gets the same day**: the same city, the same zombie **Mutation** and the same **kit**. Strategy and builds can be compared and shared.
+- You build a **Minecraft-redstone-style contraption** (sensors → wire → logic → killers) that **kills** every zombie before one reaches your survivor.
+- **Kill, don't block:** walls only steer zombies; machines do the killing.
+- **No:** guns, turrets, auto-aim, consumables, or character control. The survivor is never on screen; they hide in your **house**.
 
-## 2. Art style
+## 2. The day (~5 min)
 
-Reference: the second io-style mockup ("io style with light shading"). One step more detailed than a flat io game, well short of realistic.
+| Phase | Time | What happens |
+| --- | --- | --- |
+| **Briefing** | 30s | Mutation card, City card, today's kit. Make a plan. |
+| **Build** | 4:00 | Place your house, place parts, lay wire, spend seconds in the Time Shop. |
+| **Raid** | 30s | Fully automatic. Playback at 1x / 2x / 4x. |
+| **Result** | — | Score, the Mutation card, the Radio transmission. Stars arrive at the daily reset. |
 
-### 2.1 Summary
-- Top-down camera, straight overhead, fixed (no rotation, no perspective)
-- Bright, saturated, friendly colours, even at night; scary through situation, not gore
-- Every object = a simple chunky shape + thick dark outline + one shadow tone + one highlight + a soft drop shadow
-- Readable at phone size: shape and colour tell you what something is before any detail does
+- **No test run.** You learn by trying, failing and coming back tomorrow.
+- Failing must feel fair: the replay shows exactly where and why a zombie got through.
 
-### 2.2 The rendering recipe (applies to every object)
-1. **Drop shadow:** the object's silhouette, offset down-right (about 4px right, 5px down at 1x), black at ~28% opacity, softened with a ~2px blur. Light always comes from the top-left.
-2. **Base fill:** one flat, saturated colour.
-3. **Shadow tone:** inside the shape, a copy of the shape shifted down-right by ~35% of its size, black at ~15% opacity, clipped to the object. This makes things look rounded without gradients.
-4. **Highlight:** a small circle (about a third of the object's size) in the upper-left, white at ~20% opacity. Rectangles get a thin light strip along the top edge instead.
-5. **Outline:** dark charcoal `#25282C`, drawn last, on top. Line width 2.5px for most objects, 3px for big ones (trees, buildings), 2px for small ones (hands, icons). Round joins, never sharp.
+## 3. What changes every day
 
-### 2.3 Palette
-| Use | Colour |
+A day is built from **five independent layers**, each rolled from the daily seed. Each pool is small; together they make a different puzzle every day.
+
+### 3.1 Layout (procedural, built from hand-made pieces)
+- The map is a grid (e.g. 16×12), assembled Spelunky-style from **hand-designed chunks** (rooms, corridors, yards, junctions) from the theme's pool.
+- 30–40 chunks per theme → thousands of layouts, every piece readable and fair.
+- The layout decides:
+  - lanes and chokepoints
+  - open yards vs narrow halls
+  - dead ends
+  - loops (zombies get multiple routes)
+- **Demo:** layouts are hand-made, not generated.
+
+### 3.2 Your house (you place it; it sets the zombies' goal)
+- During Build you place your **house** (the survivor's hideout) **anywhere on open ground**.
+- Zombies **sense the survivor** and path toward the house. **You lose if any zombie reaches it.**
+- Where you put it decides where zombies go and how long they walk. Example: a map with 2 tunnel entries (west and east):
+
+| | House far from the entries (middle) | House close to one entry (by the west tunnel) |
+| --- | --- | --- |
+| Zombie walk | Long: ~20 tiles from either tunnel | ~5 tiles from the west tunnel, ~25 from the east |
+| Upside | Lots of tiles for traps to get hits in | The west lane is short, so one chokepoint saw covers it; the east horde walks a long way |
+| Downside | Paths from both tunnels and side corridors reach the middle by different routes, so you cover several lanes and spend more parts and Wire | Almost no time to kill west-side zombies: one miss and they're on you |
+
+- **Far** = more time to kill, more routes to guard. **Near an entry** = fewer routes, tiny margin for error on that side.
+- Placement also plays off the power inlet (3.3): a house near it makes powered defenses cheap to wire.
+
+### 3.3 Fixed map features (you wire into them, can't move them)
+- **Power inlet:** every map has exactly **one** spot where power comes up from underground. Anything wired to it is **always on**.
+  - Everywhere else, power is **made by sensors**: a pressure plate, tripwire or motion sensor sends a pulse when it fires.
+  - Where today's inlet sits (near the entries or far from them) is a big part of the puzzle.
+- **Salvage machines:** a broken crusher, a fuel tank (one big ignition), a live cable, an elevator platform. A few per day.
+- **Terrain:** water (conducts electricity), pits, rubble (slows), doors (can be wired to open and shut).
+
+### 3.4 Condition (the day's rule)
+One global rule that changes how parts behave:
+
+| Condition | Effect |
 | --- | --- |
-| Outline (everything) | `#25282C` |
-| Grass base | `#7CC35A` |
-| Grass dots / tufts | `#6DB24C`, `#8BD067`, `#72B951` |
-| Trampled dirt (around the base) | `#B9A27C` at ~45% over grass |
-| Tree canopy / inner / top highlight | `#3F8F37` / `#56A947` / `#6FBF5A` |
-| Bush | `#4EA341` |
-| Wood (planks, logs, spikes) | `#B07A45`, seams `#3C230F` at ~60% |
-| Stone | `#9A9A94` to `#B5B5AE` |
-| Scrap metal | `#9AA3AD`, rust spots `#AA5A28` at ~50% |
-| Rope / cloth | `#D8C08C` / `#C9783E` |
-| Main Hall core glow | `#FFB02E`, centre `#FFF4C2` |
-| Survivor (player) | shirt `#4A7FC9`, skin `#F2C48D`, cap `#2F4A6E`, backpack `#7A5232` |
-| Zombie | skin `#8FC46A`, eyes `#25282C`, stains `#5A281E` at ~55% |
-| Road / sidewalk / lane dashes | `#55585C` / `#A7A191` / `#F0D36A` |
-| Accent red (roofs, cars, warnings) | `#D0624F` |
-| Accent blue (roofs, cars) | `#5D8FC9` |
+| Rain | Wet tiles carry Tesla charge; flame vents are weaker |
+| Wind | Fire and noise drift one way |
+| Blackout | Power cuts out for 5s mid-raid, so batteries matter |
+| Rust | Every 6th wire tile is dead |
+| Echo | Sirens are heard twice as far |
+| Quake | Barricades start at half HP |
+| Heatwave | Zombies are faster; flame vents reach further |
 
-### 2.4 Ground and map
-- **Grass:** flat green base, scattered with ~900 small round dots in 3 nearby greens (1.5–4.5px), plus ~80 tiny two-blade tufts. Subtle texture, never noisy.
-- **Dirt patches:** soft, low-opacity brown ellipses under the base and along paths where zombies walk.
-- **Roads:** dark grey asphalt with faint light and dark specks, outlined edges, a sidewalk strip each side, rounded yellow lane dashes.
-- **Sites (Day map):** each site sits on its own ground patch with a dashed outline (e.g. the Junkyard is a sandy rectangle with a dashed charcoal border) so tappable areas read clearly.
-- **Fog of war:** unexplored areas fade to dark slate (`#1E2630` at ~80–90%) with a large faint "?".
+### 3.5 Mutation + kit
+- **Mutation:** zombie stats (HP, speed, damage, count, wave timing) + one ability (section 5).
+- **Kit:** a fixed parts list + raw materials (section 4).
+- **Waves:** entries open on a staggered schedule (e.g. a second entry opens at 15s).
 
-### 2.5 Characters
-- **Shape:** a top-down circle body (radius ~12px at 1x) with two small circle hands (radius ~4.5px). No legs.
-- **Survivor (you):** hands close to the body, blue shirt, round skin-tone head inside the body circle, dark cap on the back half, small brown backpack rectangle behind. Faces the way they last moved.
-- **Zombie:** same body plan, but green-skinned all over, hands stretched far forward (arms out, the classic zombie reach), two dot eyes, one dark stain. Slight size and shade variation between zombies so a horde doesn't look copy-pasted.
-- **Brute:** ~1.4× bigger, darker green, heavier outline (3px).
-- **Runner:** ~0.85× size, lighter green, leaning forward (body squashed slightly in the direction of travel).
+**Why it works:** the layers interact. A Rain day with Insulated zombies and the inlet next to a flooded tunnel plays nothing like a Wind day with Climbers and the inlet in a far corner. More content = adding to any one pool.
 
-### 2.6 Objects
-- **Walls:** rounded rectangles filling one tile.
-  - Wood: plank seams every ~20px, a nail dot here and there
-  - Stone: 3–4 irregular rounded blocks per tile with mortar lines
-  - Metal: grey with thin horizontal ridges and 1–2 rust spots
-- **Damaged walls:** cracks (short dark zigzags); broken = splinters scattered around the tile.
-- **Spikes:** a cluster of small wooden triangles pointing up, each outlined.
-- **Bear trap:** a grey ring with tooth notches; snaps shut (two half-rings) when triggered.
-- **Tripwire:** a thin wire line between two small posts; it glows faintly when wired into a circuit.
-- **Pressure plate:** a square wooden plate with a gear icon in the middle.
-- **Wire tiles:** a thin copper-coloured line (`#C87533`) with an outline, running tile to tile; it pulses bright when the circuit fires.
-- **Swinging log:** a fat outlined log hanging from a rope; swings with a white motion arc.
-- **Falling rocks:** a rope-tied bundle of 3 grey rocks; drops with a dust puff.
-- **Net drop:** a rolled net; unrolls into a crosshatch grid over 2 tiles.
-- **Tin can rattle:** a few small grey cans on a string; white sound rings pulse out of it.
-- **Torch:** a wooden stick with a cloth top and a small layered flame (orange outline, yellow centre).
-- **Main Hall:** a chunky building (or generator box) in grey with a glowing orange core visible on top. The core glow shows its health: bright when healthy, flickering when low.
-- **Workshop:** a small wooden shed with a saw and hammer icon on the roof.
-- **Scenery:** round trees (3 overlapping greens, extra-thick outline), bushes, houses as flat roof rectangles with a ridge line and chimney, cars as rounded rectangles with dark windows and rust spots.
+## 4. Building
 
-### 2.7 Day vs night
-- **Day:** full colour, plus a very faint warm overlay (`#FFDC96` at ~5%).
-- **Night:** the whole scene gets a dark blue overlay (`#101A34` at ~55%). Colours stay recognisable; it's dusk-dark, not pitch black.
-- **Light sources** are drawn on top with soft additive glows:
-  - Main Hall: warm yellow-orange, large radius (~120px)
-  - Torches: orange, medium radius (~90px); flicker slightly
-  - Firecracker: a brief white-yellow flash
-- **Light matters for gameplay:** zombies drift toward light, so the glows show the player where zombies will go.
-- **Fog Mutation:** smaller glow radii and a light grey haze.
+### 4.1 Parts (redstone-like)
+★ = in the demo's starting set. The rest unlock over time (section 8).
 
-### 2.8 Effects
-- **Damage numbers:** bold white text with a 3px dark outline, floating up and fading (e.g. "-34").
-- **Hits:** the zombie flashes white for a frame, then gets knocked back.
-- **Defeated zombies:** fall over (squash flat), fade out. No blood or gore.
-- **Motion:** white curved arcs behind swinging and falling things.
-- **Noise:** expanding white rings from lures and the Main Hall's hum.
-- **Loot:** small yellow sparkle crosses with a soft glow on searchable spots.
-- **Selection:** a dashed yellow ring (`#FFE066`) around the selected site or tile.
-- **Teleport:** a quick white flash + ring at the start and end points (replaces the walking path shown in the mockup).
-- **Hiding spot:** a small dashed eye icon on the chosen tile; it turns red if zombies get close.
+| Group | Parts |
+| --- | --- |
+| Power | The map's power inlet (always on, not a part), Battery (stores pulses from sensors) |
+| Signal | ★ Wire tile, ★ Delay, NOT, AND, Latch |
+| Sensors (each makes its own pulse) | ★ Pressure plate, ★ Tripwire, Motion sensor, Clock |
+| Killers | ★ Saw blade, ★ Spike floor, Flame vent, Tesla coil, Trapdoor pit, Crusher, Wrecking ball (swings a 3-tile arc), Shredder (2×2 grinding floor) |
+| Steering | Piston (push 1 tile), ★ Barricade (Wood / Stone), Door control |
+| Lures | Floodlight (light), Siren (noise) |
 
-### 2.9 UI (HUD)
-- **Panels:** dark slate (`#1C242E` at ~88%), corner radius 12px, 2.5px charcoal outline, floating over the game (top bar + bottom bar).
-- **Text:** bold, rounded sans-serif in white; secondary text `#A9BCCF`. Big numbers get a dark outline like the damage numbers.
-- **Hours bar:** 12 rounded pips; filled = yellow `#FFD34D`, spent = slate `#3E4C5C`, each with an outline.
-- **Main Hall health:** a rounded bar, fill orange `#FF7A3D`.
-- **Buttons:**
-  - pill-shaped with an outline
-  - primary = orange `#FF7A3D` with white text
-  - selected = yellow `#FFD34D` with dark text
-  - others = slate
-- **Inventory / consumable slots:** rounded squares in slate, item icons drawn in the same outlined style as the world.
-- **Site card:** a small panel next to the site: name, cost in yellow ("Search 2h"), danger level, loot icons.
-- **Rule:** nothing in the HUD except the hours bar, inventory and context buttons during play. Everything else waits for Dusk or the result card.
+- **No portable generator.** Power is the inlet (always on) or a sensor's pulse when a zombie triggers it. A Battery can save up pulses.
 
-### 2.10 Mockup items not in the demo
-- The mockup showed an oil fire, an electric fence, sandbags, a car wreck, a saw blade, a battery and extra survivors. These are **Expansion** items now; keep their look (same recipe) for when they return.
+### 4.2 Lures
+- Lures **attract** zombies (never repel).
+- They only work **while powered**, and only on zombies **within their radius** (~4 tiles). Farther away, zombies keep heading for the house.
+- Zombies that reach a lure **attack it**: it has HP and breaks. Then they carry on to the house.
+- **Purpose:** drag zombies off the shortest path into a kill zone, then let them go. Not a way to hold them all raid.
+- **Can't be abused because:**
+  - the radius is small
+  - lures break
+  - a lure on the always-on inlet pulls everything that passes, so it breaks early
+  - sensor-driven lures only pulse when you design them to
+  - Deaf and Blind Mutations ignore them
 
-## 3. Daily loop (~4 min)
+### 4.3 Walls and zombies
+- Zombies take the shortest open route to the house, bent by lures.
+- **Walls lose HP on contact:** whenever a zombie brushes or bumps a barricade's hitbox (squeezing past, being pushed into it, crowding), the barricade loses HP. Wall mazes wear down over the raid.
+- Zombies only **deliberately attack** a wall when there's no route left without a wall in the way. Then they bash the weakest one.
+- Walls steer but never win on their own. You have to kill.
 
-**Dawn (~10s)**
-- Today's Mutation + which edges the zombies come from
+### 4.4 Raw materials, Stockpile, Blueprints
+- **Daily kit:** parts + a raw-material drop, the same for everyone.
+- **Wire tiles cost Wire**; barricades cost Wood or Stone. Every working defense spends raw materials, so they always matter.
 
-**Day (12 Hours)**
-- Hours drain on their own: 1h per 20s while you're on the map
-- Tap a site → teleport there (1–3h by distance) → search (1–2h)
-- Crafting at the Workshop costs 1–2h
-- Clock pauses: menus, minigames, post scrolled off-screen / tab hidden
-- Flare: 1 free teleport per day once 6h are gone *(open: keep or drop, see section 13)*
+| Material | Use |
+| --- | --- |
+| Wire | Wire tiles |
+| Wood / Stone | Barricades |
+| Gears | Upgrade a part (+damage or +range) |
+| Scrap | Discount in the Time Shop |
 
-**Dusk (no timer)**
-- Hours hit 0 → you're teleported home automatically
-- Place walls, traps, circuits, lures, torches
-- **Pick your hiding spot:** any open tile inside the base
+- **Stockpile:** unused raw materials carry over to tomorrow, up to a cap that grows with progression. Being frugal is a real choice.
+- **Blueprints:** save a contraption, then print it on a later day in one go by paying its raw materials + a small fee. The Stockpile is what makes blueprints useful.
 
-**Raid (30–60s, automatic)**
-- Zombies spawn at the named edges, move toward noise and light, then the Main Hall
-- Traps and circuits fire on their own
-- Consumable tray (3 slots) for a quick tap; the raid slows for a moment when you tap
-- Speed buttons: 1x / 2x / 4x / skip
-- **Lose the night if** the Main Hall falls **or** zombies reach your hiding spot *(open: how harsh being found is)*
+### 4.5 Time Shop
+- Spend seconds from the 4:00 Build clock on extra parts (e.g. Saw = 20s). Scrap lowers prices.
+- Trade-off: more tools, less time to place them.
 
-**Result card**
-- Night #, Main Hall %, zombies stopped, streak
-- Share / comment
-- Tomorrow's teaser
+## 5. Mutations
 
-## 4. Night 1: story intro
+- Each day: base zombie + seeded stat rolls + **exactly one ability**, giving a name like "Insulated Runners".
 
-- Whispered, typewriter-style narrator; one line at a time
-- Each line = one mechanic, and the player does it right away
-- About 90s to the first result card; can't be skipped on the first play, skippable after
+| Ability | Effect |
+| --- | --- |
+| Climber | Climbs over barricades |
+| Insulated | Immune to Tesla and water shocks |
+| Fireproof | Immune to fire |
+| Heavy | Can't be pushed; breaks trapdoors |
+| Deaf | Ignores sirens |
+| Blind | Ignores floodlights |
+| Jumper | Leaps 1-tile floor traps |
+| Splitter | Splits into 2 small zombies on death |
+
+- The same ability never repeats within 3 days.
+- A new ability gets one narrator line the first time it appears.
+
+## 6. Scoring + stars
+
+- **You must survive to score.** Score adds up:
+  - raid clear speed
+  - time left on the Build clock
+  - unused kit parts
+  - unused raw materials
+  - wire efficiency
+  - undamaged barricades
+- Every term pulls against safety. A top score = a fast, cheap, near-perfect machine. **A perfect score should be close to impossible.**
+- **Stars (max 3), revealed at the daily reset:**
+  - 1★ survived
+  - 2★ top half of the day's scores (needs everyone's results, hence the reset). **Demo:** ≥70% of the designer's score
+  - 3★ beat the designer's own score for that day
+
+## 7. Night 1: story intro + tutorial
+
+- Whispered narrator, typewriter, one line at a time.
+- A **Clash-of-Clans-style finger pointer** shows each feature as it's introduced.
+- Can't be skipped the first time. Judges simply play Night 1.
 - Script:
   1. *(black screen, distant groans)* "Shh. They're coming."
-  2. "They're drawn to sound. So be quiet." → fade in on the Main Hall
-  3. "You have 12 hours. Gather your materials." → hours bar appears and starts draining
-  4. "Everything costs time. Spend. It. Wisely." → tap the Junkyard; teleporting costs 2h
-  5. "Junk is all we have. Make it count." → wire, rope and wood pop out
-  6. "Put it together. See what happens." → Workshop shows "???"; build tripwire + swinging log
-  7. "The sun's going down. Get home." → auto-teleport home
-  8. "Build. Then hide." → ghost outlines show where to place things; pick a hiding spot
-  9. "Here they come. Don't make a sound." → raid: 5 Shamblers, the swinging log fires
-  10. "You made it. One night." *(beat)* "They'll be back. Faster." → result card, Runners teased
-- The narrator comes back for 1 line on each first-time event ("That one's heavy. Walls won't hold it.")
+  2. "They can smell you. We need to hide you." → finger drags the house onto a highlighted open tile
+  3. "Every night, they come back… different." → Mutation card slides in: "Shamblers. Slow. Hungry."
+  4. "We can't fight them. But we can build." → finger on a pressure plate, then on a lane tile
+  5. "Something sharp. Right there." → finger drags a saw blade next to the plate
+  6. "Wire them together. Plate… to blade." → finger traces the wire; the Wire counter ticks down ("Don't waste it.")
+  7. "The clock's running. Every second counts." → the clock appears; finger on the Time Shop: buy a second saw for 20s
+  8. "Now we wait. Trust the machine." → raid: the plate clicks, the saw spins, first kill
+  9. "One's slipping past…" → a zombie takes the other lane, scrapes a barricade (it loses HP), dies on the second saw
+  10. "You made it. One night." *(beat)* "Tomorrow… they climb." → result card; the first Radio transmission crackles
+- Later first-time events (new part, new Condition, new ability, first boss) each get one line + the finger.
 
-## 5. Missed days
+## 8. Progression (what you keep)
 
-- The base pauses: no raids, no damage, no decay
-- Come back exactly where you left off, facing *today's* Mutation
-- **Lost:** your streak, and that day's unique daily
-- Missed days don't add to the community boss target; a boss that unlocked while you were away stays playable for its 48h window
-- **Unique daily ideas (undecided):**
-  - Daily Find: a rare item at one site, that day only
-  - Streak currency, with bonuses at 3 / 7 / 14 / 30 days
-  - Streak chest at 7 and 30 days
-  - Recipe hint of the day (reveals one "???")
-  - Cosmetic for surviving each Mutation type
-  - Optional: Streak Shield every 7 days covers 1 missed day
+- **Part unlocks:** from total nights survived and total stars (not streak).
+- **Blueprint library:** saved contraptions. Share as an image in the comments ("Build of the Day").
+- **Mutation collection:** one card per day, framed by its stars.
+- **Stockpile:** carried-over raw materials.
+- **The Radio:** each night you survive plays one short transmission from other holdouts.
+  - A serial story in the narrator's whispered voice.
+  - Drops hints about upcoming Mutations and teases the weekly boss.
+- **Rank titles:** from total stars.
 
-## 6. Utility system (demo)
+## 9. Missed days
 
-- **Buildings:** Main Hall (start point, the raid target) and Workshop (crafting via a short minigame). Nothing else.
-- **Core rule:** zombies go toward the loudest and brightest thing. Walls shape the path, lures and light pull zombies where you want them, traps and circuits hurt or hold them.
-- No weapons. The consumable tray is the hook for more raid interaction later.
+- **Nothing is lost:** Stockpile, unlocks, blueprints all kept.
+- **You miss:**
+  - that day's Mutation card (it can come back later only as a silver "Rerun")
+  - that day's Radio transmission (plays later as static with fragments, so the gap shows)
+  - your streak
+- **Streak bonuses:** extra Stockpile at 3 / 7 / 14 / 30 days; optional Streak Shield every 7 days.
 
-### 6.1 Raw materials
+## 10. Weekly boss
 
-| Material | Used for | Found mostly at |
-| --- | --- | --- |
-| Wood | Walls, spikes, logs, torches | Forest edge |
-| Stone | Stone walls, falling rocks | Quarry |
-| Scrap metal | Metal walls, bear traps, rattles | Junkyard |
-| Rope | Swinging logs, nets, rock drops | Farm |
-| Wire | Circuits (trigger → mechanism), tripwires | Junkyard |
-| Gears | Pressure plates, bear traps | Junkyard |
-| Cloth | Torches, nets | Suburbs |
-| Glass | No demo use (Expansion: lanterns, chimes) | Suburbs |
+- The boss card (stats + ability) is **public all week**; the Radio drips hints.
+- **Boss day:**
+  - pick any day you played this week; that day's map and saved defense load
+  - get bonus materials and extra build time
+  - build on top of your old defense, then fight the boss
+  - played no other day this week? Use today's
+- **Reward:** badge (bronze / silver / gold).
 
-### 6.2 Craftables (12)
+## 11. Themes
 
-| # | Item | Type | Recipe | Effect |
-| --- | --- | --- | --- | --- |
-| 1 | Wood wall | Barricade | 3 Wood | Blocks a tile; weak |
-| 2 | Stone wall | Barricade | 3 Stone | Blocks; strong |
-| 3 | Metal wall | Barricade | 2 Scrap + 1 Wood | Blocks; strongest |
-| 4 | Wood spikes | Floor trap | 2 Wood | Damages walkers; wears out |
-| 5 | Bear trap | Floor trap | 2 Scrap + 1 Gear | Holds one zombie |
-| 6 | Tripwire | Trigger | 1 Wire | Fires its circuit when any zombie crosses |
-| 7 | Pressure plate | Trigger | 1 Wood + 1 Gear | Fires only for heavy zombies (Brutes) |
-| 8 | Swinging log | Mechanism | 2 Wood + 2 Rope | Sweeps a 3-tile lane, knocks back |
-| 9 | Falling rocks | Mechanism | 3 Stone + 1 Rope | Big hit on one tile |
-| 10 | Net drop | Mechanism | 2 Rope + 1 Cloth | Holds everything on 2 tiles |
-| 11 | Tin can rattle | Lure | 1 Scrap + 1 Rope | Noise all raid; pulls zombies toward it |
-| 12 | Torch | Light | 1 Wood + 1 Cloth | Zombies drift toward light; lights the night |
+**Demo: Subway Station** (new art). Best fit for a circuit game:
+- the live third rail is a natural power source; the power inlet is a live junction box on it
+- tunnels are clear zombie entries
+- platforms and maintenance rooms make natural chunks
 
-**Circuits**
-- Place a trigger, then lay Wire tiles (1 Wire each) to a mechanism
-- One trigger can power several mechanisms
-- 2 triggers × 3 mechanisms = 6 setups
-- Each setup is "???" until a raid shows what it does, then it's saved in the Journal
+**Future themes** (each brings its own chunk pool and fixed features):
 
-**Durability**
-- Traps and mechanisms have a few uses per raid and wear down over raids
-- Repair at Dusk with materials
-
-### 6.3 Consumables (found only)
-
-| Consumable | Found at | Effect |
-| --- | --- | --- |
-| Bandage | Suburbs, Farm | Heals an injury from a site instantly (saves 1–2h of rest) |
-| Repair kit | Junkyard | Restores one wall or trap, at Dusk or with a tap mid-raid |
-| Firecracker | Junkyard | Tap a tile mid-raid: loud lure for a few seconds, pulls zombies away from your hiding spot |
-
-## 7. Zombies + Mutations (demo)
-
-| Zombie | Behaviour | Good answers |
-| --- | --- | --- |
-| Shambler | Slow, follows noise | Anything |
-| Runner | Fast, weak | Tripwire + net drop, bear trap, spikes |
-| Brute | Slow, smashes walls | Pressure plate + falling rocks, metal walls |
-
-- New types appear one at a time, with one narrator line
-
-| Mutation | Effect |
+| Theme | Signature feature |
 | --- | --- |
-| Runners' Night | Most of the raid is Runners |
-| Fog | Torches light a smaller area |
-| Brute Front | Brutes come from one named edge |
-| Full Moon | Raid size +50% |
+| Suburban cul-de-sac | Garages, fences, a pool (water) |
+| Shopping mall | Escalators as moving lanes, shutter doors |
+| Hospital | Long corridors, generators, elevators |
+| Shipping port | Containers as movable walls, a crane, seawater |
+| Farmstead | Silos, a barn, fences, wind |
+| Ski lodge | Ice that slides zombies, a chairlift |
+| Prison | Cell doors on a switch, a yard |
+| Theme park | A track that moves (carts), a carousel |
+| Oil refinery | Fuel lines (fire chains), pipes |
+| Lighthouse island | Tides flood tiles over the raid |
+| Military bunker | Blast doors, a power core |
+| Train yard | Switchable rails, a moving engine |
 
-- One Mutation per day, the same for everyone, no repeats within 3 days
+## 12. Art style
 
-## 8. Sites + danger
+- io style with light shading: top-down, fixed camera, bright and friendly; scary through situation, not gore.
+- Every object: chunky shape + thick `#25282C` outline + one shadow tone + one highlight + soft drop shadow (light from the top-left).
+- Readable at phone size: shape and colour say what something is before detail does.
+- **Circuit look:**
+  - wire tiles: copper; pulse bright when powered
+  - powered parts glow; unpowered ones are dull
+  - logic gates: small chips with a clear symbol (NOT, AND, a clock face for Delay)
+  - ghost preview while placing a part
+- **Zombies:** top-down circle body, arms reaching forward. Each ability gets one visual tell (Climber = hooked hands, Insulated = rubber-grey skin, Fireproof = ash-black, etc.).
+- **Effects:** damage numbers with an outline, white flash on hit, defeated zombies squash flat and fade, white arcs on swings, rings from sirens.
+- The earlier map and region SVGs are not used; the demo gets new Subway art.
 
-- Each site shows a danger level: **Safe / Risky / Dangerous**. More danger = better loot.
-- **Safe:** worst case is "You searched but found nothing" (time lost)
-- **Risky / Dangerous:** small / larger chance of injury (fall, cut, debris) → rest (+1–2h) or use a Bandage
-- No other penalties: nothing stolen, no extra zombies
-- Fog of war: sites next to visited ones get revealed
-- Daily seed changes what each site holds today
+## 13. Expansion (not in the demo)
 
-| Site | Danger | Main loot |
-| --- | --- | --- |
-| Forest edge | Safe | Wood |
-| Farm | Safe | Rope, Bandages |
-| Suburbs | Safe | Cloth, Glass, Bandages |
-| Quarry | Risky | Stone |
-| Junkyard | Risky | Scrap, Wire, Gears, Repair kits, Firecrackers |
+- Leaderboards (daily, weekly, boss), depending on what Devvit allows.
+- Reclaim the world map: a % per day, plus what reclaiming gives you (to be decided).
+- Procedural layouts (3.1), more themes (section 11).
+- More logic parts (comparator, repeater with signal decay), crafting recipes from raw materials.
+- Community blueprints showing up in other players' kits.
 
-## 9. Events
+## 14. Open questions
 
-- **Weekly boss** (community unlock):
-  - every night a player survives adds 1 to the community Survival Count
-  - when the count hits the week's target (scaled to active players), the boss raid opens for everyone
-  - you fight it in a copy of your base, so your real base is safe
-  - unlimited retries for 48h
-  - badge flair: bronze (survived) / silver (Main Hall ≥50%) / gold (≥90%)
-- **Demo boss:** The Behemoth (smashes 2 tiles per hit, can't be held by nets). Counter: pressure plate + falling rocks.
-
-## 10. Progress + the Fall
-
-**Saved**
-- Base layout (with damage)
-- Materials
-- Journal (discovered circuits)
-- Night count + best
-- Streak, badges
-
-**The Fall** (lose a night)
-- Night count resets to 1; your best is kept
-- Keep 30% of your base and 30% of your materials (you choose which)
-- Keep 30% of your Journal entries (you choose which); the rest go back to "???"
-- Salvage minigame (~15s): recover one specific item of your choice
-- Early nights are easy, so you climb back fast
-
-**Milestones**
-- Night 3: Quarry unlocked
-- Night 5: bigger base grid
-- Night 8: more storage
-
-## 11. Judges + onboarding
-
-- **"Try a veteran city"** button on the start screen: a prebuilt Night 12 base, boss available
-- Splash/loading screen shows a raid playing on a loop (the payoff first)
-- Post title + one-line body: "Scavenge by day. Build traps. Hide. Survive the night."
-- 4-icon loop strip on the start screen: Scavenge → Craft → Build → Hide
-- Night 1 story intro = tutorial (section 4)
-- Show, don't list: the hours bar visibly drains, costs float up ("−2h"), noise rings pulse out of lures
-- Guaranteed "???" circuit discovery on Night 1
-- Journal shows "1 / 6 discovered" with silhouettes
-- Result card teaser: "Tomorrow: Runners. 5 circuits left to discover."
-- Pinned comment on the demo post: a short GIF + 3 bullets
-
-## 12. Expansion (not in demo)
-
-- **Items:** gate, metal spikes, spring blade, bottle chimes, lantern; more consumables (Main Hall reinforcement)
-- **Systems:**
-  - elements + reactions (oil + fire, water + electricity)
-  - more triggers (timer, noise sensor)
-  - more mechanisms
-  - support buildings
-  - survivors
-  - weapons
-  - more raid tap actions
-- **Content:**
-  - zombies: Crawler, Spitter, Screamer
-  - more Mutations
-  - more bosses, monthly Blood Moon
-  - Dangerous sites (Hardware store, Power station)
-- **Community:**
-  - Mutation vote, flair
-  - fort sharing, supply crates
-  - ruins of fallen bases, a shared world map
-
-## 13. Open questions
-
-- **Flare:** keep it (free teleport after 6h), or drop it now that all travel is teleporting?
-- **Being found** in your hiding spot: counts as the Fall, or a softer loss (e.g. lose a night's materials)?
-- **Glass:** drop it from the demo (7 materials) or give it a demo use?
-- **Fall:** 30% kept *and* a salvage item, or *either/or*?
-- **Drain speed:** 1h per 20s okay?
-- **Unique dailies:** which idea from section 5?
-- **Narrator:** text only, or also voice / sound cues?
-- **Name**
-- **Stack** (decide later)
+- Grid size (16×12?) and chunk size.
+- Score weights; how the designer's par is set each day for the demo.
+- Stockpile cap and how fast it grows.
+- House size (1×1 or 2×2); whether some tiles are off-limits for it (e.g. right on an entry).
+- Boss day: a fixed weekday, or any time in a 48h window.
+- Name and tech stack.
