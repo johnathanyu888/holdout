@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { demoDay } from '@shared/demo/demoDay';
 import { key } from '@shared/grid';
-import { createSim, partDef, powerPreview, step, type SimCtx, type SimEvent, type SimState } from '@shared/sim';
+import { blinkerFloods, createSim, partDef, powerPreview, step, type SimCtx, type SimEvent, type SimState } from '@shared/sim';
 import type { Contraption, PlacedPart } from '@shared/types/build';
 import type { DayConfig } from '@shared/types/day';
 
@@ -104,6 +104,46 @@ describe('delay', () => {
       { x: 12, y: 12 },
     );
     expect(powerPreview(day({ x: 3, y: 3 }), c).inputs.get(2)).toEqual({ c: 9, t: 0 });
+  });
+});
+
+describe('delay: blink mode', () => {
+  // inlet (3, 3) -> wire (4, 3) -> blinking delay (5, 3) -> wire (6, 3) -> part at (7, 3)
+  const blinker = (d: number, target = 'spike_floor') =>
+    build(
+      [
+        { id: 1, type: 'delay', x: 5, y: 3, rot: 0, config: { delay: d, blink: 1 } },
+        { id: 2, type: target, x: 7, y: 3, rot: 0 },
+      ],
+      wires([4, 3], [6, 3]),
+    );
+
+  it('turns steady power into a beat: on d steps, off d steps, as ticks', () => {
+    const st = createSim(day({ x: 3, y: 3 }), blinker(5), { schedule: [] });
+    const out: string[] = [];
+    run(st, 40, (s) => out.push(s.powerT[key(6, 3)]! > 0 ? '1' : '0'));
+    expect(st.powerC[key(6, 3)]).toBe(0); // never steady power
+    const beat = out.join('').replace(/^0+/, '');
+    expect(beat.slice(0, 20)).toBe('11111000001111100000');
+  });
+  it('a spike floor fed by a blinker punches on every beat', () => {
+    const st = createSim(day({ x: 3, y: 3 }), blinker(5), { schedule: [] });
+    const ev = run(st, 60);
+    // beats start every 10 steps; the spike's 10-step cooldown lets every one through
+    expect(ev.filter((e) => e.type === 'partFired' && e.partId === 2).length).toBeGreaterThanOrEqual(5);
+  });
+  it('stops when its power goes away, and the build preview shows it as a blinker', () => {
+    const c = blinker(10);
+    expect(powerPreview(day({ x: 3, y: 3 }), c).inputs.get(2)).toEqual({ c: 0, t: 0 }); // no steady power downstream
+    const pv = powerPreview(day({ x: 3, y: 3 }), c);
+    const floods = blinkerFloods(c, pv);
+    expect(floods).toHaveLength(1);
+    expect(floods[0]!.steps).toBe(10);
+    expect(floods[0]!.powerT[key(6, 3)]).toBe(9);
+    // No inlet next to it: nothing blinks.
+    const st = createSim(day({ x: 0, y: 15 }), c, { schedule: [] });
+    run(st, 30);
+    expect(st.parts[0]!.active).toBe(false);
   });
 });
 

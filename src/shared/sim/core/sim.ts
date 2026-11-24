@@ -15,7 +15,7 @@ import type { Contraption, WallMaterial } from '../../types/build';
 import type { DayConfig } from '../../types/day';
 import type { SimEvent } from './events';
 import { FIELD_INF, computeField, nextTile } from './pathing';
-import { type Source, flood, inputAt, inputFromSides, sideKey } from './power';
+import { type Source, flood, floodLayer, inputAt, inputFromSides, sideKey } from './power';
 import { hasPartDef, partDef, zombieDef } from './registry';
 import { seedRng } from './rng';
 import { buildSchedule } from './spawn';
@@ -235,8 +235,33 @@ function partSources(p: { x: number; y: number; rot: number; type: string }, out
   return pins.out.map((s) => sideKey(p.x, p.y, s, p.rot)).filter((n) => n >= 0).map((to) => ({ k, ...out, to }));
 }
 
+/**
+ * Build preview for blinking delays: for each blinker that gets steady power, the
+ * tick flood it sends out while "on", and its half-period in steps. The client
+ * switches these on and off with the clock so the beat shows while building.
+ */
+export function blinkerFloods(
+  c: Contraption,
+  preview: { powerC: Uint8Array; powerT: Uint8Array },
+): { id: number; steps: number; powerT: Uint8Array }[] {
+  const wire = new Uint8Array(TILE_COUNT);
+  for (const w of c.wires) wire[key(w.x, w.y)] = 1;
+  const out: { id: number; steps: number; powerT: Uint8Array }[] = [];
+  for (const p of c.parts) {
+    if (!hasPartDef(p.type) || partDef(p.type).kind !== 'chip') continue;
+    const cfg = { ...partDef(p.type).defaultConfig, ...p.config };
+    if (!cfg.blink) continue;
+    const got = partInput(p, preview.powerC, preview.powerT);
+    if (got.c <= 0 && got.t <= 0) continue;
+    const t = new Uint8Array(TILE_COUNT);
+    floodLayer(wire, partSources(p, { layer: 't', strength: SOURCE_STRENGTH }), t);
+    out.push({ id: p.id, steps: Math.max(1, cfg.delay ?? 5), powerT: t });
+  }
+  return out;
+}
+
 /** What reaches a part: the strongest wire on any side, or only on its `in` pins. */
-function partInput(p: { x: number; y: number; rot: number; type: string }, powerC: Uint8Array, powerT: Uint8Array): PowerIn {
+export function partInput(p: { x: number; y: number; rot: number; type: string }, powerC: Uint8Array, powerT: Uint8Array): PowerIn {
   const pins = hasPartDef(p.type) ? partDef(p.type).pins : undefined;
   return pins ? inputFromSides(p.x, p.y, p.rot, pins.in, powerC, powerT) : inputAt(key(p.x, p.y), powerC, powerT);
 }
@@ -387,7 +412,9 @@ export function powerPreview(
     flood(wire, sources, powerC, powerT);
     let changed = false;
     for (const p of chips) {
-      const on = partInput(p, powerC, powerT).c > 0 && partDef(p.type).passesConstant !== false;
+      const pc = partDef(p.type).passesConstant;
+      const passes = typeof pc === 'function' ? pc({ ...partDef(p.type).defaultConfig, ...p.config }) : pc !== false;
+      const on = partInput(p, powerC, powerT).c > 0 && passes;
       if (on !== passing.has(p.id)) {
         changed = true;
         if (on) passing.add(p.id);

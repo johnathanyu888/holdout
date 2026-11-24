@@ -73,6 +73,7 @@ function TopBar() {
   const raid = useObs(session.raid);
   const hand = useObs(session.handMode);
   const shopOpen = useObs(session.shopOpen);
+  const raidTime = useObs(session.raidTime);
   useObs(session.store.historyVersion);
   const building = phase === 'build';
 
@@ -98,7 +99,7 @@ function TopBar() {
     clock = (
       <div class="pill clock" title="Raid time">
         <span class="pill-label">RAID</span>
-        {raid.seconds.toFixed(1)}s
+        {(phase === 'raid' ? raidTime : raid.seconds).toFixed(1)}s
       </div>
     );
 
@@ -303,7 +304,7 @@ function Tray() {
             <IconSwords />
             <span>Fight</span>
           </span>
-          <span class="fight-sub">{ready ? 'Enter' : 'Place your house'}</span>
+          {ready ? <span class="key">↵</span> : <span class="fight-sub">Place your house</span>}
         </button>
       </div>
     </div>
@@ -405,9 +406,13 @@ function IconClock() {
 
 function IconSwords() {
   return (
-    <svg viewBox="0 0 24 24" class="swords" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M4 3.5 L14.5 14 M13 17.5 L17.5 13 M16 16 L20.5 20.5" />
-      <path d="M20 3.5 L9.5 14 M6.5 13 L11 17.5 M8 16 L3.5 20.5" />
+    <svg viewBox="0 0 24 24" class="swords" aria-hidden="true" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+      {/* two solid blades with crossguards, grips and pommels, crossed */}
+      <path d="M3 3 L6 3.4 L15.2 12.6 L12.6 15.2 L3.4 6 Z" fill="currentColor" stroke-width="1" />
+      <path d="M21 3 L18 3.4 L8.8 12.6 L11.4 15.2 L20.6 6 Z" fill="currentColor" stroke-width="1" />
+      <path d="M10.6 17.4 L17.4 10.6 M15.6 15.6 L19.4 19.4 M13.4 17.4 L6.6 10.6 M8.4 15.6 L4.6 19.4" fill="none" stroke-width="2.4" />
+      <circle cx="20.4" cy="20.4" r="1.7" fill="currentColor" stroke="none" />
+      <circle cx="3.6" cy="20.4" r="1.7" fill="currentColor" stroke="none" />
     </svg>
   );
 }
@@ -434,6 +439,9 @@ function Inspector() {
     else if (def.kind === 'chip') power = s > 0 ? { text: `Input · ${s}`, ok: true } : { text: 'No input yet', ok: false };
   }
   const delay = selPart?.type === 'delay' ? (selPart.config?.delay ?? 5) : null;
+  const blink = selPart?.type === 'delay' ? (selPart.config?.blink ?? 0) > 0 : false;
+  const setCfg = (patch: Record<string, number>) =>
+    selPart && session.store.apply((cc) => configurePart(cc, selPart.id, { ...selPart.config, ...patch }));
 
   return (
     <div class="inspector">
@@ -443,18 +451,24 @@ function Inspector() {
           {def.label}
           {power && <span class={`insp-power ${power.ok ? 'ok' : 'bad'}`}>{power.text}</span>}
         </div>
-        <div class="insp-sub">{PART_INFO[type] ?? ''}</div>
+        <div class="insp-sub">{(type === 'delay' && blink ? BLINK_INFO : PART_INFO[type]) ?? ''}</div>
         {delay !== null && selPart && (
-          <div class="insp-seg" role="group" aria-label="Delay">
-            {DELAY_STEPS.map((d) => (
-              <button
-                key={d}
-                class={d === delay ? 'on' : ''}
-                onClick={() => session.store.apply((cc) => configurePart(cc, selPart.id, { delay: d }))}
-              >
-                {d / 10}s
+          <div class="insp-controls">
+            <div class="insp-seg" role="group" aria-label="Mode">
+              <button class={!blink ? 'on' : ''} onClick={() => setCfg({ blink: 0 })}>
+                Wait
               </button>
-            ))}
+              <button class={blink ? 'on blink' : ''} onClick={() => setCfg({ blink: 1 })}>
+                Blink
+              </button>
+            </div>
+            <div class="insp-seg" role="group" aria-label={blink ? 'Beat' : 'Delay'}>
+              {DELAY_STEPS.map((d) => (
+                <button key={d} class={d === delay ? 'on' : ''} onClick={() => setCfg({ delay: d })}>
+                  {d / 10}s
+                </button>
+              ))}
+            </div>
           </div>
         )}
       </div>
@@ -469,6 +483,7 @@ function Inspector() {
 }
 
 const DELAY_STEPS = [5, 10, 20];
+const BLINK_INFO = 'Turns steady power into a beat: a tick, then a gap, the same length each';
 
 /** One line on what each part does (the inspector card). */
 const PART_INFO: Record<string, string> = {

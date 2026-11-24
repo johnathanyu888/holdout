@@ -142,7 +142,7 @@ export interface PartDef {
    */
   pins?: { in: number[]; out: number[] };
   /** Chips: in the build preview, does constant power in mean constant power out? (default true) */
-  passesConstant?: boolean;
+  passesConstant?: boolean | ((config: Record<string, number>) => boolean);
   initState(part: SimPart): Record<string, number>;
   /** Triggers: read the world, return what to emit into this step's flood. */
   sense?(ctx: SimCtx, part: SimPart): Signal | null;

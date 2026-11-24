@@ -9,8 +9,8 @@
 // wire visibly plugs into it instead of stopping at the tile edge.
 
 import Phaser from 'phaser';
-import { GRID, TILE, key, tileToWorld } from '@shared/grid';
-import { hasPartDef, partDef, powerPreview, type SimState } from '@shared/sim';
+import { GRID, TILE, TILE_COUNT, key, tileToWorld } from '@shared/grid';
+import { blinkerFloods, hasPartDef, partDef, partInput, powerPreview, type SimState } from '@shared/sim';
 import type { Contraption } from '@shared/types/build';
 import type { DayConfig } from '@shared/types/day';
 import { JOIN_SCALE, PART_SCALE, TEX } from '../core/assets';
@@ -27,6 +27,27 @@ const SIDES: [dx: number, dy: number, turns: number][] = [
   [1, 0, 2],
   [0, 1, 3],
 ];
+
+/**
+ * 0..1 brightness for a wire at this signal strength: 1 at 15 (next to the inlet),
+ * falling evenly to 0.3 at strength 1 so even the weakest live wire still reads
+ * as live; 0 when unpowered.
+ */
+function wireBrightness(strength: number): number {
+  if (strength <= 0) return 0;
+  return 0.06 + 0.94 * Math.min(1, (strength - 1) / 14) ** 1.3;
+}
+
+/** Linear blend between two 0xRRGGBB colours. */
+function lerpColour(a: number, b: number, t: number): number {
+  const k = Math.max(0, Math.min(1, t));
+  const ch = (shift: number) => {
+    const x = (a >> shift) & 0xff;
+    const y = (b >> shift) & 0xff;
+    return Math.round(x + (y - x) * k) << shift;
+  };
+  return ch(16) | ch(8) | ch(0);
+}
 
 interface Stub {
   sprite: Phaser.GameObjects.Image;
@@ -48,6 +69,9 @@ export class EntityLayer {
   /** Additive overlay: current running along powered wires. */
   private readonly zap: Phaser.GameObjects.Graphics;
   private sparks: { x: number; y: number; until: number; seed: number }[] = [];
+  /** Blinking delays in the build preview, and a scratch tick layer to combine them into. */
+  private blinkers: ReturnType<typeof blinkerFloods> = [];
+  private readonly livePowerT = new Uint8Array(TILE_COUNT);
 
   constructor(
     private readonly scene: Phaser.Scene,
@@ -74,6 +98,7 @@ export class EntityLayer {
   sync(c: Contraption): void {
     this.c = c;
     this.preview = powerPreview(this.day, c);
+    this.blinkers = blinkerFloods(c, this.preview);
 
     // House
     if (c.house) {
@@ -98,7 +123,7 @@ export class EntityLayer {
       }
       const rotatable = hasPartDef(part.type) && partDef(part.type).rotatable;
       // The frame is set once at creation: views may swap it (e.g. spikes up/down).
-      s.setPosition(p.x, p.y).setDepth(DEPTH.parts + p.y);
+      s.setPosition(p.x, p.y).setDepth(DEPTH.parts + p.y).setData('blink', part.config?.blink ?? 0);
       // Spinning parts manage their own rotation; only set it for rotatable ones.
       if (rotatable) s.setAngle(part.rot * 90);
     }
@@ -183,13 +208,28 @@ export class EntityLayer {
   update(time: number, sim: SimState | null): void {
     if (!this.c) return;
     const powerC = sim ? sim.powerC : this.preview?.powerC;
-    const powerT = sim ? sim.powerT : this.preview?.powerT;
+    let powerT = sim ? sim.powerT : this.preview?.powerT;
+    // Build preview: blinking delays beat on the clock (10 steps a second, like the raid).
+    const blinkOn = new Set<number>();
+    if (!sim && this.preview && this.blinkers.length) {
+      const t = this.livePowerT;
+      t.set(this.preview.powerT);
+      for (const b of this.blinkers) {
+        if (Math.floor((time * 10) / b.steps) % 2 !== 0) continue;
+        blinkOn.add(b.id);
+        for (let i = 0; i < t.length; i++) if ((b.powerT[i] ?? 0) > (t[i] ?? 0)) t[i] = b.powerT[i] ?? 0;
+      }
+      powerT = t;
+    }
     const wireLook = (s: Phaser.GameObjects.Image, k: number) => {
       const strength = Math.max(powerC?.[k] ?? 0, powerT?.[k] ?? 0);
       if (strength > 0) {
-        // Brighter with strength; a gentle shimmer so live wires read as live.
-        const pulse = 0.9 + 0.1 * Math.sin(time * 6 - k * 0.7);
-        s.setTint(0xffffff).setAlpha(Math.min(1, (0.75 + strength / 60) * pulse + 0.1));
+        // Copper brightness follows strength: full bright next to the source (15),
+        // fading toward the dull unpowered colour as the signal weakens tile by
+        // tile. A gentle shimmer so live wires read as live.
+        const f = wireBrightness(strength);
+        const pulse = 0.94 + 0.06 * Math.sin(time * 6 - k * 0.7);
+        s.setTint(lerpColour(WIRE_DIM, 0xffffff, f * pulse)).setAlpha(1);
       } else {
         s.setTint(WIRE_DIM).setAlpha(1);
       }
@@ -206,11 +246,15 @@ export class EntityLayer {
       const s = this.parts.get(part.id);
       if (!s) continue;
       const sp = simParts?.get(part.id) ?? null;
-      const input = sp ? sp.input : (this.preview?.inputs.get(part.id) ?? { c: 0, t: 0 });
+      const input = sp
+        ? sp.input
+        : this.blinkers.length && powerC && powerT
+          ? partInput(part, powerC, powerT)
+          : (this.preview?.inputs.get(part.id) ?? { c: 0, t: 0 });
       const def = hasPartDef(part.type) ? partDef(part.type) : null;
       const powered = !def || def.kind !== 'action' || Math.max(input.c, input.t) >= def.needs;
       const view = partView(part.type);
-      if (view.update) view.update(s, { time, powered, sim: sp });
+      if (view.update) view.update(s, { time, powered, sim: sp, on: sp ? sp.active : blinkOn.has(part.id) });
       else s.setTint(powered || sp?.active ? 0xffffff : 0xb8b8b8);
     }
   }
@@ -237,6 +281,10 @@ export class EntityLayer {
       const tick = (powerT?.[k] ?? 0) > (powerC?.[k] ?? 0);
       const glow = tick ? 0xffa53a : 0x3fd8ff;
       const core = tick ? 0xfff0c8 : 0xd8fbff;
+      // Weaker signal, fainter current; strong wires also glow steadily.
+      const bright = wireBrightness(s);
+      const fade = 0.1 + 0.9 * bright;
+      const halo = bright * bright;
       const x = k % GRID;
       const y = Math.floor(k / GRID);
       const c = tileToWorld(x, y);
@@ -251,6 +299,13 @@ export class EntityLayer {
         const nk = key(x + dx, y + dy);
         const ns = nk === inletK ? 16 : this.wireMask.has(nk) ? strength(nk) : 0;
         const dir = ns > s ? -1 : 1; // toward a stronger neighbour = back toward the source
+        // Steady glow along the whole arm, strong near the source, gone at the far end.
+        if (halo > 0.02) {
+          const ex = c.x + dx * half;
+          const ey = c.y + dy * half;
+          g.lineStyle(14, glow, 0.16 * halo).lineBetween(c.x, c.y, ex, ey);
+          g.lineStyle(5, core, 0.35 * halo).lineBetween(c.x, c.y, ex, ey);
+        }
         for (let i = 0; i < SEGS; i++) {
           const u0 = i / SEGS;
           const u1 = (i + 1) / SEGS;
@@ -262,8 +317,8 @@ export class EntityLayer {
           const ay = c.y + dy * half * u0;
           const bx = c.x + dx * half * u1;
           const by = c.y + dy * half * u1;
-          g.lineStyle(9, glow, 0.18 * a).lineBetween(ax, ay, bx, by);
-          g.lineStyle(3.5, core, 0.85 * a).lineBetween(ax, ay, bx, by);
+          g.lineStyle(9, glow, 0.18 * a * fade).lineBetween(ax, ay, bx, by);
+          g.lineStyle(3.5, core, 0.85 * a * fade).lineBetween(ax, ay, bx, by);
         }
       }
     }

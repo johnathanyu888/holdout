@@ -12,6 +12,8 @@ export interface PartViewContext {
   powered: boolean;
   /** Raid only: the sim part (null in build mode). */
   sim: SimPart | null;
+  /** Is the part outputting right now (raid: sim.active; build: e.g. a blinker's "on" beat)? */
+  on?: boolean;
 }
 
 export interface PartView {
