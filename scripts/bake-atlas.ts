@@ -3,7 +3,8 @@
 //   npm run bake -- --force
 //
 // Outputs to src/client/public/assets/:
-//   map.webp                 the 2048x2048 base map at 1x
+//   map_<x>_<y>.webp         the 2048 map area at 2x, in overlapping chunks (layout: client/core/assets.ts)
+//   far_<x>_<y>.webp         the generated forest ring at 1x (scripts/forest.ts)
 //   parts.png / parts.json   parts, wire pieces, walls, materials at 2x (Phaser JSON-hash atlas)
 //   structures.png / .json   home, power inlet, entry edge at 2x
 //
@@ -11,10 +12,13 @@
 // Sprites are baked at ART_SCALE (2x), so the game draws them at scale 1/2.
 
 import { Resvg } from '@resvg/resvg-js';
-import { mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+import { copyFileSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
+import { FAR_SCALE, MAP_SCALE, type MapChunk, farChunks, mapChunks } from '../src/client/core/assets';
+import { FOREST_MAX, FOREST_MIN, MAP_PX } from '../src/shared/grid';
+import { buildWideMap, cropSvg } from './forest';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const ART = join(ROOT, 'art');
@@ -41,7 +45,12 @@ const STRUCTURES = ['home', 'power_inlet', 'entry_edge'];
 const atlases: AtlasSpec[] = [
   {
     name: 'parts',
-    files: [...svgsIn(join(ART, 'parts')), ...svgsIn(join(ART, 'parts/walls')), ...svgsIn(join(ART, 'materials'))],
+    files: [
+      ...svgsIn(join(ART, 'parts')),
+      ...svgsIn(join(ART, 'parts/walls')),
+      ...svgsIn(join(ART, 'materials')),
+      ...svgsIn(join(ART, 'zombies')),
+    ],
   },
   { name: 'structures', files: STRUCTURES.map((n) => join(ART, 'structures', `${n}.svg`)) },
 ];
@@ -133,31 +142,82 @@ async function bakeAtlas(spec: AtlasSpec, force: boolean): Promise<void> {
   console.log(`  ${spec.name}: ${placed.length} frames -> ${w}x${h}`);
 }
 
-// The map is baked at 2x (4096^2) so it stays sharp at max zoom, then cut into
-// 2048^2 chunks: every mobile GPU accepts 2048 textures, not all accept 4096.
-export const MAP_SCALE = 2;
-export const MAP_CHUNK = 2048;
-
+// The map: the original SVG plus a generated forest ring (scripts/forest.ts).
+//  - the 2048 map area at 2x (MAP_SCALE), so it stays sharp at max zoom
+//  - the whole ring at FAR_SCALE (0.5x), drawn underneath; only seen zoomed out,
+//    and the game shades it into dark woods
+// Both come from the same wide SVG, so trees crossing the old canvas edge match.
+// Chunk layouts live in the client's assets.ts so the game and this script agree.
 async function bakeMap(force: boolean): Promise<void> {
-  const n = (2048 * MAP_SCALE) / MAP_CHUNK;
-  const outs: string[] = [];
-  for (let cy = 0; cy < n; cy++) for (let cx = 0; cx < n; cx++) outs.push(join(OUT, `map_${cx}_${cy}.webp`));
-  if (!force && Math.min(...outs.map(outMtime)) > newestMtime([MAP_SVG])) {
+  const near = mapChunks();
+  const far = farChunks();
+  const all = [...near, ...far];
+  const outs = all.map((c) => join(OUT, basename(c.file)));
+  const sig = JSON.stringify({
+    v: 2,
+    near: near.map((c) => [c.left, c.top, c.width, c.height]),
+    far: far.map((c) => [c.left, c.top, c.width, c.height]),
+    ring: [FOREST_MIN, FOREST_MAX],
+  });
+  const sigFile = join(OUT, 'map.layout.json');
+  let same = false;
+  try {
+    same = readFileSync(sigFile, 'utf8') === sig;
+  } catch {
+    // no previous bake
+  }
+  const inputs = [MAP_SVG, join(ROOT, 'scripts/forest.ts')];
+  if (!force && same && Math.min(...outs.map(outMtime)) > newestMtime(inputs)) {
     console.log('  map: up to date');
     return;
   }
-  const { png, w, h } = rasterize(MAP_SVG, MAP_SCALE);
-  let bytes = 0;
-  for (let cy = 0; cy < n; cy++)
-    for (let cx = 0; cx < n; cx++) {
-      const out = join(OUT, `map_${cx}_${cy}.webp`);
+  // Remove chunks from an older layout.
+  for (const f of readdirSync(OUT))
+    if (/^(map|far)(_\d+_\d+)?\.webp$/.test(f) && !outs.includes(join(OUT, f))) rmSync(join(OUT, f));
+
+  const wide = buildWideMap(readFileSync(MAP_SVG, 'utf8'));
+  const render = (svg: string, scale: number) => {
+    const img = new Resvg(svg, { fitTo: { mode: 'zoom', value: scale }, font: { loadSystemFonts: false } }).render();
+    return Buffer.from(img.asPng());
+  };
+  const cut = async (png: Buffer, chunks: MapChunk[], quality: number) => {
+    let bytes = 0;
+    for (const c of chunks) {
+      const out = join(OUT, basename(c.file));
       await sharp(png)
-        .extract({ left: cx * MAP_CHUNK, top: cy * MAP_CHUNK, width: MAP_CHUNK, height: MAP_CHUNK })
-        .webp({ quality: 90, effort: 6 })
+        .extract({ left: c.left, top: c.top, width: c.width, height: c.height })
+        .webp({ quality, effort: 6 })
         .toFile(out);
       bytes += statSync(out).size;
     }
-  console.log(`  map: ${w}x${h} -> ${n * n} chunks (${(bytes / 1024).toFixed(0)} KB)`);
+    return bytes;
+  };
+  const nearBytes = await cut(render(cropSvg(wide, 0, 0, MAP_PX, MAP_PX), MAP_SCALE), near, 90);
+  // The ring is mostly in the game's dark-woods shade, so lower quality is invisible.
+  const farBytes = await cut(render(wide, FAR_SCALE), far, 80);
+  writeFileSync(sigFile, sig);
+  const kb = (n: number) => `${(n / 1024).toFixed(0)} KB`;
+  console.log(
+    `  map: ${near.length} chunks @${MAP_SCALE}x (${kb(nearBytes)}), ` +
+      `forest ring: ${far.length} chunks @${FAR_SCALE}x (${kb(farBytes)})`,
+  );
+}
+
+/** UI icons: the SVGs themselves, served as-is for crisp DOM images at any size. */
+function copyIcons(): void {
+  const dir = join(OUT, 'icons');
+  mkdirSync(dir, { recursive: true });
+  const files = [
+    ...svgsIn(join(ART, 'parts')),
+    ...svgsIn(join(ART, 'materials')),
+    ...svgsIn(join(ART, 'zombies')),
+    join(ART, 'structures/home.svg'),
+    join(ART, 'structures/power_inlet.svg'),
+    join(ART, 'parts/walls/wall_wood_ew_a.svg'),
+    join(ART, 'parts/walls/wall_stone_ew_a.svg'),
+  ];
+  for (const f of files) copyFileSync(f, join(dir, basename(f)));
+  console.log(`  icons: ${files.length} svgs`);
 }
 
 async function main(): Promise<void> {
@@ -166,6 +226,7 @@ async function main(): Promise<void> {
   console.log('Baking art...');
   await bakeMap(force);
   for (const a of atlases) await bakeAtlas(a, force);
+  copyIcons();
 }
 
 main().catch((e: unknown) => {

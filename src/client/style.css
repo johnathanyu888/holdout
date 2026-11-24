@@ -43,5 +43,5 @@ body {
   font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   white-space: pre;
   pointer-events: none;
-  z-index: 10;
+  z-index: 20;
 }

@@ -1,4 +1,5 @@
 import { fileURLToPath } from 'node:url';
+import preact from '@preact/preset-vite';
 import { defineConfig } from 'vite';
 
 const r = (p: string) => fileURLToPath(new URL(p, import.meta.url));
@@ -8,6 +9,7 @@ const r = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 export default defineConfig({
   root: r('./src/client'),
   publicDir: r('./src/client/public'),
+  plugins: [preact()],
   resolve: {
     alias: {
       '@shared': r('./src/shared'),

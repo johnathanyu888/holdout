@@ -4,6 +4,7 @@
 import type Phaser from 'phaser';
 import type { Point } from '@shared/grid';
 import {
+  type Insets,
   type Screen,
   type View,
   clampView,
@@ -42,10 +43,25 @@ export class CameraController {
   resize(screen: Screen, dpr: number): void {
     const wasLandscape = this.screen.w > this.screen.h;
     const isLandscape = screen.w > screen.h;
-    this.screen = screen;
+    this.screen = { ...screen, insets: screen.insets ?? this.screen.insets };
     this.dpr = dpr;
     if (this.fitted || wasLandscape !== isLandscape) this.fit();
     else this.set(this.view);
+  }
+
+  /** Screen area covered by HUD panels (fitting keeps the lawn clear of it). */
+  setInsets(insets: Insets): void {
+    const cur = this.screen.insets;
+    if (
+      cur &&
+      cur.top === insets.top &&
+      cur.bottom === insets.bottom &&
+      cur.left === insets.left &&
+      cur.right === insets.right
+    )
+      return;
+    this.screen = { ...this.screen, insets };
+    if (this.fitted) this.fit();
   }
 
   fit(): void {

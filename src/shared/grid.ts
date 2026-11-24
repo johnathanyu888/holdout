@@ -10,6 +10,16 @@ export const LAWN_PX = GRID * TILE; // 1536
 export const LAWN_END = LAWN_ORIGIN + LAWN_PX; // 1792
 export const TILE_COUNT = GRID * GRID; // 576
 
+/**
+ * World bounds of the drawn scenery: the original 2048 map plus a generated
+ * forest ring (scripts/forest.ts) that the client shades into dark woods, so the
+ * camera can zoom out on tall or wide screens without showing past the trees.
+ * 768 = 12 tiles each side.
+ */
+export const FOREST_RING = 768;
+export const FOREST_MIN = -FOREST_RING;
+export const FOREST_MAX = MAP_PX + FOREST_RING; // 2816
+
 export interface Tile {
   x: number;
   y: number;

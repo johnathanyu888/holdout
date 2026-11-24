@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" width="96" height="96">
+  <!-- Shambler, top-down, 1 tile (96px canvas = one 64px tile). Faces east (+x); the game rotates it to its walking direction.
+       Taken from the zombie in the wilderness map's asset kit, scaled 1.5x to the tile canvas. -->
+  <defs>
+    <filter id="sh" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="2.5"/></filter>
+  </defs>
+  <g transform="translate(46 48) scale(1.5)">
+    <circle cx="4" cy="7" r="19" fill="#000" opacity=".25" filter="url(#sh)"/>
+    <circle cx="21" cy="-11" r="7" fill="#8FC46A" stroke="#1E2328" stroke-width="3"/><circle cx="21" cy="11" r="7" fill="#8FC46A" stroke="#1E2328" stroke-width="3"/>
+    <path d="M17 -14 l3 -3 M18 14 l3 3" stroke="#6E9A4E" stroke-width="2"/>
+    <circle r="18" fill="#8FC46A" stroke="#1E2328" stroke-width="3.5"/>
+    <path d="M-18 -4 A18 18 0 0 0 -4 17.5 L-6 10 L-1 6 L-6 1 L-2 -4 L-8 -8 L-4 -13 L-9 -16 A18 18 0 0 0 -18 -4 Z" fill="#6E7FA3" stroke="#1E2328" stroke-width="2"/>
+    <circle cx="4" cy="-9" r="3.5" fill="#6E9A4E"/><circle cx="10" cy="9" r="2.5" fill="#6E9A4E"/>
+    <circle cx="9" cy="-5" r="3.2" fill="#1E2328"/><circle cx="9" cy="5" r="3.2" fill="#1E2328"/>
+    <circle cx="9.8" cy="-5.8" r="1" fill="#fff"/><circle cx="9.8" cy="4.2" r="1" fill="#fff"/>
+  </g>
+</svg>

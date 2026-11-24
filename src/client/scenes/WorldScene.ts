@@ -1,36 +1,44 @@
-// The world view: base map, camera, input router, tile hover/selection.
-// Later phases add the entity layers and tools on top of this scene.
+// The world: map, build, zombies, camera and input, plus the phase flow
+// (briefing -> build -> raid -> result). The phases share one scene so the
+// camera and map stay put; the DOM UI (src/client/ui) shows each phase's panels.
 
 import Phaser from 'phaser';
-import { TILE, type Tile, tileOrigin, tileToWorld } from '@shared/grid';
-import { MAP_SCALE, SPRITE_SCALE, TEX, mapChunks } from '../core/assets';
+import { edgeDistance, edgeTiles, GRID, TILE, type Tile, tileOrigin, tileToWorld } from '@shared/grid';
+import { checkHouse, placeHouse, rotatePart } from '@shared/build/rules';
+import { hasPartDef, partDef, spawnZombie } from '@shared/sim';
+import type { Rot } from '@shared/types/build';
+import { FAR_SCALE, MAP_SCALE, SPRITE_SCALE, TEX, farChunks, mapChunks } from '../core/assets';
 import { CameraController } from '../core/camera';
-import { InputRouter, type PointerInfo, type ToolHandler } from '../core/input';
-import { session } from '../core/session';
-import { DebugOverlay } from '../render/debugOverlay';
+import { InputRouter, type PointerInfo } from '../core/input';
+import { RaidRunner } from '../core/raid';
+import { session, toast } from '../core/session';
 import { VIEWPORT_EVENT, type ViewportSize } from '../core/viewport';
+import { DebugOverlay } from '../render/debugOverlay';
+import { EntityLayer } from '../render/entities';
+import { FxLayer } from '../render/fx';
+import { GhostLayer } from '../render/ghost';
+import { DEPTH } from '../render/layers';
+import { addWoodsShade } from '../render/woods';
+import { ZombieLayer } from '../render/zombies';
+import { type BuildTool, createTool } from '../tools/tools';
 
-/** Depth bands, bottom to top. Entities add y-based offsets inside their band. */
-export const DEPTH = {
-  ground: 0,
-  entryEdge: 100,
-  grid: 200,
-  wires: 1_000,
-  parts: 10_000,
-  walls: 20_000,
-  zombies: 30_000,
-  fx: 40_000,
-  ghost: 50_000,
-} as const;
+/** Delay between the raid's last step and the result card. */
+const RESULT_DELAY_MS = 1200;
 
 export class WorldScene extends Phaser.Scene {
   camera!: CameraController;
-  input2!: InputRouter;
+  router!: InputRouter;
   private debug!: DebugOverlay;
+  private entities!: EntityLayer;
+  private zombies!: ZombieLayer;
+  private fx!: FxLayer;
+  private ghost!: GhostLayer;
   private hoverG!: Phaser.GameObjects.Graphics;
-  private selectG!: Phaser.GameObjects.Graphics;
   private hover: PointerInfo | null = null;
-  private selected: Tile | null = null;
+  private tool: BuildTool | null = null;
+  private raid: RaidRunner | null = null;
+  private resultAt: number | null = null;
+  private readonly cleanup: (() => void)[] = [];
 
   constructor() {
     super('World');
@@ -38,59 +46,254 @@ export class WorldScene extends Phaser.Scene {
 
   create(): void {
     const vp = this.registry.get('viewport') as ViewportSize;
+    const { day, store } = session;
 
+    // Outer forest ring (half-res) shaded into dark woods, under the sharp 2x map area.
+    for (const c of farChunks())
+      this.add.image(c.x, c.y, c.key).setOrigin(0, 0).setScale(1 / FAR_SCALE).setDepth(DEPTH.ground - 1);
     for (const c of mapChunks())
       this.add.image(c.x, c.y, c.key).setOrigin(0, 0).setScale(1 / MAP_SCALE).setDepth(DEPTH.ground);
-    this.hoverG = this.add.graphics().setDepth(DEPTH.ghost);
-    this.selectG = this.add.graphics().setDepth(DEPTH.ghost + 1);
+    addWoodsShade(this, DEPTH.ground + 1);
+    this.hoverG = this.add.graphics().setDepth(DEPTH.ghost - 1);
+
+    this.entities = new EntityLayer(this, day);
+    this.zombies = new ZombieLayer(this);
+    this.fx = new FxLayer(this, this.zombies, this.entities);
+    this.ghost = new GhostLayer(this);
+    this.entities.sync(store.current);
 
     this.camera = new CameraController(this.cameras.main, { w: vp.w, h: vp.h }, vp.dpr);
-    this.input2 = new InputRouter(this.game.canvas, this.camera, {
-      hover: (p) => {
-        this.hover = p;
-      },
-    });
-    this.input2.setTool(this.selectTool());
-
+    this.router = new InputRouter(this.game.canvas, this.camera, { hover: (p) => (this.hover = p) });
     this.debug = new DebugOverlay(document.getElementById('app') ?? document.body);
 
     if (new URLSearchParams(location.search).has('gallery')) this.showGallery();
+
+    // Session wiring
+    this.on(store.contraption.subscribe((c) => this.entities.sync(c)));
+    this.on(session.tool.subscribe(() => this.applyTool()));
+    this.on(session.handMode.subscribe((h) => (this.router.handMode = h)));
+    this.on(session.phase.subscribe(() => this.applyTool()));
+    session.actions = {
+      startBuild: () => this.startBuild(),
+      startRaid: () => this.startRaid(),
+      rotate: () => this.rotate(),
+      backToBuild: () => this.backToBuild(),
+      restart: () => this.restart(),
+      zoomBy: (f) => this.camera.zoomBy(f),
+      fit: () => this.camera.fit(),
+      setSpeed: (s) => {
+        if (this.raid) this.raid.speed = s;
+        this.publishRaid();
+      },
+      togglePause: () => {
+        if (this.raid) this.raid.paused = !this.raid.paused;
+        this.publishRaid();
+      },
+      sandboxSpawn: (where) => this.sandboxSpawn(where),
+    };
 
     const onViewport = (s: ViewportSize) => {
       this.cameras.main.setSize(s.w * s.dpr, s.h * s.dpr);
       this.camera.resize({ w: s.w, h: s.h }, s.dpr);
     };
     this.game.events.on(VIEWPORT_EVENT, onViewport);
+    this.on(() => this.game.events.off(VIEWPORT_EVENT, onViewport));
 
     const onKey = (e: KeyboardEvent) => this.onKey(e);
     window.addEventListener('keydown', onKey);
+    this.on(() => window.removeEventListener('keydown', onKey));
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
-      this.game.events.off(VIEWPORT_EVENT, onViewport);
-      window.removeEventListener('keydown', onKey);
-      this.input2.destroy();
+      for (const off of this.cleanup) off();
+      this.router.destroy();
       this.debug.destroy();
+    });
+
+    // Keep the fitted lawn clear of the HUD: re-measure the panels when they change.
+    const ui = document.getElementById('ui');
+    if (ui) {
+      const ro = new ResizeObserver(() => this.measureHud());
+      const mo = new MutationObserver(() => {
+        for (const el of ui.querySelectorAll('.topbar, .tray-wrap, .raidbar')) ro.observe(el);
+        this.measureHud();
+      });
+      mo.observe(ui, { childList: true, subtree: true });
+      this.on(() => {
+        mo.disconnect();
+        ro.disconnect();
+      });
+    }
+
+    session.phase.set(session.mode === 'sandbox' ? 'build' : 'briefing');
+    if (session.mode === 'sandbox') session.clock.stop();
+  }
+
+  /** Screen space the HUD covers at the top and bottom, for fitting the lawn. */
+  private measureHud(): void {
+    const ui = document.getElementById('ui');
+    if (!ui) return;
+    const box = ui.getBoundingClientRect();
+    const top = ui.querySelector('.topbar')?.getBoundingClientRect();
+    let bottomEdge = box.bottom;
+    for (const el of ui.querySelectorAll('.tray-wrap, .raidbar')) bottomEdge = Math.min(bottomEdge, el.getBoundingClientRect().top);
+    const pad = 6;
+    this.camera.setInsets({
+      top: top ? Math.max(0, top.bottom - box.top + pad) : 0,
+      bottom: Math.max(0, box.bottom - bottomEdge + pad),
+      left: 0,
+      right: 0,
     });
   }
 
-  override update(): void {
-    // Keep outlines a constant screen thickness at every zoom.
+  private on(off: () => void): void {
+    this.cleanup.push(off);
+  }
+
+  // ---- phases -----------------------------------------------------------------
+
+  /** Briefing -> Build. */
+  private startBuild(): void {
+    session.phase.set('build');
+    if (session.mode === 'demo') session.clock.start();
+  }
+
+  private startRaid(): void {
+    if (session.phase.value !== 'build') return;
+    const { day, store } = session;
+    if (!store.current.house) {
+      // The clock ran out (or Start was pressed) with no house: put it somewhere sensible.
+      const spot = bestHouseTile((x, y) => !checkHouse(day, store.current, x, y));
+      if (!spot) return toast('Place your house first');
+      store.apply((c) => placeHouse(day, c, spot.x, spot.y));
+      toast('Your house was placed for you');
+    }
+    session.clock.stop();
+    session.selected.set(null);
+    this.raid = new RaidRunner(day, store.current, session.mode === 'sandbox' ? { schedule: [] } : undefined);
+    this.resultAt = null;
+    session.result.set(null);
+    session.phase.set('raid');
+    this.publishRaid();
+  }
+
+  private backToBuild(): void {
+    this.endRaidVisuals();
+    session.result.set(null);
+    session.phase.set('build');
+    if (session.mode === 'demo') {
+      session.clock.reset(session.day.buildSeconds);
+      session.clock.start();
+    }
+  }
+
+  private restart(): void {
+    this.endRaidVisuals();
+    session.store.load({ house: null, parts: [], wires: [], walls: [], nextId: 1 });
+    session.result.set(null);
+    session.clock.reset(session.day.buildSeconds);
+    session.clock.stop();
+    session.phase.set(session.mode === 'sandbox' ? 'build' : 'briefing');
+  }
+
+  private endRaidVisuals(): void {
+    this.raid = null;
+    this.resultAt = null;
+    session.raid.set(null);
+    this.zombies.clear();
+    this.fx.clear();
+    this.entities.houseSprite()?.clearTint().setScale(SPRITE_SCALE);
+  }
+
+  private publishRaid(): void {
+    const r = this.raid;
+    if (!r) return session.raid.set(null);
+    session.raid.set({
+      speed: r.speed,
+      paused: r.paused,
+      seconds: r.sim.tick / 10,
+      alive: r.sim.zombies.length,
+      killed: r.sim.stats.killed,
+    });
+  }
+
+  private sandboxSpawn(where: 'selected' | 'random'): void {
+    if (!this.raid || session.mode !== 'sandbox') return toast('Start the raid first');
+    let t = where === 'selected' ? session.selected.value : null;
+    if (!t) {
+      const ring = edgeTiles();
+      t = ring[Math.floor(Math.random() * ring.length)] ?? { x: 0, y: 0 };
+    }
+    spawnZombie(this.raid.sim, 'shambler', t.x, t.y);
+  }
+
+  // ---- tools ------------------------------------------------------------------
+
+  private applyTool(): void {
+    const building = session.phase.value === 'build';
+    const id = building ? session.tool.value : 'select';
+    this.tool = createTool(id, {
+      day: session.day,
+      store: session.store,
+      rot: () => session.rot.value,
+      select: (t) => {
+        const cur = session.selected.value;
+        session.selected.set(t && cur && t.x === cur.x && t.y === cur.y ? null : t);
+      },
+      toast,
+    });
+    this.router.setTool(this.tool);
+  }
+
+  private rotate(): void {
+    const toolId = session.tool.value;
+    if (toolId.startsWith('part:')) {
+      session.rot.set(((session.rot.value + 1) % 4) as Rot);
+      return;
+    }
+    const sel = session.selected.value;
+    const part = sel && session.store.current.parts.find((p) => p.x === sel.x && p.y === sel.y);
+    if (!part) return;
+    if (!hasPartDef(part.type) || !partDef(part.type).rotatable) return toast("This part doesn't rotate");
+    session.store.apply((c) => rotatePart(c, part.id, ((part.rot + 1) % 4) as Rot));
+  }
+
+  // ---- frame ------------------------------------------------------------------
+
+  override update(time: number, delta: number): void {
+    const t = time / 1000;
+    const phase = session.phase.value;
     const px = 1 / this.cameras.main.zoom; // one device pixel in world units
     const dpr = (this.registry.get('viewport') as ViewportSize).dpr;
 
+    if (phase === 'build' && session.clock.tick()) this.startRaid();
+
+    if (this.raid) {
+      const events = this.raid.update(delta);
+      if (events.length) this.fx.consume(events, time);
+      this.zombies.update(this.raid.sim, this.raid.alpha, t);
+      if (events.length || this.raid.sim.tick % 5 === 0) this.publishRaid();
+      if (this.raid.done) {
+        this.resultAt ??= time + RESULT_DELAY_MS;
+        if (time >= this.resultAt && phase === 'raid') this.showResult();
+      }
+    }
+    this.fx.update(time);
+    this.entities.update(t, this.raid?.sim ?? null);
+
+    // Ghost preview (build only), hover and selection outlines.
+    this.ghost.draw(phase === 'build' ? (this.tool?.ghost(this.hover?.tile ?? null) ?? null) : null, px * dpr);
     this.hoverG.clear();
     const ht = this.hover?.tile;
-    if (ht) {
+    if (ht && (phase !== 'build' || session.tool.value === 'select')) {
       const o = tileOrigin(ht.x, ht.y);
-      this.hoverG.fillStyle(0xffffff, 0.14).fillRect(o.x, o.y, TILE, TILE);
-      this.hoverG.lineStyle(2 * dpr * px, 0xffffff, 0.6).strokeRect(o.x, o.y, TILE, TILE);
+      this.hoverG.fillStyle(0xffffff, 0.12).fillRect(o.x, o.y, TILE, TILE);
+      this.hoverG.lineStyle(2 * dpr * px, 0xffffff, 0.55).strokeRect(o.x, o.y, TILE, TILE);
     }
-
-    this.selectG.clear();
-    if (this.selected) {
-      const o = tileOrigin(this.selected.x, this.selected.y);
-      this.selectG.fillStyle(0xf2b544, 0.18).fillRect(o.x, o.y, TILE, TILE);
-      this.selectG.lineStyle(3 * dpr * px, 0xf2b544, 1).strokeRect(o.x, o.y, TILE, TILE);
+    const sel = session.selected.value;
+    if (sel) {
+      const o = tileOrigin(sel.x, sel.y);
+      this.hoverG.fillStyle(0xf2b544, 0.16).fillRect(o.x, o.y, TILE, TILE);
+      this.hoverG.lineStyle(3 * dpr * px, 0xf2b544, 1).strokeRect(o.x, o.y, TILE, TILE);
     }
 
     const v = this.camera.current;
@@ -103,51 +306,79 @@ export class WorldScene extends Phaser.Scene {
       tile: this.hover?.tile ?? null,
       world: this.hover?.world ?? null,
       entities: this.children.length,
-      gesture: `${this.input2.gesture}${this.input2.handMode ? ' (hand)' : ''}`,
+      gesture: `${this.router.gesture}${this.router.handMode ? ' (hand)' : ''} · ${phase}`,
       api: `${session.api.mode}${session.init?.userName ? ` as ${session.init.userName}` : ''}`,
     });
   }
 
-  /** Phase 1 default tool: tap selects a tile; drags pan. */
-  private selectTool(): ToolHandler {
-    return {
-      capturesDrag: false,
-      onTap: (p) => {
-        this.selected = p.tile && this.selected && p.tile.x === this.selected.x && p.tile.y === this.selected.y
-          ? null
-          : p.tile;
-      },
-    };
+  private showResult(): void {
+    const r = this.raid;
+    if (!r) return;
+    const lost = r.sim.outcome === 'lost';
+    session.result.set({
+      outcome: lost ? 'lost' : 'won',
+      reason: lost ? (r.sim.stats.breachBy !== null ? 'breach' : 'timeout') : 'cleared',
+      killed: r.sim.stats.killed,
+      spawned: r.sim.stats.spawned,
+      seconds: r.sim.tick / 10,
+    });
+    session.phase.set('result');
   }
 
+  // ---- keys -------------------------------------------------------------------
+
   private onKey(e: KeyboardEvent): void {
-    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-    switch (e.key) {
-      case '`':
-        this.debug.toggle();
-        break;
-      case 'f':
-      case 'F':
-      case '0':
-        this.camera.fit();
-        break;
-      case '+':
-      case '=':
-        this.camera.zoomBy(1.25);
-        break;
-      case '-':
-      case '_':
-        this.camera.zoomBy(0.8);
-        break;
-      case 'h':
-      case 'H':
-        this.input2.handMode = !this.input2.handMode;
-        break;
-      case 'Escape':
-        this.selected = null;
-        break;
-      default:
-        return;
+    const t = e.target as HTMLElement | null;
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+    const ctrl = e.ctrlKey || e.metaKey;
+    const building = session.phase.value === 'build';
+    if (ctrl && e.key.toLowerCase() === 'z') {
+      if (building) (e.shiftKey ? session.store.redo() : session.store.undo());
+    } else if (ctrl && e.key.toLowerCase() === 'y') {
+      if (building) session.store.redo();
+    } else if (ctrl) {
+      return;
+    } else {
+      switch (e.key) {
+        case '`':
+          this.debug.toggle();
+          break;
+        case 'f':
+        case 'F':
+        case '0':
+          this.camera.fit();
+          break;
+        case '+':
+        case '=':
+          this.camera.zoomBy(1.25);
+          break;
+        case '-':
+        case '_':
+          this.camera.zoomBy(0.8);
+          break;
+        case 'h':
+        case 'H':
+          session.handMode.set(!session.handMode.value);
+          break;
+        case 'r':
+        case 'R':
+          if (building) this.rotate();
+          break;
+        case 'e':
+        case 'E':
+          if (building) session.tool.set('erase');
+          break;
+        case 'w':
+        case 'W':
+          if (building) session.tool.set('wire');
+          break;
+        case 'Escape':
+          session.tool.set('select');
+          session.selected.set(null);
+          break;
+        default:
+          return;
+      }
     }
     e.preventDefault();
   }
@@ -160,13 +391,30 @@ export class WorldScene extends Phaser.Scene {
     ].sort((a, b) => a[1].localeCompare(b[1]));
     let i = 0;
     for (const [tex, frame] of frames) {
-      const x = 1 + (i % 11) * 2;
-      const y = 1 + Math.floor(i / 11) * 2;
-      if (y > 22) break;
+      const x = i % GRID;
+      const y = Math.floor(i / GRID);
+      if (y >= GRID) break;
       const c = tileToWorld(x, y);
       this.add.image(c.x, c.y, tex, frame).setScale(SPRITE_SCALE).setDepth(DEPTH.parts + c.y);
       i++;
     }
     console.info(`gallery: ${i} of ${frames.length} frames shown`);
   }
+}
+
+/** The valid tile closest to the lawn's centre. */
+function bestHouseTile(ok: (x: number, y: number) => boolean): Tile | null {
+  let best: Tile | null = null;
+  let bestD = Infinity;
+  const mid = (GRID - 1) / 2;
+  for (let y = 0; y < GRID; y++)
+    for (let x = 0; x < GRID; x++) {
+      if (edgeDistance(x, y) < 2 || !ok(x, y)) continue;
+      const d = (x - mid) ** 2 + (y - mid) ** 2;
+      if (d < bestD) {
+        bestD = d;
+        best = { x, y };
+      }
+    }
+  return best;
 }
