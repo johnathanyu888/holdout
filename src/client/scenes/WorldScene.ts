@@ -23,6 +23,7 @@ import { addWoodsShade } from '../render/woods';
 import { ZombieLayer } from '../render/zombies';
 import { type BuildTool, createTool } from '../tools/tools';
 import { hotbarTools } from '../ui/slots';
+import { worldToScreen } from '../core/viewMath';
 
 /** Delay between the raid's last step and the result card. */
 const RESULT_DELAY_MS = 1200;
@@ -81,7 +82,13 @@ export class WorldScene extends Phaser.Scene {
 
     // Session wiring
     this.on(store.contraption.subscribe((c) => this.entities.sync(c)));
-    this.on(session.tool.subscribe(() => this.applyTool()));
+    this.on(
+      session.tool.subscribe((id) => {
+        // Picking a hotbar item drops any selection (and its part card).
+        if (id !== 'select') session.selected.set(null);
+        this.applyTool();
+      }),
+    );
     this.on(session.handMode.subscribe((h) => (this.router.handMode = h)));
     this.on(session.phase.subscribe(() => this.applyTool()));
     session.actions = {
@@ -137,6 +144,18 @@ export class WorldScene extends Phaser.Scene {
 
     session.phase.set(session.mode === 'sandbox' ? 'build' : 'briefing');
     if (session.mode === 'sandbox') session.clock.stop();
+    this.intro();
+  }
+
+  /**
+   * Opening shot: fade up from the night and pull back from a close view of the
+   * lawn to the whole clearing, as the briefing card arrives.
+   */
+  private intro(): void {
+    const fit = this.camera.current;
+    this.camera.set({ cx: fit.cx, cy: fit.cy - 40, zoom: fit.zoom * 1.9 });
+    this.camera.fitSmooth(this.time.now, 1900);
+    this.cameras.main.fadeIn(1200, 6, 10, 14);
   }
 
   /** Screen space the HUD covers at the top and bottom, for fitting the lawn. */
@@ -188,23 +207,35 @@ export class WorldScene extends Phaser.Scene {
     this.publishRaid();
   }
 
+  /**
+   * Rebuild (after a raid). In the demo the night starts over from an empty lawn:
+   * no build, no purchases, no repairs, a full clock, straight into building (no
+   * briefing). The sandbox keeps your build so you can tweak and rerun it.
+   */
   private backToBuild(): void {
     this.endRaidVisuals();
     session.result.set(null);
-    session.phase.set('build');
     if (session.mode === 'demo') {
-      session.clock.reset(session.day.buildSeconds);
+      this.clearNight();
       session.clock.start();
     }
+    session.phase.set('build');
   }
 
+  /** Start over: an empty night, back to the briefing. */
   private restart(): void {
     this.endRaidVisuals();
-    session.store.load({ house: null, parts: [], wires: [], walls: [], nextId: 1 });
     session.result.set(null);
-    session.clock.reset(session.day.buildSeconds);
+    this.clearNight();
     session.clock.stop();
     session.phase.set(session.mode === 'sandbox' ? 'build' : 'briefing');
+  }
+
+  private clearNight(): void {
+    session.store.load({ house: null, parts: [], wires: [], walls: [], nextId: 1 });
+    session.selected.set(null);
+    session.tool.set('select');
+    session.clock.reset(session.day.buildSeconds);
   }
 
   private endRaidVisuals(): void {
@@ -295,8 +326,29 @@ export class WorldScene extends Phaser.Scene {
         session.selected.set(t && cur && t.x === cur.x && t.y === cur.y ? null : t);
       },
       toast,
+      putAway: () => session.tool.set('select'),
     });
+    // Double-tap a placed part to turn it (any tool, including right after placing it).
+    const base = this.tool;
+    this.tool = { ...base, onTap: (p) => (this.doubleTapRotate(p) ? undefined : base.onTap?.(p)) };
     this.router.setTool(this.tool);
+  }
+
+  private lastTap: { x: number; y: number; at: number } | null = null;
+
+  /** Second tap on the same tile within 320ms: turn the rotatable part there. */
+  private doubleTapRotate(p: PointerInfo): boolean {
+    const t = p.tile;
+    const now = performance.now();
+    const last = this.lastTap;
+    this.lastTap = t ? { x: t.x, y: t.y, at: now } : null;
+    if (!t || !last || last.x !== t.x || last.y !== t.y || now - last.at > 320 || session.phase.value !== 'build') return false;
+    const part = session.store.current.parts.find((q) => q.x === t.x && q.y === t.y);
+    if (!part || !hasPartDef(part.type) || !partDef(part.type).rotatable) return false;
+    session.store.apply((c) => rotatePart(c, part.id, ((part.rot + 1) % 4) as Rot));
+    session.selected.set({ x: t.x, y: t.y });
+    this.lastTap = null;
+    return true;
   }
 
   private rotate(): void {
@@ -351,12 +403,18 @@ export class WorldScene extends Phaser.Scene {
       this.hoverG.fillStyle(0xffffff, 0.12).fillRect(o.x, o.y, TILE, TILE);
       this.hoverG.lineStyle(2 * dpr * px, 0xffffff, 0.55).strokeRect(o.x, o.y, TILE, TILE);
     }
+    // Selection: a white tile that breathes (bright, fade, bright), and the part on it glows.
     const sel = session.selected.value;
+    this.entities.highlight(sel, t);
     if (sel) {
       const o = tileOrigin(sel.x, sel.y);
-      this.hoverG.fillStyle(0xf2b544, 0.16).fillRect(o.x, o.y, TILE, TILE);
-      this.hoverG.lineStyle(3 * dpr * px, 0xf2b544, 1).strokeRect(o.x, o.y, TILE, TILE);
+      const pulse = 0.5 + 0.5 * Math.sin(t * 4.2);
+      this.hoverG.fillStyle(0xffffff, 0.08 + 0.14 * pulse).fillRect(o.x, o.y, TILE, TILE);
+      this.hoverG.lineStyle(9 * dpr * px, 0xffffff, 0.08 + 0.14 * pulse).strokeRect(o.x - 2, o.y - 2, TILE + 4, TILE + 4);
+      this.hoverG.lineStyle(3 * dpr * px, 0xffffff, 0.55 + 0.45 * pulse).strokeRect(o.x, o.y, TILE, TILE);
     }
+    this.publishSelectionAnchor(sel);
+
 
     const v = this.camera.current;
     this.debug.update({
@@ -371,6 +429,20 @@ export class WorldScene extends Phaser.Scene {
       gesture: `${this.router.gesture}${this.router.handMode ? ' (hand)' : ''} · ${phase}`,
       api: `${session.api.mode}${session.init?.userName ? ` as ${session.init.userName}` : ''}`,
     });
+  }
+
+  /** Where the selected tile is on screen, for the part card that floats above it. */
+  private publishSelectionAnchor(sel: Tile | null): void {
+    let a: { x: number; y: number; size: number } | null = null;
+    if (sel) {
+      const o = tileOrigin(sel.x, sel.y);
+      const v = this.camera.current;
+      const p = worldToScreen(v, this.camera.size, o.x + TILE / 2, o.y);
+      a = { x: Math.round(p.x), y: Math.round(p.y), size: Math.round(TILE * v.zoom) };
+    }
+    const cur = session.selAnchor.value;
+    if (a === cur || (a && cur && a.x === cur.x && a.y === cur.y && a.size === cur.size)) return;
+    session.selAnchor.set(a);
   }
 
   private showResult(): void {

@@ -24,6 +24,7 @@ export class CameraController {
   private punchAmp = 0;
   private punchT0 = 0;
   private punchNow = 0;
+  private lastNow = 0;
 
   constructor(
     private readonly cam: Phaser.Cameras.Scene2D.Camera,
@@ -65,7 +66,12 @@ export class CameraController {
     )
       return;
     this.screen = { ...this.screen, insets };
-    if (this.fitted) this.fit();
+    // HUD panels coming and going (the hotbar sliding in after the briefing):
+    // ease to the new fit instead of jumping, so the view never looks resized.
+    if (this.fitted) {
+      if (this.lastNow > 0 && !this.anim) this.anim = { from: { ...this.view }, t0: this.lastNow, ms: 520 };
+      else if (this.lastNow <= 0) this.fit();
+    }
   }
 
   fit(): void {
@@ -92,6 +98,7 @@ export class CameraController {
 
   /** Advances a running fitSmooth() and any punch; call every frame. */
   tick(now: number): void {
+    this.lastNow = now;
     if (this.punchAmp) {
       const t = (now - this.punchT0) / 1000;
       // fast attack (~40ms), springy decay

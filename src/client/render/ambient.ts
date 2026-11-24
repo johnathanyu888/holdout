@@ -193,7 +193,7 @@ export class AmbientLayer {
         y: sv.y - sv.h * 0.15 + Math.random() * sv.h * 1.1,
         age: 0,
         life: 1.4 + Math.random() * 1.2,
-        len: 90 + Math.random() * 120,
+        len: 130 + Math.random() * 150,
         wave: 4 + Math.random() * 6,
         phase: Math.random() * Math.PI * 2,
       });
@@ -208,9 +208,9 @@ export class AmbientLayer {
       // grows in, then the tail catches up: a short wisp sliding along
       const head = Math.min(1, k * 2.2);
       const tail = Math.max(0, k * 2.2 - 1.2);
-      const alpha = 0.22 * Math.sin(Math.PI * k);
+      const alpha = 0.42 * Math.sin(Math.PI * k);
       if (alpha <= 0.01 || head <= tail) continue;
-      g.lineStyle(2.4, 0xffffff, alpha).beginPath();
+      g.lineStyle(3.2, 0xffffff, alpha).beginPath();
       const steps = 10;
       for (let i = 0; i <= steps; i++) {
         const u = tail + ((head - tail) * i) / steps;

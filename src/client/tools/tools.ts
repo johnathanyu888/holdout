@@ -11,6 +11,7 @@
 
 import { extendPath, lPath } from '@shared/build/path';
 import {
+  WALL_COST,
   checkHouse,
   checkPart,
   checkWall,
@@ -44,6 +45,8 @@ export interface ToolEnv {
   rot(): Rot;
   select(t: Tile | null): void;
   toast(text: string): void;
+  /** Put the active tool away (back to tap-to-select). */
+  putAway(): void;
 }
 
 export function createTool(id: string, env: ToolEnv): BuildTool {
@@ -60,11 +63,12 @@ function report(env: ToolEnv, reason: string | null): void {
 }
 
 /**
- * Auto-select: a placing tool tapped on a placed part selects it (to inspect or
- * rotate) instead of refusing to place there. Returns true if it did.
+ * Auto-select: a placing tool tapped on a placed part opens its card instead of
+ * refusing to place there. Returns true if it did.
  */
 function autoSelect(env: ToolEnv, t: Tile): boolean {
-  if (occupantAt(env.day, env.store.current, t.x, t.y).kind !== 'part') return false;
+  const k = occupantAt(env.day, env.store.current, t.x, t.y).kind;
+  if (k !== 'part') return false;
   env.select(t);
   return true;
 }
@@ -103,6 +107,8 @@ function partTool(env: ToolEnv, type: string): BuildTool {
     capturesDrag: false,
     onTap: (p) => {
       if (!p.tile || autoSelect(env, p.tile)) return;
+      // Used the last one: the next tap just puts the tool away.
+      if ((env.store.inventory.parts[type] ?? 0) <= 0) return env.putAway();
       const cfg = hasPartDef(type) ? partDef(type).defaultConfig : undefined;
       report(env, env.store.apply((c) => placePart(env.day, c, type, p.tile!.x, p.tile!.y, env.rot(), cfg)));
     },
@@ -124,6 +130,8 @@ function pathTool(
     follow: boolean;
     commit(path: Tile[]): string | null;
     preview(path: Tile[], c: Contraption): GhostTile[];
+    /** Nothing left to lay: a tap puts the tool away instead. */
+    outOfStock?(): boolean;
   },
 ): BuildTool {
   let path: Tile[] | null = null;
@@ -136,6 +144,7 @@ function pathTool(
     onTap: (p) => {
       if (!p.tile) return;
       if (id !== 'erase' && autoSelect(env, p.tile)) return;
+      if (opts.outOfStock?.()) return env.putAway();
       report(env, opts.commit([p.tile]));
     },
     onDragStart: (p) => {
@@ -174,13 +183,17 @@ function pathTool(
 function wireTool(env: ToolEnv): BuildTool {
   return pathTool(env, 'wire', {
     follow: true,
+    outOfStock: () => env.store.inventory.materials.wire <= 0,
     commit: (path) => env.store.apply((c) => placeWires(env.day, c, path)),
     preview: (path, c) => {
       // Simulate the placement so the preview shows the real joined shapes and where Wire runs out.
       const r = placeWires(env.day, c, path);
       const after = r.ok ? r.c : c;
       const wires = new Set(after.wires.map((w) => key(w.x, w.y)));
-      const links = new Set([key(env.day.inlet.x, env.day.inlet.y), ...after.parts.map((p) => key(p.x, p.y))]);
+      const links = new Set([
+        key(env.day.inlet.x, env.day.inlet.y),
+        ...after.parts.map((p) => key(p.x, p.y)),
+      ]);
       const linked = (x: number, y: number) => wires.has(key(x, y)) || links.has(key(x, y));
       return path.map((t) => {
         const valid = wires.has(key(t.x, t.y));
@@ -207,6 +220,7 @@ function wallTool(env: ToolEnv, material: WallMaterial): BuildTool {
   };
   return pathTool(env, `wall:${material}`, {
     follow: false,
+    outOfStock: () => env.store.inventory.materials[material] < WALL_COST,
     commit: (path) => {
       const { c, ok, reason } = placeAll(env.store.current, path);
       if (ok.size) env.store.commit(c);
@@ -234,21 +248,23 @@ function eraseTool(env: ToolEnv): BuildTool {
   const eraseAll = (c: Contraption, path: Tile[]) => {
     let cur = c;
     let n = 0;
+    let reason: string | null = null;
     for (const t of path) {
       const r = eraseAt(env.day, cur, t.x, t.y);
       if (r.ok) {
         cur = r.c;
         n++;
-      }
+      } else reason ??= r.reason;
     }
-    return { c: cur, n };
+    return { c: cur, n, reason };
   };
   return pathTool(env, 'erase', {
     follow: true,
     commit: (path) => {
-      const { c, n } = eraseAll(env.store.current, path);
+      const { c, n, reason } = eraseAll(env.store.current, path);
       if (n) env.store.commit(c);
-      return n || path.length > 1 ? null : 'Nothing here';
+      // A single tap says why ("Nothing here", "You can't remove the power inlet"...).
+      return n || path.length > 1 ? null : reason;
     },
     preview: (path, c) =>
       path.map((t) => {

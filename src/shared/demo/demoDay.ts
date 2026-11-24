@@ -18,7 +18,7 @@ export const demoDay: DayConfig = {
     saw_blade: 3,
     spike_floor: 3,
   },
-  materials: { wire: 60, wood: 12, stone: 0 },
+  materials: { wire: 36, wood: 24, stone: 0 },
   buildSeconds: 240,
   raidMaxSeconds: 45,
   spawns: {

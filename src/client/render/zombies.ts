@@ -126,10 +126,10 @@ export function destroyView(v: ZombieView): void {
   v.shadow.destroy();
 }
 
-/** Brief white flash on a hit. */
+/** Brief red flash on a hit. */
 export function flashView(scene: Phaser.Scene, v: ZombieView): void {
   v.root.setData('flash', true);
-  for (const p of [v.body, v.armL, v.armR]) p.setTintFill(0xffffff);
+  for (const p of [v.body, v.armL, v.armR]) p.setTintFill(0xff2b22);
   scene.time.delayedCall(60, () => {
     if (!v.root.active) return;
     v.root.setData('flash', false);

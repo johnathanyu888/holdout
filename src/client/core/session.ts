@@ -54,10 +54,14 @@ function createSession() {
   const params = new URLSearchParams(location.search);
   const mode: Mode = params.has('sandbox') ? 'sandbox' : 'demo';
   const day: DayConfig = mode === 'sandbox' ? sandboxDay : demoDay;
+  // A reload starts the night completely fresh. Only the sandbox remembers its build across reloads.
+  const restore = mode === 'sandbox';
   const saveKey = `contraption:${day.id}`;
-  const saved = local.load<Contraption>(saveKey);
+  const saved = restore ? local.load<Contraption>(saveKey) : null;
   const store = new BuildStore(day, saved && validate(day, saved).length === 0 ? saved : undefined);
   store.contraption.subscribe((c) => local.save(saveKey, c));
+
+  const clock = new PhaseClock(day.buildSeconds);
 
   return {
     api: createApi() as ApiClient,
@@ -66,12 +70,14 @@ function createSession() {
     day,
     store,
     phase: new Obs<Phase>('boot'),
-    clock: new PhaseClock(day.buildSeconds),
+    clock,
     tool: new Obs<ToolId>('select'),
     rot: new Obs<Rot>(0),
     handMode: new Obs(false),
     /** Tile the select tool picked (sandbox spawns use it too). */
     selected: new Obs<{ x: number; y: number } | null>(null),
+    /** Screen position of the selected tile's top centre (CSS px) and its size, for the floating part card. */
+    selAnchor: new Obs<{ x: number; y: number; size: number } | null>(null),
     toast: new Obs<{ text: string; id: number } | null>(null),
     raid: new Obs<RaidStatus | null>(null),
     /** Raid clock in seconds, updated every frame (tenths), for a smoothly running timer. */

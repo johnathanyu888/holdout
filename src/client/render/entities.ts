@@ -279,7 +279,39 @@ export class EntityLayer {
     }
   }
 
+  private glow: Phaser.GameObjects.Image | null = null;
+
+  /**
+   * Selection glow: an additive copy of the sprite on the selected tile (part,
+   * house or inlet) that breathes bright, fade, bright.
+   */
+  highlight(tile: { x: number; y: number } | null, time: number): void {
+    let s: Phaser.GameObjects.Image | null | undefined = null;
+    if (tile && this.c) {
+      const part = this.c.parts.find((p) => p.x === tile.x && p.y === tile.y);
+      if (part) s = this.parts.get(part.id);
+      else if (this.c.house && this.c.house.x === tile.x && this.c.house.y === tile.y) s = this.house;
+      else if (this.day.inlet.x === tile.x && this.day.inlet.y === tile.y) s = this.inlet;
+    }
+    if (!s) {
+      this.glow?.setVisible(false);
+      return;
+    }
+    this.glow ??= this.scene.add.image(0, 0, s.texture.key, s.frame.name).setBlendMode(Phaser.BlendModes.ADD);
+    const pulse = 0.5 + 0.5 * Math.sin(time * 4.2);
+    this.glow
+      .setTexture(s.texture.key, s.frame.name)
+      .setPosition(s.x, s.y)
+      .setRotation(s.rotation)
+      .setScale(s.scaleX * (1.02 + 0.03 * pulse), s.scaleY * (1.02 + 0.03 * pulse))
+      .setDepth(s.depth + 0.5)
+      .setTintFill(0xffffff)
+      .setAlpha(0.08 + 0.22 * pulse)
+      .setVisible(true);
+  }
+
   destroy(): void {
+    this.glow?.destroy();
     this.zap.destroy();
     for (const m of [this.parts, this.wires, this.walls]) for (const s of m.values()) s.destroy();
     for (const st of this.stubs.values()) st.sprite.destroy();

@@ -154,7 +154,7 @@ export function eraseAt(day: DayConfig, c: Contraption, x: number, y: number): R
     case 'empty':
       return { ok: false, reason: 'Nothing here' };
     case 'inlet':
-      return { ok: false, reason: "The power inlet can't be moved" };
+      return { ok: false, reason: "You can't remove the power inlet" };
     case 'house':
       return { ok: true, c: { ...c, house: null } };
     case 'part':

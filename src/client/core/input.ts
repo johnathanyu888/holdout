@@ -5,7 +5,8 @@
 // Gestures
 //   1 pointer          active tool (tap / drag); if the tool doesn't take drags, drag pans
 //   2 pointers         pinch zoom around the midpoint + pan
-//   wheel              zoom toward the cursor (ctrl+wheel = trackpad pinch, same thing)
+//   wheel              mouse wheel / trackpad pinch: zoom toward the cursor
+//                      trackpad two-finger drag: pan
 //   middle/right drag  pan
 //   Space + drag       pan
 //   hand mode          every 1-pointer drag pans and taps are ignored
@@ -207,11 +208,22 @@ export class InputRouter {
     if (this.down.size === 0 && e.pointerType === 'mouse') this.hooks.hover?.(this.info(p));
   }
 
+  /**
+   * Wheel events come from three things:
+   *  - trackpad pinch: ctrlKey set (browsers fake it)       -> zoom
+   *  - trackpad two-finger drag: small/fractional pixel deltas, often with deltaX -> pan
+   *  - mouse wheel: line deltas, or chunky whole-number steps with no deltaX -> zoom
+   */
   private onWheel(e: WheelEvent): void {
     e.preventDefault();
     const p = this.local(e);
-    // Pixel deltas from mice/trackpads; line deltas (Firefox) are ~16px each.
-    const dy = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
+    const line = e.deltaMode === 1;
+    const dx = line ? e.deltaX * 16 : e.deltaX;
+    const dy = line ? e.deltaY * 16 : e.deltaY;
+    if (!e.ctrlKey && isTrackpadScroll(e)) {
+      this.camera.panBy(-dx, -dy);
+      return;
+    }
     const speed = e.ctrlKey ? 0.01 : 0.0015; // ctrl+wheel = trackpad pinch: bigger steps
     const factor = Math.exp(-dy * speed);
     this.camera.zoomAt(p.x, p.y, this.camera.current.zoom * factor);
@@ -251,6 +263,14 @@ function mid(a: Point, b: Point): Point {
 
 function dist(a: Point, b: Point): number {
   return Math.hypot(a.x - b.x, a.y - b.y);
+}
+
+/** A trackpad two-finger scroll (pixel deltas, sideways or small/fractional steps), not a mouse wheel. */
+function isTrackpadScroll(e: WheelEvent): boolean {
+  if (e.deltaMode !== 0) return false; // line/page deltas: a mouse wheel
+  if (e.deltaX !== 0) return true;
+  const ay = Math.abs(e.deltaY);
+  return !Number.isInteger(e.deltaY) || ay < 40;
 }
 
 function isTyping(e: KeyboardEvent): boolean {
