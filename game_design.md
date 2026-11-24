@@ -149,7 +149,7 @@ Every circuit is the same three things in a row:
 
 | Part | Pins | Behaviour | Strength out | Cost | Shop | Notes / engine |
 | --- | --- | --- | --- | --- | --- | --- |
-| ★ Wire tile | 4 edges | Carries power to every wire it touches | In − 1 | 1 Wire | — | Drawn by dragging a path. The sprite picks itself from its neighbours: straight / corner / tee / cross / end. Zombies walk over it; it can't be damaged. Glows when powered. |
+| ★ Wire tile | 4 edges | Carries power to every wire it touches | In − 1 | 1 Wire | — | Drawn by dragging a path. The sprite picks itself from its neighbours: straight / corner / tee / cross / end. Zombies walk over it and wear it down: **40 HP**, −1 HP per zombie per sim step on the tile (~4 Shambler crossings). At 0 it breaks for the rest of the raid and stops carrying power, cutting everything downstream. Glows when powered. |
 | ★ Delay | In (left) → out (right) | Passes the signal on after 0.5s (set to 0.5 / 1 / 2s). Keeps the kind (tick or constant). | Refreshed to 10 | — | 8s | The only way to boost a weak signal. Queue the input with a timestamp. |
 | NOT | Control (left), supply (bottom) → out (right) | Passes the supply through **except** while the control is on | Supply's | — | 10s | Needs a powered supply, so it can't make power from nothing. |
 | AND | Input A (left), input B (bottom) → out (right) | Passes A through only while B is also on | A's | — | 10s | E.g. a plate AND a motion sensor = "only fire when two zombies are close". |
@@ -207,6 +207,7 @@ Every circuit is the same three things in a row:
 - **Walls lose HP on contact:** whenever a zombie brushes or bumps a barricade's hitbox (squeezing past, being pushed into it, crowding), the barricade loses HP. Wall mazes wear down over the raid.
 - Zombies only **deliberately attack** a wall when there's no route left without a wall in the way. Then they bash the weakest one.
 - Walls steer but never win on their own. You have to kill.
+- **Wire wears out under traffic:** zombies don't avoid or target wire, but every zombie standing on a wire tile wears it down (4.2b), and a worn-through tile breaks and cuts the power past it. Wire laid across the zombies' routes is a liability: route it away from their paths, or use walls to steer them off it.
 
 ### 4.5 Raw materials, Stockpile, Blueprints
 - **Daily kit:** parts + a raw-material drop, the same for everyone.
