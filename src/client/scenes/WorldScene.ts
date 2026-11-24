@@ -18,6 +18,7 @@ import { EntityLayer } from '../render/entities';
 import { FxLayer } from '../render/fx';
 import { GhostLayer } from '../render/ghost';
 import { DEPTH } from '../render/layers';
+import { AmbientLayer } from '../render/ambient';
 import { addWoodsShade } from '../render/woods';
 import { ZombieLayer } from '../render/zombies';
 import { type BuildTool, createTool } from '../tools/tools';
@@ -36,6 +37,7 @@ export class WorldScene extends Phaser.Scene {
   private zombies!: ZombieLayer;
   private fx!: FxLayer;
   private ghost!: GhostLayer;
+  private ambient!: AmbientLayer;
   private hoverG!: Phaser.GameObjects.Graphics;
   private hover: PointerInfo | null = null;
   private tool: BuildTool | null = null;
@@ -68,6 +70,7 @@ export class WorldScene extends Phaser.Scene {
     this.zombies = new ZombieLayer(this);
     this.fx = new FxLayer(this, this.zombies, this.entities);
     this.ghost = new GhostLayer(this);
+    this.ambient = new AmbientLayer(this);
     this.entities.sync(store.current);
 
     this.camera = new CameraController(this.cameras.main, { w: vp.w, h: vp.h }, vp.dpr);
@@ -325,6 +328,9 @@ export class WorldScene extends Phaser.Scene {
       if (events.length) this.fx.consume(events, time);
       this.zombies.update(this.raid.sim, this.raid.alpha, t);
       this.updateDanger();
+      // The raid clock runs smoothly between sim steps (interpolated), in tenths.
+      const rt = Math.round(this.raid.sim.tick - 1 + (this.raid.done ? 1 : this.raid.alpha)) / 10;
+      if (rt >= 0 && rt !== session.raidTime.value) session.raidTime.set(rt);
       this.heartbeat(time);
       if (events.length || this.raid.sim.tick % 5 === 0) this.publishRaid();
       if (this.raid.done) {
@@ -333,6 +339,7 @@ export class WorldScene extends Phaser.Scene {
       }
     }
     this.fx.update(time);
+    this.ambient.update(t);
     this.entities.update(t, this.raid?.sim ?? null);
 
     // Ghost preview (build only), hover and selection outlines.

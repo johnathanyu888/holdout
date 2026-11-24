@@ -363,9 +363,10 @@
   }
 }
 
-/* FIGHT: sits in its own hotbar-style dock, the same height as a slot. A flat red
-   slab with a white frame (like a selected slot), the label in spaced capitals and
-   a small hint underneath. A light sweeps across it when you're ready. */
+/* FIGHT: the hotbar's last, wide slot. Same flat language as the slots: one solid
+   colour, a 3px frame, no gradients or gloss. Red with a white frame when you can
+   fight (the frame a selected slot gets); an empty grey slot until the house is
+   placed. The only motion is the swords giving a little shake now and then. */
 .fight-dock {
   pointer-events: auto;
   flex: 0 0 auto;
@@ -380,101 +381,88 @@
 
 .fight-btn {
   position: relative;
-  overflow: hidden;
-  min-width: 168px;
+  min-width: 156px;
   height: 64px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2px;
-  padding: 0 22px;
-  border: 3px solid rgba(255, 255, 255, 0.95);
+  gap: 3px;
+  padding: 0 20px;
+  border: 3px solid #fff;
   border-radius: 6px;
-  background-color: #d43a26;
-  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0) 48%, rgba(0, 0, 0, 0.14) 100%);
+  background: #e0452f;
   color: #fff !important;
-  transition: transform 90ms ease, filter 120ms ease;
+  transition: background 110ms ease, transform 110ms ease;
 }
 
 .fight-main {
   display: flex;
   align-items: center;
-  gap: 9px;
-  font-size: 22px;
+  gap: 8px;
+  font-size: 20px;
   font-weight: 900;
   line-height: 1;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  text-shadow: 0 2px 0 rgba(70, 8, 2, 0.45);
 }
 
 .fight-btn .swords {
-  width: 22px;
-  height: 22px;
-  filter: drop-shadow(0 2px 0 rgba(70, 8, 2, 0.45));
+  width: 21px;
+  height: 21px;
+}
+
+.fight-btn.ready .swords {
+  animation: swords 2.6s ease-in-out infinite;
+}
+
+@keyframes swords {
+  0%,
+  78%,
+  100% {
+    transform: rotate(0);
+  }
+  84% {
+    transform: rotate(-14deg);
+  }
+  90% {
+    transform: rotate(10deg);
+  }
+  95% {
+    transform: rotate(-5deg);
+  }
+}
+
+.fight-btn .key {
+  color: rgba(255, 255, 255, 0.7);
 }
 
 .fight-sub {
-  font-size: 9.5px;
+  font-size: 10px;
   font-weight: 800;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.72);
-}
-
-.fight-btn.ready::after {
-  content: '';
-  position: absolute;
-  top: -20%;
-  bottom: -20%;
-  left: -40%;
-  width: 30%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.35), transparent);
-  transform: skewX(-20deg);
-  animation: sweep 2.8s ease-in-out infinite;
-}
-
-@keyframes sweep {
-  0%,
-  55% {
-    left: -40%;
-  }
-  85%,
-  100% {
-    left: 120%;
-  }
 }
 
 .fight-btn.ready:hover {
-  filter: brightness(1.08);
+  background: #ee553e;
 }
 
 .fight-btn.ready:active {
-  transform: translateY(2px);
+  transform: scale(0.97);
 }
 
 #ui .fight-btn:disabled {
   opacity: 1;
   cursor: not-allowed;
-  border-color: rgba(255, 255, 255, 0.14);
-  background-color: #262c33;
-  background-image: none;
-  color: #7d8792 !important;
-}
-
-#ui .fight-btn:disabled .fight-main {
-  text-shadow: none;
-}
-
-#ui .fight-btn:disabled .swords {
-  filter: none;
+  border-color: rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.07);
+  color: rgba(255, 255, 255, 0.42) !important;
 }
 
 #ui .fight-btn:disabled .fight-sub {
   color: var(--accent);
 }
-
 /* ---- inspector --------------------------------------------------------------- */
 
 .inspector {
@@ -740,7 +728,7 @@
 }
 
 .vignette {
-  background: radial-gradient(ellipse 80% 75% at 50% 50%, transparent 55%, rgba(4, 8, 20, 0.28) 85%, rgba(2, 4, 12, 0.5) 100%);
+  background: radial-gradient(ellipse 72% 68% at 50% 50%, transparent 40%, rgba(4, 8, 20, 0.38) 70%, rgba(3, 6, 16, 0.68) 88%, rgba(2, 4, 12, 0.85) 100%);
   animation: dusk 1400ms ease-out both;
 }
 
@@ -993,8 +981,8 @@
   .fight-btn {
     height: 48px;
   }
-  .fight-btn.ready .fight-sub {
-    display: none; /* "Enter" means nothing on a phone */
+  .fight-btn .key {
+    display: none; /* the Enter hint means nothing on a phone */
   }
   .fight-main {
     font-size: 19px;
