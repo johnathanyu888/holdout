@@ -82,6 +82,18 @@ const WIRING: Record<string, Step[]> = {
   piston: [{ icon: 'power_inlet', role: 'Power' }, WIRE, THIS('piston')],
 };
 
+/** One line under the circuit picture: what happens, in order. */
+const CIRCUIT_LINE: Record<string, string> = {
+  pressure_plate: 'A zombie steps on it, power runs down the wire, the trap fires.',
+  tripwire: 'A zombie walks through, a pulse runs down the wire, the trap fires.',
+  delay: 'Power goes in its back, waits, then comes out its front.',
+  latch: 'Power on its back switches it on, and it keeps powering the trap.',
+  saw_blade: 'A zombie on the plate powers the wire, and the saw cuts.',
+  spike_floor: 'A zombie crosses the tripwire, a pulse runs down, the spikes punch.',
+  tesla_coil: 'A zombie on the plate powers the wire, and the coil zaps.',
+  piston: 'The inlet powers the wire, and the piston pushes out.',
+};
+
 /** Each part's key numbers, as small chips on its card. */
 const CHIPS: Record<string, string[]> = {
   pressure_plate: ['Makes power 10', 'While stepped on'],
@@ -335,7 +347,7 @@ function Briefing() {
         {mut && (
           <div class="brief-ability">
             <span class="ability-label">ABILITY</span>
-            <b>{mut.ability.name}</b>
+            <b class="ability-name">{mut.ability.name}</b>
             <span>{mut.ability.text}</span>
           </div>
         )}
@@ -366,24 +378,13 @@ function Briefing() {
         <div class="section-label">TONIGHT</div>
         <ol class="brief-steps">
           <li>
-            <span>
-              <b>Place your house.</b> Every zombie walks straight for it.
-            </span>
+            <span>Place your house. Zombies head straight for it.</span>
           </li>
           <li>
-            <span>
-              <b>Traps need power.</b> Wire each one to a sensor (a plate or tripwire) or to the inlet, which powers 3.
-            </span>
+            <span>Every trap needs power: wire it to a sensor or the inlet.</span>
           </li>
           <li>
-            <span>
-              <b>Build circuits that kill:</b> power, then wire, then a trap. Strength drops 1 per wire tile.
-            </span>
-          </li>
-          <li>
-            <span>
-              <b>Press Fight.</b> Kill every zombie before one reaches the house.
-            </span>
+            <span>Kill them all before one reaches your house.</span>
           </li>
         </ol>
 
@@ -927,7 +928,7 @@ function Inspector() {
             ))}
           </div>
         )}
-        {WIRING[type] && <PartDemo steps={WIRING[type] as Step[]} />}
+        {WIRING[type] && <PartDemo steps={WIRING[type] as Step[]} line={CIRCUIT_LINE[type]} />}
         {ZDEMO[type] && <ZombieDemo type={type} />}
         {latchOn !== null && selPart && (
           <div class="insp-controls">
@@ -1027,22 +1028,27 @@ function ZombieDemo(p: { type: string }) {
 }
 
 /** The part's little how-it's-wired diagram (icons with arrows), in its card. */
-function PartDemo(p: { steps: Step[] }) {
+/**
+ * The card's circuit picture: a strip of board tiles with the real pieces on
+ * them (where the power starts, the wire, where it ends up), a copper wire
+ * running through all of them, and a light travelling along it from the source
+ * to the end, so the direction power flows is obvious. The selected part's tile
+ * is outlined in gold. One line underneath says what happens.
+ */
+function PartDemo(p: { steps: Step[]; line?: string }) {
   return (
-    <div class="part-demo" aria-hidden="true">
-      {p.steps.map((st, i) => (
-        <Fragment key={i}>
-          {i > 0 && (
-            <span class="demo-arrow">
-              <i />
-            </span>
-          )}
-          <span class={`demo-step ${st.role === 'This' ? 'this' : ''}`}>
-            <img src={icon(st.icon)} alt="" />
-            <small>{st.role}</small>
-          </span>
-        </Fragment>
-      ))}
+    <div class="circuit" aria-hidden="true">
+      <div class="circuit-strip" style={{ '--n': p.steps.length }}>
+        <i class="circuit-wire" />
+        <i class="circuit-pulse" />
+        {p.steps.map((st, i) => (
+          <div key={i} class={`circuit-tile ${st.role === 'This' ? 'this' : ''} ${i === 0 ? 'source' : ''}`}>
+            {st.icon !== 'wire_straight' && <img src={icon(st.icon)} alt="" />}
+            <small>{st.role === 'This' ? 'This part' : st.role}</small>
+          </div>
+        ))}
+      </div>
+      {p.line && <div class="circuit-line">{p.line}</div>}
     </div>
   );
 }

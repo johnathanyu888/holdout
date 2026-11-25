@@ -1,6 +1,6 @@
 // Piston: the body stays put; its head (a steel rod and a wide pusher plate)
-// slides out of the front face into the tile in front while it has power, and
-// punches a little further on each shove. With no power it's pulled back in.
+// slides out of the front face across the whole tile in front (to its far edge)
+// while it has power. With no power it is pulled back in.
 // The head is drawn by a Graphics that rides along with the sprite (same spot,
 // same turn), under the body so the rod comes out of it.
 
@@ -9,8 +9,12 @@ import { TILE } from '@shared/grid';
 import { PART_SCALE } from '../../core/assets';
 import { registerPartView } from '../registry';
 
-/** How far the plate reaches past the body's front face when fully out (world px). */
-const REACH = TILE * 0.55;
+/** The body's front face, from its centre (world px). */
+const FACE = TILE * 0.36;
+/** The pusher plate's thickness. */
+const PLATE = 10;
+/** Fully out, the plate's outer face sits on the far edge of the tile in front. */
+const REACH = TILE * 1.5 - FACE - PLATE;
 
 function head(sprite: Phaser.GameObjects.Image): Phaser.GameObjects.Graphics {
   let g = sprite.getData('head') as Phaser.GameObjects.Graphics | undefined;
@@ -30,17 +34,17 @@ registerPartView({
     const was = sprite.getData('out') === true;
     if (out && !was) sprite.setData('firedAt', ctx.time);
     sprite.setData('out', out);
-    // Switching on (or a shove): a quick punch past full reach, then it settles.
+    // Switching on: a little bump on the body as the head shoots out.
     const since = ctx.time - ((sprite.getData('firedAt') as number | undefined) ?? -9);
     const kick = since < 0.25 ? Math.sin((since / 0.25) * Math.PI) : 0;
-    const target = out ? 1 + 0.3 * kick : 0;
+    const target = out ? 1 : 0;
     const cur = (sprite.getData('ext') as number | undefined) ?? 0;
     const ext = cur + (target - cur) * (target > cur ? 0.45 : 0.2);
     sprite.setData('ext', ext);
 
     const g = head(sprite);
     g.clear().setPosition(sprite.x, sprite.y).setRotation(sprite.rotation).setDepth(sprite.depth - 0.5);
-    const face = TILE * 0.36; // the body's front face, from its centre
+    const face = FACE;
     const len = ext * REACH;
     if (len > 1) {
       // rod
@@ -49,9 +53,9 @@ registerPartView({
       g.fillStyle(0xd8dee5, 0.7).fillRect(face - 4, -3.5, len + 4, 2);
       // pusher plate
       const px = face + len;
-      g.fillStyle(0x2b3038, 1).fillRoundedRect(px - 1, -TILE * 0.36, 11, TILE * 0.72, 3);
-      g.fillStyle(0xc9a24a, 1).fillRoundedRect(px + 1, -TILE * 0.34, 7, TILE * 0.68, 2);
-      g.fillStyle(0xffe6a0, 0.6).fillRect(px + 1, -TILE * 0.34, 2, TILE * 0.68);
+      g.fillStyle(0x2b3038, 1).fillRoundedRect(px, -TILE * 0.4, PLATE, TILE * 0.8, 3);
+      g.fillStyle(0xc9a24a, 1).fillRoundedRect(px + 2, -TILE * 0.38, PLATE - 4, TILE * 0.76, 2);
+      g.fillStyle(0xffe6a0, 0.6).fillRect(px + 2, -TILE * 0.38, 2, TILE * 0.76);
     }
     sprite.setScale(PART_SCALE * (1 + 0.04 * kick));
     sprite.setTint(ctx.powered || out ? 0xffffff : 0xb8b8b8);

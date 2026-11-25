@@ -12,7 +12,7 @@ export const demoDay: DayConfig = {
   mutation: {
     zombie: 'shambler',
     rank: 'common',
-    ability: { name: 'Swarm', text: 'They arrive in groups of 2 or 3, from every side.' },
+    ability: { name: 'Swarm', text: 'Groups of 2 or 3, from every side.' },
   },
   inlet: { x: 10, y: 5 },
   houseBand: 2,

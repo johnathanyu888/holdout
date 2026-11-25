@@ -2551,3 +2551,182 @@ body,
     min-width: 200px;
   }
 }
+
+/* ---- draft cards: names on one line, not bold ------------------------------------- */
+.draft-card {
+  padding: 12px 6px;
+}
+.offer-item {
+  max-width: none;
+}
+.offer-item b,
+.offer:has(.offer-plus) .offer-item b {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow-wrap: normal;
+}
+.offer-item b {
+  font-size: 13px;
+}
+.offer:has(.offer-plus) {
+  gap: 3px;
+}
+.offer:has(.offer-plus) .offer-item b {
+  font-size: 11.5px;
+}
+.offer:has(.offer-plus) .offer-plus {
+  font-size: 14px;
+}
+
+/* the ability's name in colour */
+.brief-ability .ability-name {
+  color: var(--gold, #f2c14e);
+}
+
+/* hotbar label: the name in a regular weight */
+.hotbar-tip b {
+  font-weight: 600;
+}
+
+/* ---- the hotbar and Fight fill the bottom of the screen --------------------------- */
+.tray-wrap {
+  left: var(--safe-l);
+  right: var(--safe-r);
+  margin: 0;
+  width: auto;
+  max-width: none;
+}
+.tray-wrap .hotbar {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.tray-wrap .tray {
+  width: 100%;
+  justify-content: center;
+}
+.tray-wrap .tool {
+  flex: 1 1 0;
+  width: auto;
+  height: auto;
+  min-width: 0;
+  max-width: 104px;
+  aspect-ratio: 1;
+}
+.tray-wrap .fight-btn {
+  height: 100%;
+  min-height: 64px;
+  min-width: 190px;
+}
+@media (max-width: 860px) {
+  .tray-wrap {
+    align-items: stretch;
+  }
+  .tray-wrap .hotbar,
+  .tray-wrap .fight-dock {
+    width: 100%;
+    max-width: none;
+  }
+  .tray-wrap .fight-btn {
+    height: 56px;
+    min-height: 0;
+    width: 100%;
+  }
+}
+@media (max-width: 560px) {
+  .tray-wrap .tray {
+    display: grid;
+    grid-template-columns: repeat(var(--cols, 6), minmax(0, 1fr));
+  }
+  .tray-wrap .tool {
+    max-width: none;
+    width: 100%;
+  }
+}
+
+/* ---- part card: the circuit, drawn as a strip of board tiles ---------------------- */
+.circuit {
+  margin-top: 8px;
+}
+.circuit-strip {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(var(--n, 3), 44px);
+  gap: 12px;
+  width: max-content;
+  padding: 4px 6px 18px;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.04);
+}
+.circuit-tile {
+  position: relative;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 7px;
+  background: linear-gradient(180deg, rgba(110, 160, 70, 0.4), rgba(80, 125, 50, 0.4));
+  border: 1.5px solid rgba(255, 255, 255, 0.14);
+}
+.circuit-tile img {
+  position: relative;
+  z-index: 2;
+  width: 32px;
+  height: 32px;
+}
+.circuit-tile small {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-top: 3px;
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--muted);
+}
+.circuit-tile.this {
+  border-color: var(--gold, #f2c14e);
+  box-shadow: 0 0 0 2px rgba(242, 193, 78, 0.25);
+}
+.circuit-tile.this small {
+  color: var(--gold, #f2c14e);
+}
+/* the wire through every tile's centre, and the power travelling along it */
+.circuit-wire {
+  position: absolute;
+  z-index: 1;
+  left: 28px;
+  right: 28px;
+  top: 24px;
+  height: 4px;
+  border-radius: 2px;
+  background: #c98a4a;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
+}
+.circuit-pulse {
+  position: absolute;
+  z-index: 1;
+  top: 21px;
+  left: 28px;
+  width: 10px;
+  height: 10px;
+  margin-left: -5px;
+  border-radius: 50%;
+  background: #fff2b0;
+  box-shadow: 0 0 8px 3px rgba(255, 220, 120, 0.8);
+  animation: circuit-flow 1.4s ease-in-out infinite;
+}
+@keyframes circuit-flow {
+  0% { left: 28px; opacity: 0; }
+  12% { opacity: 1; }
+  88% { opacity: 1; }
+  100% { left: calc(100% - 28px); opacity: 0; }
+}
+.circuit-line {
+  margin-top: 6px;
+  font-size: 11.5px;
+  line-height: 1.35;
+  color: #aab4bf;
+}
