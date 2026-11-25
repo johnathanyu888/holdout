@@ -18,8 +18,11 @@ const D = [
   [0, -1],
 ] as const;
 
-/** Ids of the action parts (traps, pistons) whose wiring reaches the inlet or a sensor. */
-export function wiredTraps(day: DayConfig, c: Contraption): Set<number> {
+/**
+ * Ids of the action parts (traps, pistons) whose wiring reaches the inlet or a
+ * sensor; with inletOnly, just the ones whose wiring reaches the inlet itself.
+ */
+export function wiredTraps(day: DayConfig, c: Contraption, inletOnly = false): Set<number> {
   const wires = new Set(c.wires.map((w) => key(w.x, w.y)));
   const partAt = new Map(c.parts.map((p) => [key(p.x, p.y), p]));
   const kind = (k: number) => {
@@ -45,7 +48,7 @@ export function wiredTraps(day: DayConfig, c: Contraption): Set<number> {
         const ny = y + dy;
         if (nx < 0 || ny < 0 || nx >= GRID || ny >= GRID) continue;
         const n = key(nx, ny);
-        if (n === inletK || kind(n) === 'trigger') hasPower = true;
+        if (n === inletK || (!inletOnly && kind(n) === 'trigger')) hasPower = true;
         if (group.has(n)) continue;
         if (wires.has(n) || kind(n) === 'chip') {
           group.set(n, g);
@@ -67,8 +70,13 @@ export function wiredTraps(day: DayConfig, c: Contraption): Set<number> {
   return out;
 }
 
-/** The three first steps: house placed, a trap placed, a trap wired to power. */
+/** Is any trap wired to the power inlet? (Until one is, the inlet calls for attention.) */
+export function inletInUse(day: DayConfig, c: Contraption): boolean {
+  return wiredTraps(day, c, true).size > 0;
+}
+
+/** The three first steps: house placed, a trap placed, a trap wired to the inlet. */
 export function buildSteps(day: DayConfig, c: Contraption): { house: boolean; trap: boolean; wired: boolean } {
   const trap = c.parts.some((p) => hasPartDef(p.type) && partDef(p.type).kind === 'action');
-  return { house: !!c.house, trap, wired: trap && wiredTraps(day, c).size > 0 };
+  return { house: !!c.house, trap, wired: trap && wiredTraps(day, c, true).size > 0 };
 }

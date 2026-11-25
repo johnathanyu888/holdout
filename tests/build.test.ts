@@ -183,3 +183,16 @@ describe('build guide: is a trap wired to power?', () => {
     expect([...wiredTraps(d, viaDelay)]).toEqual([1]);
   });
 });
+
+describe('inlet hint', () => {
+  it('stays on until a trap is wired to the inlet itself (a sensor alone does not count)', async () => {
+    const { inletInUse } = await import('@shared/build/connect');
+    const d = { ...demoDay, inlet: { x: 3, y: 3 }, obstacles: [], fixtures: [] };
+    const base = { house: null, walls: [], nextId: 10 };
+    const saw = { id: 1, type: 'saw_blade', x: 6, y: 3, rot: 0 as const };
+    expect(inletInUse(d, { ...base, parts: [], wires: [] })).toBe(false);
+    const plate = { id: 2, type: 'pressure_plate', x: 6, y: 5, rot: 0 as const };
+    expect(inletInUse(d, { ...base, parts: [saw, plate], wires: [{ x: 6, y: 4 }] })).toBe(false);
+    expect(inletInUse(d, { ...base, parts: [saw], wires: [{ x: 4, y: 3 }, { x: 5, y: 3 }] })).toBe(true);
+  });
+});

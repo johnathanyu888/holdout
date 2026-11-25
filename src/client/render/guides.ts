@@ -293,20 +293,22 @@ export class GuideLayer {
     }
   }
 
-  /** Rings rippling out of the inlet, and a red "!" on it: your wire should start here. */
+  /** Rings rippling out of the inlet, a glow under it, and a red "!" on it: no trap is wired to it yet. */
   private drawWireHint(time: number): void {
     const c = tileToWorld(this.day.inlet.x, this.day.inlet.y);
-    for (let i = 0; i < 2; i++) {
-      const k = (time * 0.8 + i * 0.5) % 1;
-      this.under.lineStyle(4, 0xfff2b0, 0.7 * (1 - k)).strokeCircle(c.x, c.y, TILE * (0.45 + 0.6 * k));
+    const glow = 0.5 + 0.5 * Math.sin(time * 5);
+    this.under.fillStyle(0xfff2b0, 0.12 + 0.12 * glow).fillCircle(c.x, c.y, TILE * 0.62);
+    for (let i = 0; i < 3; i++) {
+      const k = (time * 0.9 + i / 3) % 1;
+      this.under.lineStyle(6, 0xfff2b0, 0.9 * (1 - k)).strokeCircle(c.x, c.y, TILE * (0.5 + 0.9 * k));
     }
     const g = this.g;
-    const bx = c.x + TILE * 0.36;
-    const by = c.y - TILE * 0.36 + Math.sin(time * 4) * 2;
-    const r = 11 * (1 + 0.08 * Math.sin(time * 6));
+    const bx = c.x + TILE * 0.38;
+    const by = c.y - TILE * 0.38 + Math.sin(time * 4) * 2.5;
+    const r = 14 * (1 + 0.1 * Math.sin(time * 6));
     g.fillStyle(0x0d1116, 0.9).fillCircle(bx, by, r + 2.5);
     g.fillStyle(0xe8574a, 1).fillCircle(bx, by, r);
-    g.fillStyle(0xffffff, 1).fillRoundedRect(bx - 1.8, by - 6.5, 3.6, 8, 1.4).fillCircle(bx, by + 4.8, 2);
+    g.fillStyle(0xffffff, 1).fillRoundedRect(bx - 2.3, by - 8.5, 4.6, 10.5, 1.8).fillCircle(bx, by + 6.2, 2.6);
   }
 
   // ---- sandbox: zombie routes ----------------------------------------------------------
