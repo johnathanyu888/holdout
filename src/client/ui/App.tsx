@@ -61,6 +61,7 @@ function slotKind(id: string, hasHouse: boolean): { tag: string; cls: string; te
   const type = id.slice(5);
   if (!hasPartDef(type)) return null;
   const d = partDef(type);
+  if (type === 'battery') return { tag: 'Power', cls: 'k-power', text: 'stored power, switch it on in the raid' };
   if (d.kind === 'trigger') return { tag: 'Power', cls: 'k-power', text: 'a sensor, makes power when zombies trip it' };
   if (d.kind === 'chip') return { tag: 'Logic', cls: 'k-logic', text: type === 'latch' ? 'a switch with memory' : 'shapes power on its way' };
   if (type === 'piston') return { tag: 'Steer', cls: 'k-steer', text: 'pushes zombies, needs power' };
@@ -75,6 +76,7 @@ const THIS = (icon: string): Step => ({ icon, role: 'This' });
 /** How each part sits in a circuit, left to right: where power starts, how it travels, where it ends up. */
 const WIRING: Record<string, Step[]> = {
   pressure_plate: [THIS('pressure_plate'), WIRE, { icon: 'saw_blade', role: 'Trap' }],
+  battery: [THIS('battery'), WIRE, { icon: 'saw_blade', role: 'Trap' }],
   tripwire: [THIS('tripwire'), WIRE, { icon: 'spike_floor', role: 'Trap' }],
   delay: [SENSOR(), THIS('delay'), { icon: 'saw_blade', role: 'Trap' }],
   latch: [SENSOR(), THIS('latch'), { icon: 'saw_blade', role: 'Trap' }],
@@ -87,6 +89,7 @@ const WIRING: Record<string, Step[]> = {
 /** Each part's key numbers, as label and value rows of the table on its card. */
 const STATS: Record<string, [string, string][]> = {
   pressure_plate: [['Power', '10'], ['When', 'a zombie is on it']],
+  battery: [['Power', '10'], ['Charge', '8s'], ['Use', 'Activate it in the raid']],
   tripwire: [['Power', '10, a short pulse'], ['When', 'a zombie crosses it']],
   delay: [['Wait', '0.5 to 2s'], ['Power out', '10']],
   latch: [['Power out', '10 (6 if switched on here)'], ['Turns off', 'with power on its side']],
@@ -110,6 +113,7 @@ const SHORT: Record<string, string> = {
   wrecking_ball: 'Ball',
   piston: 'Piston',
   latch: 'Latch',
+  battery: 'Battery',
 };
 
 export function partLabel(type: string): string {
@@ -986,7 +990,7 @@ function Inspector() {
           {def.label}
           {power && <span class={`insp-power ${power.ok ? 'ok' : 'bad'}`}>{power.text}</span>}
         </div>
-        {strength !== null && <SignalMeter s={strength} needs={def.kind === 'action' ? def.needs : undefined} />}
+        {strength !== null && def.kind !== 'trigger' && <SignalMeter s={strength} needs={def.kind === 'action' ? def.needs : undefined} />}
         <div class="insp-sub">{(type === 'delay' && blink ? BLINK_INFO : PART_INFO[type]) ?? ''}</div>
         {STATS[type] && (
           <table class="insp-stats">
@@ -1018,6 +1022,7 @@ function Inspector() {
         )}
         {WIRING[type] && <PartDemo steps={WIRING[type] as Step[]} />}
         {ZDEMO[type] && <ZombieDemo type={type} />}
+        {selPart.type === 'battery' && raidPhase && live && <BatteryControl id={selPart.id} charge={live.s.charge ?? 0} on={!!live.s.on} full={(selPart.config?.charge ?? 80) as number} />}
         {latchOn !== null && selPart && (
           <div class="insp-controls">
             <div class="insp-seg" role="group" aria-label="Switch">
@@ -1120,6 +1125,29 @@ function ZombieDemo(p: { type: string }) {
   );
 }
 
+/**
+ * The battery's raid control: Activate (once), then the charge running down;
+ * empty when it's spent.
+ */
+function BatteryControl(p: { id: number; charge: number; on: boolean; full: number }) {
+  const left = (p.charge / 10).toFixed(1);
+  if (p.on)
+    return (
+      <div class="batt running">
+        <span class="batt-bar">
+          <i style={{ width: `${(p.charge / p.full) * 100}%` }} />
+        </span>
+        <span>Running, {left}s left</span>
+      </div>
+    );
+  if (p.charge <= 0) return <div class="batt empty">Empty</div>;
+  return (
+    <button class="repair-btn batt-go" onClick={() => session.actions.activate(p.id)}>
+      Activate ({left}s of power)
+    </button>
+  );
+}
+
 /** The part's little how-it's-wired diagram (icons with arrows), in its card. */
 /**
  * The card's circuit picture: a strip of board tiles with the real pieces on
@@ -1152,6 +1180,7 @@ const BLINK_INFO = 'Turns steady power into a beat: on, off, on, off.';
 /** One line on what each part does (the inspector card). */
 const PART_INFO: Record<string, string> = {
   pressure_plate: 'Makes power while a zombie stands on it.',
+  battery: 'Stored power. Switch it on when you choose.',
   tripwire: 'Sends a pulse when a zombie walks through.',
   delay: 'Passes power on after a wait.',
   tesla_coil: 'Zaps the nearest zombie in reach.',

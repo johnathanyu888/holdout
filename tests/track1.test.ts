@@ -462,3 +462,29 @@ describe('zombie AI: walls and wires', () => {
     expect(st.wallHp[key(13, 5)]).toBeLessThan(300);
   });
 });
+
+describe('battery', () => {
+  // battery (5, 3), wire (6, 3), saw (7, 3); no inlet nearby
+  const c = build(
+    [
+      { id: 1, type: 'battery', x: 5, y: 3, rot: 0 },
+      { id: 2, type: 'saw_blade', x: 7, y: 3, rot: 0 },
+    ],
+    wires([6, 3]),
+  );
+  it('does nothing until it is activated, then powers its wire until the charge runs out', () => {
+    const st = createSim(day({ x: 14, y: 14 }), c, { schedule: [] });
+    run(st, 10);
+    expect(st.parts[1]!.active).toBe(false);
+    st.activate.push(1);
+    run(st, 3);
+    expect(st.powerC[key(6, 3)]).toBe(9);
+    expect(st.parts[1]!.active).toBe(true);
+    run(st, 90); // 8s of charge, then it's spent
+    expect(st.parts[0]!.s.charge).toBe(0);
+    expect(st.powerC[key(6, 3)]).toBe(0);
+    st.activate.push(1); // can't be used again
+    run(st, 3);
+    expect(st.powerC[key(6, 3)]).toBe(0);
+  });
+});

@@ -308,6 +308,7 @@ export class EntityLayer {
     }
 
     // Walls: connect to walls of either material.
+    this.wallJoins = 'all';
     const wallSet = new Set(c.walls.map((w) => key(w.x, w.y)));
     const walled = (x: number, y: number) => inGrid(x, y) && wallSet.has(key(x, y));
     this.syncTiles(this.walls, c.walls, (w, s) => {
@@ -339,6 +340,25 @@ export class EntityLayer {
         s.destroy();
         map.delete(k);
       }
+  }
+
+  /** Which walls the current joins were drawn for (a key per standing set), so they're only redone on a change. */
+  private wallJoins = '';
+
+  /**
+   * Re-picks each wall's joined sprite from the walls still standing: in the raid
+   * that's the ones the sim hasn't broken; while building, all of them.
+   */
+  private rejoinWalls(sim: SimState | null): void {
+    const c = this.c;
+    if (!c) return;
+    const standing = c.walls.filter((w) => !sim || (sim.wallHp[key(w.x, w.y)] ?? 0) > 0);
+    const sig = standing.length === c.walls.length ? 'all' : standing.map((w) => key(w.x, w.y)).join(',');
+    if (sig === this.wallJoins) return;
+    this.wallJoins = sig;
+    const set = new Set(standing.map((w) => key(w.x, w.y)));
+    const has = (x: number, y: number) => x >= 0 && y >= 0 && x < GRID && y < GRID && set.has(key(x, y));
+    for (const w of standing) this.walls.get(key(w.x, w.y))?.setFrame(wallSprite(w.material, maskOf(w.x, w.y, has), w.x, w.y));
   }
 
   /** Creates / removes rock sprites to match the day's rocks (cleared ones go). */
@@ -458,7 +478,9 @@ export class EntityLayer {
       }
     };
     for (const [k, s] of this.wires) wireLook(s, k);
-    // Walls: in the raid they darken as they take damage, and vanish once broken.
+    // Walls: in the raid they darken as they take damage, and vanish once broken;
+    // the walls either side of a gap re-join without it (so no stubs point into it).
+    if (this.c) this.rejoinWalls(sim);
     if (this.c) {
       const mats = sim ? new Map(this.c.walls.map((w) => [key(w.x, w.y), w.material])) : null;
       for (const [k, s] of this.walls) {

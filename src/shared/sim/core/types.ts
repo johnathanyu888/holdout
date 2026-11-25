@@ -135,6 +135,8 @@ export interface SimState {
   fieldDirty: boolean;
   outcome: Outcome;
   stats: { spawned: number; killed: number; breachBy: number | null };
+  /** Parts the player switched on this step (batteries), by id: applied at the start of the next step. */
+  activate: number[];
 }
 
 /** Helpers handed to part and zombie code each step. */

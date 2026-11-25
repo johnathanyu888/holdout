@@ -24,6 +24,7 @@ export const demoDay: DayConfig = {
     spike_floor: 3,
     piston: 2,
     latch: 1,
+    battery: 1,
   },
   materials: { wire: 36, wood: 30, stone: 12 },
   buildSeconds: 240,
@@ -41,7 +42,7 @@ export const demoDay: DayConfig = {
   // Rounds 1 and 4 are attack against attack, round 6 is attack against wire: so
   // every draft ends with 2 or 3 attack cards.
   draft: {
-    base: { kit: { pressure_plate: 2, tripwire: 1 }, materials: { wire: 24, wood: 18, stone: 9 } },
+    base: { kit: { pressure_plate: 2, tripwire: 1, battery: 1 }, materials: { wire: 24, wood: 18, stone: 9 } },
     rounds: [
       [{ parts: { saw_blade: 4 } }, { parts: { spike_floor: 5 } }],
       [{ parts: { piston: 2 } }, { parts: { delay: 2 } }],

@@ -148,9 +148,9 @@ describe('draft', () => {
   it('the kit is the base plus each pick, in a stable order', async () => {
     const { draftedKit } = await import('@shared/build/draft');
     const d = demoDay.draft!;
-    expect(draftedKit(d, [])).toEqual({ kit: { pressure_plate: 2, tripwire: 1 }, materials: { wire: 24, wood: 18, stone: 9 } });
+    expect(draftedKit(d, [])).toEqual({ kit: { pressure_plate: 2, tripwire: 1, battery: 1 }, materials: { wire: 24, wood: 18, stone: 9 } });
     const k = draftedKit(d, [0, 1, 0, 1, 0, 1, 0]);
-    expect(Object.keys(k.kit)).toEqual(['pressure_plate', 'tripwire', 'saw_blade', 'spike_floor', 'delay', 'latch']);
+    expect(Object.keys(k.kit)).toEqual(['pressure_plate', 'tripwire', 'battery', 'saw_blade', 'spike_floor', 'delay', 'latch']);
     expect(k.kit).toMatchObject({ saw_blade: 4, spike_floor: 4, delay: 3, latch: 1, pressure_plate: 5, tripwire: 2 });
     expect(k.materials).toEqual({ wire: 44, wood: 33, stone: 18 });
   });

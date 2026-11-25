@@ -3109,3 +3109,38 @@ body {
 .inspector .insp-stats th {
   letter-spacing: 0.09em;
 }
+
+/* ---- battery: the raid control on its card ----------------------------------------- */
+.batt-go {
+  margin-top: 12px;
+  width: 100%;
+  justify-content: center;
+}
+.batt {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+.batt.running {
+  color: #fff2b0;
+}
+.batt.empty {
+  color: var(--muted);
+}
+.batt-bar {
+  flex: 1;
+  height: 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+}
+.batt-bar i {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #ffc46b, #fff2b0);
+}

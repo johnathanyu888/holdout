@@ -91,15 +91,35 @@ export class ZombieLayer {
       v.phase += moved > 0.01 ? moved * STRIDE : 0.02;
       v.lastX = x;
       v.lastY = y;
-      if (z.vx !== 0 || z.vy !== 0) {
+      const bashing = (z.ext.bash ?? 0) > 0;
+      if (bashing) {
+        // Beating on a wall: face it square on.
+        const target = Math.atan2(z.ext.bdy ?? 0, z.ext.bdx ?? 0);
+        v.facing += Phaser.Math.Angle.Wrap(target - v.facing) * 0.35;
+      } else if (z.vx !== 0 || z.vy !== 0) {
         const target = Math.atan2(z.vy, z.vx);
         v.facing += Phaser.Math.Angle.Wrap(target - v.facing) * 0.2;
       }
       const sw = Math.sin(v.phase);
-      v.root.setPosition(x, y).setRotation(v.facing + 0.1 * sw).setDepth(DEPTH.zombies + y);
-      // Arms reach out in turn (one forward while the other drops back) and swing a little.
-      v.armL.setScale(0.86 * (1 + 0.16 * sw), 1).setRotation(-0.08 + 0.1 * sw);
-      v.armR.setScale(0.86 * (1 - 0.16 * sw), 1).setRotation(0.08 + 0.1 * sw);
+      if (bashing) {
+        // Fists: alternate punches, left then right, each a fast jab out and a slower pull back,
+        // with the body rocking into every blow.
+        const t = time * 11 + z.id;
+        const jab = (p: number) => {
+          const k = ((p % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2) / (Math.PI * 2);
+          return k < 0.25 ? k / 0.25 : Math.max(0, 1 - (k - 0.25) / 0.5);
+        };
+        const l = jab(t);
+        const r = jab(t + Math.PI);
+        v.root.setPosition(x, y).setRotation(v.facing + 0.12 * (l - r)).setDepth(DEPTH.zombies + y);
+        v.armL.setScale(0.8 + 0.55 * l, 1).setRotation(-0.04 + 0.12 * l);
+        v.armR.setScale(0.8 + 0.55 * r, 1).setRotation(0.04 - 0.12 * r);
+      } else {
+        v.root.setPosition(x, y).setRotation(v.facing + 0.1 * sw).setDepth(DEPTH.zombies + y);
+        // Arms reach out in turn (one forward while the other drops back) and swing a little.
+        v.armL.setScale(0.86 * (1 + 0.16 * sw), 1).setRotation(-0.08 + 0.1 * sw);
+        v.armR.setScale(0.86 * (1 - 0.16 * sw), 1).setRotation(0.08 + 0.1 * sw);
+      }
       // Head bob: twice per stride.
       v.body.setScale(1 + 0.035 * Math.abs(Math.cos(v.phase)));
       v.shadow.setPosition(x + 4, y + 7).setDepth(DEPTH.zombies + y - 1);

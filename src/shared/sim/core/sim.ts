@@ -125,6 +125,7 @@ export function createSim(day: DayConfig, c: Contraption, opts: SimOptions = {})
     fieldDirty: true,
     outcome: 'running',
     stats: { spawned: 0, killed: 0, breachBy: null },
+    activate: [],
   };
   refreshField(st);
   return st;
@@ -256,6 +257,13 @@ export function step(st: SimState): SimEvent[] {
     spawnZombie(st, e.type, e.x, e.y, events, { walkIn: true });
   }
 
+  // 1b. the player's switches (batteries): flagged on the part, which acts on it next
+  for (const id of st.activate) {
+    const p = st.parts.find((q) => q.id === id);
+    if (p) p.s.go = 1;
+  }
+  st.activate = [];
+
   // 2. sense (triggers) and chips (from last step's input)
   for (const p of st.parts) {
     if (!hasPartDef(p.type)) continue;
@@ -365,6 +373,7 @@ function moveZombies(st: SimState, events: SimEvent[]): void {
     z.px = z.ext.pushed ? (z.ext.pfx as number) : z.x;
     z.py = z.ext.pushed ? (z.ext.pfy as number) : z.y;
     z.ext.pushed = 0;
+    z.ext.bash = 0; // set again below while it's beating on a wall
     if (z.ext.enter) {
       // Walking in out of the forest: straight to the edge tile, then path as normal.
       const dx = (z.ext.ex as number) - z.x;
@@ -414,6 +423,10 @@ function moveZombies(st: SimState, events: SimEvent[]): void {
         const by = (bk - bx) / GRID;
         if ((st.wallHp[bk] ?? 0) > 0) {
           hitWall(st, bk, WALL_BASH, events);
+          // (for the renderer: punching, and which way the wall is)
+          z.ext.bash = 1;
+          z.ext.bdx = bx - cx;
+          z.ext.bdy = by - cy;
           tx = cx + 0.5 + (bx - cx) * 0.32; // lean on the wall's face
           ty = cy + 0.5 + (by - cy) * 0.32;
         } else {

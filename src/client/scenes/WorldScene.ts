@@ -116,6 +116,9 @@ export class WorldScene extends Phaser.Scene {
         this.publishRaid();
       },
       sandboxSpawn: (where) => this.sandboxSpawn(where),
+      activate: (id) => {
+        if (this.raid && !this.raid.done) this.raid.sim.activate.push(id);
+      },
       hoverAt: (cx, cy) => {
         this.hover = this.pointerAt(cx, cy);
       },
