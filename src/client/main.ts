@@ -3,6 +3,7 @@ import { h, render } from 'preact';
 import '@shared/sim'; // registers every part and zombie
 import './views'; // registers every part view
 import { measure, trackViewport } from './core/viewport';
+import { blockPageZoom } from './core/noZoom';
 import { BootScene } from './scenes/BootScene';
 import { WorldScene } from './scenes/WorldScene';
 import { App } from './ui/App';
@@ -12,6 +13,8 @@ import './ui/ui.css';
 const container = document.getElementById('game');
 const uiRoot = document.getElementById('ui');
 if (!container || !uiRoot) throw new Error('#game / #ui container missing');
+
+blockPageZoom();
 
 const vp = measure(container);
 

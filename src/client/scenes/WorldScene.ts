@@ -426,7 +426,7 @@ export class WorldScene extends Phaser.Scene {
       tile: this.hover?.tile ?? null,
       world: this.hover?.world ?? null,
       entities: this.children.length,
-      gesture: `${this.router.gesture}${this.router.handMode ? ' (hand)' : ''} · ${phase}`,
+      gesture: `${this.router.gesture}${this.router.handMode ? ' (hand)' : ''} / ${phase}`,
       api: `${session.api.mode}${session.init?.userName ? ` as ${session.init.userName}` : ''}`,
     });
   }

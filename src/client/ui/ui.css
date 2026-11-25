@@ -722,13 +722,14 @@
 }
 
 .night-wash {
-  background: rgba(20, 34, 70, 0.22);
+  /* moonlight: a cold blue cast (multiply pulls the warm greens toward blue) */
+  background: rgba(36, 72, 168, 0.34);
   mix-blend-mode: multiply;
   animation: dusk 1400ms ease-out both;
 }
 
 .vignette {
-  background: radial-gradient(ellipse 72% 68% at 50% 50%, transparent 40%, rgba(4, 8, 20, 0.38) 70%, rgba(3, 6, 16, 0.68) 88%, rgba(2, 4, 12, 0.85) 100%);
+  background: radial-gradient(ellipse 72% 68% at 50% 50%, transparent 40%, rgba(4, 12, 36, 0.4) 70%, rgba(3, 8, 30, 0.7) 88%, rgba(2, 5, 22, 0.86) 100%);
   animation: dusk 1400ms ease-out both;
 }
 
@@ -1105,6 +1106,20 @@
   padding: 22px 22px 18px;
   display: flex;
   flex-direction: column;
+}
+
+/* On a short screen the card scrolls (up and down only); nothing inside it gets squeezed thin. */
+.card.briefing > *,
+.card > * {
+  flex-shrink: 0;
+}
+.modal-wrap,
+.card.briefing {
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+}
+.card.briefing {
+  touch-action: pan-y;
 }
 
 .brief-hero {
@@ -1513,4 +1528,21 @@
     gap: 9px;
     padding: 9px 10px 9px 9px;
   }
+}
+
+/* ---- no scrollbars anywhere (content still scrolls: wheel, trackpad, touch) ---- */
+html,
+body,
+* {
+  scrollbar-width: none;
+}
+*::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+html,
+body {
+  touch-action: manipulation;
+  overflow: hidden;
 }

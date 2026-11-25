@@ -218,7 +218,7 @@ function Briefing() {
             <img src={icon('shambler')} alt="" />
           </div>
           <div class="brief-head">
-            <div class="eyebrow">NIGHT 1 · TONIGHT'S MUTATION</div>
+            <div class="eyebrow">TONIGHT'S MUTATION</div>
             <h1>{day.mutationName}</h1>
             <p class="blurb">{day.mutationBlurb}</p>
           </div>
@@ -537,7 +537,7 @@ function Result() {
   return (
     <div class="modal-wrap">
       <div class={`card result ${won ? 'won' : 'lost'}`}>
-        <div class="eyebrow">NIGHT 1 · {won ? 'SURVIVED' : 'OVERRUN'}</div>
+        <div class="eyebrow">NIGHT 1 {won ? 'SURVIVED' : 'OVERRUN'}</div>
         <h1>{won ? 'You held out.' : 'They got in.'}</h1>
         <p class="blurb">{why}</p>
         <div class="stars" aria-label={won ? '1 star' : 'no stars'}>
