@@ -48,6 +48,10 @@ export interface Actions {
   setSpeed(s: 1 | 2 | 4): void;
   togglePause(): void;
   sandboxSpawn(where: 'selected' | 'random'): void;
+  /** Hotbar drag and drop: the pointer (page coords) is over this point; show the tool's preview there. */
+  hoverAt(clientX: number, clientY: number): void;
+  /** Hotbar drag and drop: dropped here; use the active tool on that tile (if it's on the lawn). */
+  dropAt(clientX: number, clientY: number): void;
 }
 
 const noop = () => {};
@@ -144,7 +148,11 @@ function createSession() {
       setSpeed: noop,
       togglePause: noop,
       sandboxSpawn: noop,
+      hoverAt: noop,
+      dropAt: noop,
     } as Actions,
+    /** Sandbox: draw the routes zombies would take to the house. */
+    showPaths: new Obs(false),
   };
 }
 

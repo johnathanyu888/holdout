@@ -3,7 +3,7 @@
 // camera and map stay put; the DOM UI (src/client/ui) shows each phase's panels.
 
 import Phaser from 'phaser';
-import { edgeDistance, edgeTiles, GRID, TILE, type Tile, tileOrigin, tileToWorld } from '@shared/grid';
+import { edgeDistance, edgeTiles, GRID, TILE, type Tile, pickTile, tileOrigin, tileToWorld } from '@shared/grid';
 import { checkHouse, placeHouse, rotatePart } from '@shared/build/rules';
 import { hasPartDef, partDef, spawnZombie } from '@shared/sim';
 import type { Rot } from '@shared/types/build';
@@ -17,6 +17,7 @@ import { DebugOverlay } from '../render/debugOverlay';
 import { EntityLayer } from '../render/entities';
 import { FxLayer } from '../render/fx';
 import { GhostLayer } from '../render/ghost';
+import { GuideLayer, footprint } from '../render/guides';
 import { DEPTH } from '../render/layers';
 import { AmbientLayer } from '../render/ambient';
 import { addWoodsShade } from '../render/woods';
@@ -39,6 +40,7 @@ export class WorldScene extends Phaser.Scene {
   private zombies!: ZombieLayer;
   private fx!: FxLayer;
   private ghost!: GhostLayer;
+  private guides!: GuideLayer;
   private ambient!: AmbientLayer;
   private hoverG!: Phaser.GameObjects.Graphics;
   private hover: PointerInfo | null = null;
@@ -72,6 +74,7 @@ export class WorldScene extends Phaser.Scene {
     this.zombies = new ZombieLayer(this);
     this.fx = new FxLayer(this, this.zombies, this.entities);
     this.ghost = new GhostLayer(this);
+    this.guides = new GuideLayer(this, day);
     this.ambient = new AmbientLayer(this);
     this.entities.sync(store.current);
 
@@ -113,6 +116,13 @@ export class WorldScene extends Phaser.Scene {
         this.publishRaid();
       },
       sandboxSpawn: (where) => this.sandboxSpawn(where),
+      hoverAt: (cx, cy) => {
+        this.hover = this.pointerAt(cx, cy);
+      },
+      dropAt: (cx, cy) => {
+        const p = this.pointerAt(cx, cy);
+        if (p?.tile && session.phase.value === 'build') this.tool?.onTap?.(p);
+      },
     };
 
     const onViewport = (s: ViewportSize) => {
@@ -321,6 +331,16 @@ export class WorldScene extends Phaser.Scene {
     spawnZombie(this.raid.sim, 'shambler', t.x, t.y, undefined, { walkIn: true });
   }
 
+  /** Pointer info for a client (page) point over the canvas, or null if it's not over the canvas. */
+  private pointerAt(cx: number, cy: number): PointerInfo | null {
+    const canvas = this.game.canvas;
+    if (document.elementFromPoint(cx, cy) !== canvas) return null;
+    const r = canvas.getBoundingClientRect();
+    const screen = { x: cx - r.left, y: cy - r.top };
+    const world = this.camera.toWorld(screen.x, screen.y);
+    return { screen, world, tile: pickTile(world.x, world.y) };
+  }
+
   // ---- tools ------------------------------------------------------------------
 
   private applyTool(): void {
@@ -402,6 +422,20 @@ export class WorldScene extends Phaser.Scene {
     this.fx.update(time);
     this.ambient.update(t);
     this.entities.update(t, this.raid?.sim ?? null);
+    if (this.raid && !this.raid.done) this.fx.storm(time);
+    this.guides.draw({
+      time: t,
+      px: px * dpr,
+      building: phase === 'build',
+      sel: session.selected.value,
+      c: session.store.current,
+      parts: this.entities.placedParts,
+      preview: this.entities.previewData,
+      tool: phase === 'build' ? session.tool.value : 'select',
+      hover: this.hover?.tile ?? null,
+      rot: session.rot.value,
+      showPaths: session.mode === 'sandbox' && session.showPaths.value,
+    });
 
     // Ghost preview (build only), hover and selection outlines.
     this.ghost.draw(phase === 'build' ? (this.tool?.ghost(this.hover?.tile ?? null) ?? null) : null, px * dpr);
@@ -416,11 +450,15 @@ export class WorldScene extends Phaser.Scene {
     const sel = session.selected.value;
     this.entities.highlight(sel, t);
     if (sel) {
-      const o = tileOrigin(sel.x, sel.y);
+      // A rock (or anything bigger than a tile) selects its whole block.
+      const f = footprint(session.day, sel);
+      const o = tileOrigin(f.x, f.y);
+      const W = TILE * f.w;
+      const H = TILE * f.h;
       const pulse = 0.5 + 0.5 * Math.sin(t * 4.2);
-      this.hoverG.fillStyle(0xffffff, 0.08 + 0.14 * pulse).fillRect(o.x, o.y, TILE, TILE);
-      this.hoverG.lineStyle(9 * dpr * px, 0xffffff, 0.08 + 0.14 * pulse).strokeRect(o.x - 2, o.y - 2, TILE + 4, TILE + 4);
-      this.hoverG.lineStyle(3 * dpr * px, 0xffffff, 0.55 + 0.45 * pulse).strokeRect(o.x, o.y, TILE, TILE);
+      this.hoverG.fillStyle(0xffffff, 0.08 + 0.14 * pulse).fillRect(o.x, o.y, W, H);
+      this.hoverG.lineStyle(9 * dpr * px, 0xffffff, 0.08 + 0.14 * pulse).strokeRect(o.x - 2, o.y - 2, W + 4, H + 4);
+      this.hoverG.lineStyle(3 * dpr * px, 0xffffff, 0.55 + 0.45 * pulse).strokeRect(o.x, o.y, W, H);
     }
     this.publishSelectionAnchor(sel);
 
@@ -447,10 +485,18 @@ export class WorldScene extends Phaser.Scene {
   private publishSelectionAnchor(sel: Tile | null): void {
     let a: { x: number; y: number; size: number } | null = null;
     if (sel) {
-      const o = tileOrigin(sel.x, sel.y);
+      const f = footprint(session.day, sel);
+      const o = tileOrigin(f.x, f.y);
       const v = this.camera.current;
-      const p = worldToScreen(v, this.camera.size, o.x + TILE / 2, o.y);
-      a = { x: Math.round(p.x), y: Math.round(p.y), size: Math.round(TILE * v.zoom) };
+      const p = worldToScreen(v, this.camera.size, o.x + (TILE * f.w) / 2, o.y);
+      const size = Math.round(TILE * f.h * v.zoom);
+      // Panned (or zoomed) so the selection is off screen: drop it, and its card.
+      const scr = this.camera.size;
+      if (p.x < 0 || p.x > scr.w || p.y + size < 0 || p.y > scr.h) {
+        session.selected.set(null);
+        return;
+      }
+      a = { x: Math.round(p.x), y: Math.round(p.y), size };
     }
     const cur = session.selAnchor.value;
     if (a === cur || (a && cur && a.x === cur.x && a.y === cur.y && a.size === cur.size)) return;

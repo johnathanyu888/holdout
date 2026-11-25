@@ -81,21 +81,31 @@ function drawBoulder(g: Phaser.GameObjects.Graphics, cx: number, cy: number, rx:
  * one big boulder filling the block, with smaller stones round it on the
  * bigger sizes and a tuft of moss.
  */
-function rockTexture(scene: Phaser.Scene, w: number, h: number): string {
-  const key = `map-rock-${w}x${h}`;
+function rockTexture(scene: Phaser.Scene, w: number, h: number, seed: number): string {
+  // Loose stones round it: none to three (one at most on a single tile), picked per rock.
+  const big = w * h > 1;
+  const stones = big ? seed % 4 : seed % 3 === 0 ? 1 : 0;
+  const first = Math.floor(seed / 4) % 4;
+  const key = `map-rock-${w}x${h}-${stones}-${first}`;
   if (scene.textures.exists(key)) return key;
   const T = 64;
   const W = w * T;
   const H = h * T;
   const g = scene.add.graphics();
-  const big = w * h > 1;
-  drawBoulder(g, W / 2, H / 2 - 2, W * (big ? 0.4 : 0.44), H * (big ? 0.38 : 0.37));
-  if (big) {
-    // a couple of loose stones at the corners
-    drawBoulder(g, W * 0.17, H * 0.8, T * 0.16, T * 0.13);
-    drawBoulder(g, W * 0.86, H * 0.2, T * 0.13, T * 0.11);
+  drawBoulder(g, W / 2, H / 2 - 2, W * (big ? 0.4 : 0.42), H * (big ? 0.38 : 0.36));
+  // corner spots for loose stones (fraction of the block), taken in turn from `first`
+  const spots: [number, number, number][] = [
+    [0.17, 0.8, 0.16],
+    [0.86, 0.2, 0.13],
+    [0.84, 0.82, 0.12],
+    [0.15, 0.18, 0.11],
+  ];
+  for (let i = 0; i < stones; i++) {
+    const [sx, sy, r] = spots[(first + i) % 4] as [number, number, number];
+    const k = big ? 1 : 0.7;
+    drawBoulder(g, W * sx, H * sy, T * r * k, T * r * 0.82 * k);
   }
-  g.fillStyle(0x4f7a3a, 0.9).fillEllipse(W * 0.22, H * 0.86, 12, 5); // moss
+  if (seed % 2 === 0) g.fillStyle(0x4f7a3a, 0.9).fillEllipse(W * 0.22, H * 0.86, 12, 5); // moss
   g.generateTexture(key, W, H);
   g.destroy();
   return key;
@@ -153,6 +163,16 @@ export class EntityLayer {
       .setDepth(DEPTH.parts + p.y);
   }
 
+  /** The build-mode power preview (for the teaching overlays). */
+  get previewData(): ReturnType<typeof powerPreview> | null {
+    return this.preview;
+  }
+
+  /** The player's parts plus the map's working machines. */
+  get placedParts(): PlacedPart[] {
+    return this.allParts;
+  }
+
   /** Sprite of a placed part (for effects). */
   partSprite(id: number): Phaser.GameObjects.Image | undefined {
     return this.parts.get(id);
@@ -195,7 +215,7 @@ export class EntityLayer {
       }
       const rotatable = hasPartDef(part.type) && partDef(part.type).rotatable;
       // The frame is set once at creation: views may swap it (e.g. spikes up/down).
-      s.setPosition(p.x, p.y).setDepth(DEPTH.parts + p.y).setData('blink', part.config?.blink ?? 0);
+      s.setPosition(p.x, p.y).setDepth(DEPTH.parts + p.y).setData('blink', part.config?.blink ?? 0).setData('home', { x: p.x, y: p.y });
       // Spinning parts manage their own rotation; only set it for rotatable ones.
       if (rotatable) s.setAngle(part.rot * 90);
     }
@@ -297,7 +317,7 @@ export class EntityLayer {
       // bigger rocks flip instead (their shape has to stay inside the block).
       const v = (o.x * 7 + o.y * 13) % 5;
       const s = this.scene.add
-        .image((a.x + b.x) / 2, (a.y + b.y) / 2 + 2, rockTexture(this.scene, w, h))
+        .image((a.x + b.x) / 2, (a.y + b.y) / 2 + 2, rockTexture(this.scene, w, h, o.x * 7 + o.y * 13 + w * 5))
         .setAngle(w === 1 && h === 1 ? v * 37 : 0)
         .setFlipX(v % 2 === 1)
         .setScale(w === 1 && h === 1 ? 0.92 + v * 0.03 : 1)

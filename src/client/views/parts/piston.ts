@@ -7,7 +7,7 @@ import { registerPartView } from '../registry';
 registerPartView({
   type: 'piston',
   update(sprite, ctx) {
-    const out = ctx.sim ? ctx.sim.active : false;
+    const out = ctx.sim ? ctx.sim.active : ctx.powered;
     const was = sprite.getData('out') === true;
     if (out && !was) sprite.setData('firedAt', ctx.time);
     sprite.setData('out', out);
@@ -17,7 +17,8 @@ registerPartView({
     const home = sprite.getData('home') as { x: number; y: number } | undefined;
     const base = home ?? { x: sprite.x, y: sprite.y };
     if (!home) sprite.setData('home', base);
-    const push = (out ? 4 : 0) + 10 * kick;
+    // Held out (extended) the whole time it's powered; a kick on each shot.
+    const push = (out ? 9 : 0) + 8 * kick;
     sprite.setPosition(base.x + Math.cos(sprite.rotation) * push, base.y + Math.sin(sprite.rotation) * push);
     sprite.setScale(PART_SCALE * (1 + 0.06 * kick));
     sprite.setTint(ctx.powered || out ? 0xffffff : 0xb8b8b8);

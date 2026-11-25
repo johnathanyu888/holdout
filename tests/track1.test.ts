@@ -370,3 +370,39 @@ describe('big rocks and moving parts', () => {
     expect(movePart(rocky, c, 7, 8, 9)).toEqual({ ok: false, reason: 'A rock is in the way' });
   });
 });
+
+describe('latch switched on in build mode', () => {
+  // latch (5, 3) facing east, nothing on its pins, flipped on from its card; a saw on its output wire.
+  const c = build(
+    [
+      { id: 1, type: 'latch', x: 5, y: 3, rot: 0, config: { on: 1 } },
+      { id: 2, type: 'saw_blade', x: 7, y: 3, rot: 0 },
+    ],
+    wires([6, 3]),
+  );
+  it("is a power source: the inlet's strength, counted on the inlet's 3 slots", () => {
+    const pv = powerPreview(day({ x: 12, y: 12 }), c);
+    expect(pv.powerC[key(6, 3)]).toBe(5);
+    expect(pv.loaded).toEqual([2]);
+    const st = createSim(day({ x: 12, y: 12 }), c, { schedule: [] });
+    run(st, 3);
+    expect(st.parts[0]!.active).toBe(true);
+    expect(st.parts[1]!.active).toBe(true);
+    expect(st.inletC[key(6, 3)]).toBe(5);
+  });
+  it('off (the default) it sends nothing', () => {
+    const off = { ...c, parts: c.parts.map((p) => (p.id === 1 ? { ...p, config: { on: 0 } } : p)) };
+    const st = createSim(day({ x: 12, y: 12 }), off, { schedule: [] });
+    run(st, 3);
+    expect(st.parts[1]!.active).toBe(false);
+  });
+});
+
+describe('piston: always out on steady power', () => {
+  it('is extended (active) the whole time it has steady power', () => {
+    const c = build([{ id: 1, type: 'piston', x: 11, y: 5, rot: 0 }], wires([11, 4]));
+    const st = createSim(day({ x: 10, y: 4 }), c, { schedule: [] });
+    run(st, 20);
+    expect(st.parts[0]!.active).toBe(true);
+  });
+});

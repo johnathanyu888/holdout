@@ -1,12 +1,14 @@
 // Turns sim events into effects: red hit flashes, blood (spray on hits, stains
 // and a splat on death that soak into the ground and fade), damage numbers,
-// squash-and-fade deaths, part pops, the breach alarm.
+// squash-and-fade deaths with a skull floating up, part pops, the breach alarm,
+// and thunder over the woods during the raid.
 
 import Phaser from 'phaser';
 import type { SimEvent } from '@shared/sim';
 import { PART_SCALE, ZOMBIE_SCALE } from '../core/assets';
 import type { EntityLayer } from './entities';
 import { DEPTH, tileUnitToWorld } from './layers';
+import { LAWN_END, LAWN_ORIGIN } from '@shared/grid';
 import { type ZombieLayer, destroyView, flashView } from './zombies';
 
 /** Damage is summed per zombie and shown at most this often (saws hit every step). */
@@ -17,11 +19,15 @@ const SPRAY_INTERVAL_MS = 140;
 const MAX_STAINS = 70;
 const DROP_KEY = 'blood-drop';
 const SPLAT_KEYS = ['blood-splat-a', 'blood-splat-b', 'blood-splat-c'];
+const SKULL_KEY = 'fx-skull';
 
 export class FxLayer {
   private readonly pending = new Map<number, { amount: number; x: number; y: number; since: number }>();
   private readonly lastSpray = new Map<number, number>();
   private stains: Phaser.GameObjects.Image[] = [];
+  /** Next thunder strike (scene ms); 0 = not scheduled yet. */
+  private nextThunder = 0;
+  private bolt: Phaser.GameObjects.Graphics | null = null;
 
   constructor(
     private readonly scene: Phaser.Scene,
@@ -29,6 +35,72 @@ export class FxLayer {
     private readonly entities: EntityLayer,
   ) {
     this.makeBloodTextures();
+    this.makeSkullTexture();
+  }
+
+  /** A pale skull: cranium, cheeks, dark eye sockets and nose, a row of teeth. */
+  private makeSkullTexture(): void {
+    if (this.scene.textures.exists(SKULL_KEY)) return;
+    const g = this.scene.add.graphics();
+    g.fillStyle(0xe9e4d8, 1).fillCircle(20, 17, 15);
+    g.fillRoundedRect(10, 22, 20, 12, 4);
+    g.fillStyle(0x1b1418, 1).fillEllipse(14, 18, 8, 9).fillEllipse(26, 18, 8, 9);
+    g.fillTriangle(20, 23, 17.5, 28, 22.5, 28);
+    g.fillStyle(0x1b1418, 0.85);
+    for (let i = 0; i < 4; i++) g.fillRect(13 + i * 4.2, 30, 1.6, 4);
+    g.generateTexture(SKULL_KEY, 40, 38);
+    g.destroy();
+  }
+
+  /** A skull rises from where a zombie died, sways, glows faintly and fades. */
+  private skull(wx: number, wy: number): void {
+    const s = this.scene.add
+      .image(wx, wy - 10, SKULL_KEY)
+      .setDepth(DEPTH.fx + 50)
+      .setScale(0.4)
+      .setAlpha(0)
+      .setTint(0xdfe8ff);
+    const sway = (Math.random() < 0.5 ? -1 : 1) * (10 + Math.random() * 10);
+    this.scene.tweens.add({ targets: s, alpha: { from: 0, to: 0.95 }, scale: 1.1, duration: 260, ease: 'Back.easeOut' });
+    this.scene.tweens.add({ targets: s, y: wy - 90, duration: 1500, ease: 'Sine.easeOut' });
+    this.scene.tweens.add({ targets: s, x: wx + sway, angle: sway * 0.6, duration: 1500, ease: 'Sine.easeInOut' });
+    this.scene.tweens.add({ targets: s, alpha: 0, delay: 900, duration: 600, onComplete: () => s.destroy() });
+  }
+
+  /**
+   * Thunder during the raid: every 7-15s a flash lights the screen (twice, the
+   * second fainter), a jagged bolt strikes somewhere in the woods round the
+   * clearing, and the view gives a small shake.
+   */
+  storm(now: number): void {
+    if (!this.nextThunder) this.nextThunder = now + 2500 + Math.random() * 4000;
+    if (now < this.nextThunder) return;
+    this.nextThunder = now + 7000 + Math.random() * 8000;
+    const cam = this.scene.cameras.main;
+    cam.flash(140, 200, 215, 255, true);
+    this.scene.time.delayedCall(220, () => cam.flash(260, 150, 170, 230, true));
+    this.scene.time.delayedCall(260, () => cam.shake(220, 0.0025));
+    // Strike a point in the woods just outside the lawn.
+    const side = Math.floor(Math.random() * 4);
+    const along = LAWN_ORIGIN + Math.random() * (LAWN_END - LAWN_ORIGIN);
+    const out = 70 + Math.random() * 120;
+    const gx = side === 0 ? along : side === 1 ? LAWN_END + out : side === 2 ? along : LAWN_ORIGIN - out;
+    const gy = side === 0 ? LAWN_ORIGIN - out : side === 1 ? along : side === 2 ? LAWN_END + out : along;
+    const pts: { x: number; y: number }[] = [];
+    const top = gy - 700;
+    const steps = 12;
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      pts.push({ x: gx + (i === steps ? 0 : (Math.random() - 0.5) * 70 * (1 - t * 0.5)), y: top + (gy - top) * t });
+    }
+    this.bolt?.destroy();
+    const g = this.scene.add.graphics().setDepth(DEPTH.fx + 40).setBlendMode(Phaser.BlendModes.ADD);
+    g.lineStyle(16, 0x8fb6ff, 0.25).strokePoints(pts);
+    g.lineStyle(6, 0xcfe0ff, 0.6).strokePoints(pts);
+    g.lineStyle(2.5, 0xffffff, 1).strokePoints(pts);
+    g.fillStyle(0xcfe0ff, 0.35).fillCircle(gx, gy, 46);
+    this.bolt = g;
+    this.scene.tweens.add({ targets: g, alpha: 0, duration: 420, ease: 'Quad.easeIn', onComplete: () => g.destroy() });
   }
 
   /** A round drop, and three irregular splats (a blob ringed with droplets). */
@@ -181,6 +253,7 @@ export class FxLayer {
           this.flushOne(e.id);
           this.lastSpray.delete(e.id);
           this.stain(tileUnitToWorld(e.x), tileUnitToWorld(e.y), 0.85 + Math.random() * 0.3, 8000);
+          this.skull(tileUnitToWorld(e.x), tileUnitToWorld(e.y));
           this.spray(tileUnitToWorld(e.x), tileUnitToWorld(e.y), now + SPRAY_INTERVAL_MS * 2, -e.id, 9);
           const v = this.zombies.release(e.id);
           if (v) {

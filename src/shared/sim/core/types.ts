@@ -176,7 +176,9 @@ export interface PartDef {
   /** Chips: in the build preview, does constant power in mean constant power out? (default true) */
   passesConstant?: boolean | ((config: Record<string, number>) => boolean);
   /** Chips: build preview override, from the steady flood (e.g. a latch reads its set and reset pins). */
-  previewOn?(part: { x: number; y: number; rot: number }, powerC: Uint8Array): boolean;
+  previewOn?(part: { x: number; y: number; rot: number; config?: Record<string, number> }, powerC: Uint8Array): boolean;
+  /** Chips: the strength it sends in the build preview (default SOURCE_STRENGTH). */
+  previewStrength?(part: { x: number; y: number; rot: number; config?: Record<string, number> }, powerC: Uint8Array): number;
   initState(part: SimPart): Record<string, number>;
   /** Triggers: read the world, return what to emit into this step's flood. */
   sense?(ctx: SimCtx, part: SimPart): Signal | null;

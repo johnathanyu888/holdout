@@ -46,6 +46,49 @@ export function App() {
   );
 }
 
+/** What a hotbar slot is, as a coloured tag plus a few words (shown above the hotbar). */
+function slotKind(id: string, hasHouse: boolean): { tag: string; cls: string; text: string } | null {
+  if (id === 'select') return { tag: 'Select', cls: 'k-neutral', text: 'tap to pick · drag to move' };
+  if (id === 'erase') return { tag: 'Remove', cls: 'k-neutral', text: 'tap or drag over things' };
+  if (id === 'house') return { tag: 'Home', cls: 'k-home', text: hasHouse ? 'drag it to move' : 'place it first' };
+  if (id === 'wire') return { tag: 'Connect', cls: 'k-connect', text: 'carries power · −1 strength a tile' };
+  if (id.startsWith('wall:')) return { tag: 'Defense', cls: 'k-defense', text: 'blocks zombies · they path round' };
+  const type = id.slice(5);
+  if (!hasPartDef(type)) return null;
+  const d = partDef(type);
+  if (d.kind === 'trigger') return { tag: 'Power', cls: 'k-power', text: 'a sensor · makes power when zombies trip it' };
+  if (d.kind === 'chip') return { tag: 'Logic', cls: 'k-logic', text: type === 'latch' ? 'a switch with memory' : 'shapes power on its way' };
+  if (type === 'piston') return { tag: 'Steer', cls: 'k-steer', text: 'pushes zombies · needs power' };
+  return { tag: 'Attack', cls: 'k-attack', text: `deals damage · needs power ${d.needs}+` };
+}
+
+/** First-pick explainers: a tiny diagram (atlas icons and arrows) and one line. */
+const EXPLAIN: Record<string, { flow: string[]; line: string }> = {
+  'part:pressure_plate': { flow: ['pressure_plate', '→', 'wire_straight', '→', 'saw_blade'], line: 'A zombie steps on it · power runs down the wire · the trap fires' },
+  'part:tripwire': { flow: ['tripwire', '→', 'wire_straight', '→', 'spike_floor'], line: 'Crossing it sends one short tick · spikes punch on each tick' },
+  'part:delay': { flow: ['pressure_plate', '→', 'delay', '→', 'saw_blade'], line: 'Power in the back · out the front a moment later · boosted to full strength' },
+  'part:latch': { flow: ['pressure_plate', '→', 'latch', '→', 'saw_blade'], line: 'One press switches it on for good · or flip it on from its card' },
+  'part:saw_blade': { flow: ['pressure_plate', '→', 'wire_straight', '→', 'saw_blade'], line: 'Cuts whatever is on its tile while powered · more power cuts harder' },
+  'part:spike_floor': { flow: ['tripwire', '→', 'wire_straight', '→', 'spike_floor'], line: 'Punches on each tick · held up on steady power it stabs once and slows' },
+  'part:piston': { flow: ['power_inlet', '→', 'wire_straight', '→', 'piston'], line: 'While powered it shoves anything in front one tile on · aim it with R' },
+  wire: { flow: ['power_inlet', '→', 'wire_straight', '→', 'saw_blade'], line: 'Carries power from a source to parts · strength drops 1 a tile' },
+};
+
+const seen = new Set<string>();
+/** Has this explainer been shown before? Marks it seen (kept across visits). */
+function seenTip(id: string): boolean {
+  const k = `seen-tip:${id}`;
+  let was = seen.has(k);
+  try {
+    was ||= localStorage.getItem(k) === '1';
+    localStorage.setItem(k, '1');
+  } catch {
+    // storage blocked: remember for this visit only
+  }
+  seen.add(k);
+  return was;
+}
+
 /** Tray labels: short enough to fit under a 64px button. */
 const SHORT: Record<string, string> = {
   pressure_plate: 'Plate',
@@ -94,7 +137,7 @@ function TopBar() {
         </div>
         <button
           class={`shop-btn ${shopOpen ? 'on' : ''}`}
-          title={affordable ? 'Time Shop: trade build seconds for parts' : 'Not enough time left to buy anything'}
+          title={affordable ? 'Time Shop · trade build seconds for parts' : 'Not enough time left to buy anything'}
           disabled={!affordable}
           onClick={() => session.shopOpen.set(!shopOpen)}
         >
@@ -129,7 +172,7 @@ function TopBar() {
             </IconBtn>
           </>
         )}
-        <IconBtn title="Hand: drags always pan (H)" active={hand} onClick={() => session.handMode.set(!hand)}>
+        <IconBtn title="Hand · drags always pan (H)" active={hand} onClick={() => session.handMode.set(!hand)}>
           <IconHand />
         </IconBtn>
         <IconBtn title="Zoom out (-)" onClick={() => session.actions.zoomBy(0.8)}>
@@ -221,6 +264,18 @@ function Briefing() {
   useEffect(() => {
     if (left <= 0) go();
   }, [left]);
+  // On a short screen the card scrolls: a "more below" cue until you reach the end.
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [more, setMore] = useState(false);
+  const checkMore = () => {
+    const el = cardRef.current;
+    if (el) setMore(el.scrollTop + el.clientHeight < el.scrollHeight - 12);
+  };
+  useLayoutEffect(() => {
+    checkMore();
+    window.addEventListener('resize', checkMore);
+    return () => window.removeEventListener('resize', checkMore);
+  }, []);
   const { day } = session;
   const z = day.spawns.zombies.reduce((n, g) => n + g.count, 0);
   const kit: { key: string; icon: string; label: string; n: string }[] = [
@@ -230,7 +285,7 @@ function Briefing() {
   ];
   return (
     <div class={`modal-wrap ${leaving ? 'leaving' : ''}`}>
-      <div class={`card briefing ${leaving ? 'leaving' : ''}`}>
+      <div class={`card briefing ${leaving ? 'leaving' : ''}`} ref={cardRef} onScroll={checkMore}>
         <div class="brief-hero">
           <div class="brief-portrait">
             <img src={icon('shambler')} alt="" />
@@ -270,9 +325,9 @@ function Briefing() {
 
         <div class="section-label">TONIGHT</div>
         <ol class="brief-steps">
-          <li>Place your house anywhere inside the clearing.</li>
-          <li>Wire the power inlet to traps that kill.</li>
-          <li>Press Fight. Every zombie must fall before one reaches the house.</li>
+          <li>Place your house · anywhere inside the clearing</li>
+          <li>Wire traps to sensors · or to the inlet (it powers 3)</li>
+          <li>Press Fight · every zombie must fall before one reaches the house</li>
         </ol>
 
         <button class="big-btn" onClick={go}>
@@ -284,6 +339,18 @@ function Briefing() {
           </div>
           <span>Starts on its own in {Math.max(0, left)}s</span>
         </div>
+        {more && (
+          <button
+            class="brief-more"
+            aria-label="Scroll down for more"
+            onClick={() => cardRef.current?.scrollBy({ top: cardRef.current.clientHeight * 0.7, behavior: 'smooth' })}
+          >
+            <span>More below</span>
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M6 9 L12 15 L18 9" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </button>
+        )}
       </div>
     </div>
   );
@@ -301,11 +368,60 @@ function Tray() {
   // Tapping the active slot again puts it away (back to tap-to-select). An empty
   // slot says where to get more.
   const pick = (id: string) => {
+    if (dragEnded.current) {
+      dragEnded.current = false;
+      return;
+    }
     const s = slot(id);
     if (tool !== id && s.count !== undefined && s.count <= 0 && session.mode === 'demo')
       toast(`Out of ${s.label.toLowerCase()} · you can buy more in the Time Shop`);
     session.tool.set(tool === id ? 'select' : id);
     if (id === 'select') session.tool.set('select');
+    if (tool !== id) showFirstTip(id);
+  };
+  // The first time each slot is picked, its tag also explains it (with a little diagram).
+  const [firstTip, setFirstTip] = useState<string | null>(null);
+  const showFirstTip = (id: string) => {
+    if (!EXPLAIN[id] || seenTip(id)) return;
+    setFirstTip(id);
+    setTimeout(() => setFirstTip((cur) => (cur === id ? null : cur)), 7000);
+  };
+
+  // Drag and drop from the hotbar: press a slot, drag onto the lawn, let go to place there.
+  const [dragView, setDragView] = useState<{ id: string; x: number; y: number } | null>(null);
+  const dragRef = useRef<{ id: string; x0: number; y0: number; on: boolean } | null>(null);
+  const dragEnded = useRef(false);
+  const draggable = (id: string) => id === 'house' || id === 'wire' || id.startsWith('part:') || id.startsWith('wall:');
+  const dnd = {
+    down: (id: string, e: PointerEvent) => {
+      if (e.button !== 0 || !draggable(id)) return;
+      dragRef.current = { id, x0: e.clientX, y0: e.clientY, on: false };
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    },
+    move: (e: PointerEvent) => {
+      const d = dragRef.current;
+      if (!d) return;
+      if (!d.on && Math.hypot(e.clientX - d.x0, e.clientY - d.y0) < 10) return;
+      if (!d.on) {
+        d.on = true;
+        if (session.tool.value !== d.id) session.tool.set(d.id);
+      }
+      setDragView({ id: d.id, x: e.clientX, y: e.clientY });
+      session.actions.hoverAt(e.clientX, e.clientY);
+    },
+    up: (e: PointerEvent) => {
+      const d = dragRef.current;
+      dragRef.current = null;
+      if (!d?.on) return;
+      dragEnded.current = true;
+      setTimeout(() => (dragEnded.current = false), 0);
+      setDragView(null);
+      session.actions.dropAt(e.clientX, e.clientY);
+    },
+    cancel: () => {
+      dragRef.current = null;
+      setDragView(null);
+    },
   };
   const ready = !!c.house;
   // One name tag above the hotbar: the slot under the pointer, else the active one.
@@ -313,7 +429,7 @@ function Tray() {
   const tipId = hover ?? (tool !== 'select' || session.mode === 'sandbox' ? tool : null);
 
   const slot = (id: string): { label: string; title?: string; icon: preact.ComponentChildren; count?: number; badge?: string; alert?: boolean } => {
-    if (id === 'select') return { label: 'Select', title: 'Select · tap to pick, drag to move', icon: <IconSelect /> };
+    if (id === 'select') return { label: 'Select', icon: <IconSelect /> };
     if (id === 'erase') return { label: 'Remove', icon: <IconErase /> };
     if (id === 'house')
       return { label: 'House', icon: <img src={icon('home')} alt="" />, badge: c.house ? '✓' : '!', alert: !c.house };
@@ -332,18 +448,10 @@ function Tray() {
   };
 
   const tip = tipId ? slot(tipId) : null;
-  const tipDetail =
-    tip && tipId
-      ? tipId === 'house'
-        ? c.house
-          ? 'tap the lawn to move it'
-          : 'place it first'
-        : tip.count !== undefined
-          ? tip.count > 99
-            ? 'unlimited'
-            : `${tip.count} left`
-          : null
-      : null;
+  // What kind of thing it is (Power, Logic, Attack...), not how many are left.
+  const tipKind = tipId ? slotKind(tipId, !!c.house) : null;
+  const tipDetail = tipKind?.text ?? null;
+  const explain = firstTip && firstTip === tipId ? EXPLAIN[firstTip] : null;
 
   // Centre the tag over its slot, kept inside the hotbar's edges.
   const hotbarRef = useRef<HTMLDivElement>(null);
@@ -364,7 +472,7 @@ function Tray() {
     place();
     window.addEventListener('resize', place);
     return () => window.removeEventListener('resize', place);
-  }, [tipId, tip?.title, tipDetail]);
+  }, [tipId, tip?.title, tipDetail, explain]);
 
   return (
     <div class="tray-wrap">
@@ -377,7 +485,20 @@ function Tray() {
             style={tipLeft === null ? { visibility: 'hidden' } : { left: `${tipLeft}px` }}
           >
             <b>{tip.title ?? tip.label}</b>
+            {tipKind && tipKind.tag !== (tip.title ?? tip.label) && <span class={`kind-tag ${tipKind.cls}`}>{tipKind.tag}</span>}
             {tipDetail && <span>{tipDetail}</span>}
+            {explain && (
+              <div class="tip-explain">
+                <div class="tip-flow">
+                  {explain.flow.map((f, i) => (
+                    <span key={i} class={f === '→' ? 'arrow' : ''}>
+                      {f === '→' ? '→' : <img src={icon(f)} alt="" />}
+                    </span>
+                  ))}
+                </div>
+                <div class="tip-line">{explain.line}</div>
+              </div>
+            )}
           </div>
         )}
         <div
@@ -390,13 +511,18 @@ function Tray() {
           {hotbarTools(day, session.mode).map((id, i) => {
             const s = slot(id);
             return (
-              <ToolBtn key={id} id={id} keyHint={slotKey(i)} cur={tool} onPick={pick} onHover={setHover} {...s}>
+              <ToolBtn key={id} id={id} keyHint={slotKey(i)} cur={tool} onPick={pick} onHover={setHover} dnd={dnd} {...s}>
                 {s.icon}
               </ToolBtn>
             );
           })}
         </div>
       </div>
+      {dragView && (
+        <div class="drag-float" style={{ left: `${dragView.x}px`, top: `${dragView.y}px` }} aria-hidden="true">
+          {slot(dragView.id).icon}
+        </div>
+      )}
       <div class="fight-dock">
         <button
           class={`fight-btn ${ready ? 'ready' : ''}`}
@@ -426,6 +552,7 @@ function ToolBtn(p: {
   count?: number;
   badge?: string;
   alert?: boolean;
+  dnd?: { down(id: string, e: PointerEvent): void; move(e: PointerEvent): void; up(e: PointerEvent): void; cancel(): void };
   children: preact.ComponentChildren;
 }) {
   const empty = p.count !== undefined && p.count <= 0;
@@ -438,6 +565,10 @@ function ToolBtn(p: {
       data-slot={p.id}
       onClick={() => p.onPick(p.id)}
       onMouseEnter={() => p.onHover(p.id)}
+      onPointerDown={(e) => p.dnd?.down(p.id, e)}
+      onPointerMove={(e) => p.dnd?.move(e)}
+      onPointerUp={(e) => p.dnd?.up(e)}
+      onPointerCancel={() => p.dnd?.cancel()}
     >
       <span class="key">{p.keyHint}</span>
       <span class="tool-icon">{p.children}</span>
@@ -485,7 +616,7 @@ function Shop() {
           );
         })}
       </div>
-      <div class="shop-foot">Every second you spend here is a second less to build.</div>
+      <div class="shop-foot">Every second spent here · a second less to build</div>
     </div>
   );
 }
@@ -604,7 +735,7 @@ function RockCard() {
             {rock.w ?? 1}×{rock.h ?? 1}
           </span>
         </div>
-        <div class="insp-sub">Zombies walk round it. Nothing can be built or wired through it.</div>
+        <div class="insp-sub">Zombies walk round it · nothing can be built or wired through it</div>
         <button
           class="repair-btn"
           disabled={!can}
@@ -684,7 +815,7 @@ function Inspector() {
     const pv = powerPreview(session.day, c);
     const got = pv.inputs.get(selPart.id) ?? { c: 0, t: 0 };
     const s = Math.max(got.c, got.t);
-    const pct = `${Math.round(powerMul(s) * 100)}%`;
+    const pct = `${Math.round(powerMul(s) * 100)}% power`;
     if (def.kind === 'action')
       power =
         s >= def.needs && pv.loaded.includes(selPart.id)
@@ -693,9 +824,14 @@ function Inspector() {
             ? { text: `Inlet full · ${INLET_MAX_LOAD} of ${INLET_MAX_LOAD}`, ok: false }
             : s > 0
               ? { text: `Too weak · ${s} of ${def.needs}`, ok: false }
-              : { text: 'Waits for a sensor', ok: false };
+              : { text: 'No power yet', ok: false };
     else if (def.kind === 'chip') power = s > 0 ? { text: `Input · ${s}`, ok: true } : { text: 'No input yet', ok: false };
   }
+  const strength = (() => {
+    const got = powerPreview(session.day, c).inputs.get(selPart.id);
+    return got ? Math.max(got.c, got.t) : null;
+  })();
+  const latchOn = selPart?.type === 'latch' ? (selPart.config?.on ?? 0) > 0 : null;
   const delay = selPart?.type === 'delay' ? (selPart.config?.delay ?? 5) : null;
   const blink = selPart?.type === 'delay' ? (selPart.config?.blink ?? 0) > 0 : false;
   const setCfg = (patch: Record<string, number>) =>
@@ -709,7 +845,20 @@ function Inspector() {
           {def.label}
           {power && <span class={`insp-power ${power.ok ? 'ok' : 'bad'}`}>{power.text}</span>}
         </div>
+        {strength !== null && <SignalMeter s={strength} />}
         <div class="insp-sub">{(type === 'delay' && blink ? BLINK_INFO : PART_INFO[type]) ?? ''}</div>
+        {latchOn !== null && selPart && (
+          <div class="insp-controls">
+            <div class="insp-seg" role="group" aria-label="Switch">
+              <button class={!latchOn ? 'on' : ''} onClick={() => setCfg({ on: 0 })}>
+                Off
+              </button>
+              <button class={latchOn ? 'on blink' : ''} onClick={() => setCfg({ on: 1 })}>
+                On
+              </button>
+            </div>
+          </div>
+        )}
         {delay !== null && selPart && (
           <div class="insp-controls">
             <div class="insp-seg" role="group" aria-label="Mode">
@@ -739,19 +888,37 @@ function Inspector() {
   );
 }
 
+/**
+ * Signal strength as five bars (full at 9+, a sensor one tile away), with the
+ * number: the same strength the wires show, and what it means for damage.
+ */
+function SignalMeter(p: { s: number }) {
+  const bars = Math.min(5, Math.ceil(p.s / 2));
+  return (
+    <div class="sig" title={`Signal strength ${p.s} · damage x${powerMul(p.s).toFixed(2)}`}>
+      <span class="sig-bars">
+        {[0, 1, 2, 3, 4].map((i) => (
+          <i key={i} class={i < bars ? `on b${bars}` : ''} style={{ height: `${5 + i * 3}px` }} />
+        ))}
+      </span>
+      <span class="sig-text">Signal {p.s}</span>
+    </div>
+  );
+}
+
 const DELAY_STEPS = [5, 10, 20];
-const BLINK_INFO = 'Turns steady power into a beat: a tick, then a gap, the same length each';
+const BLINK_INFO = 'Turns steady power into a beat · a tick then a gap · the same length each';
 
 /** One line on what each part does (the inspector card). */
 const PART_INFO: Record<string, string> = {
-  pressure_plate: 'Powers its wires (10) while a zombie stands on it',
-  tripwire: 'Sends a tick (10) when a zombie walks through the cord',
-  delay: 'Passes power on after a wait · in on the left, out on the right',
-  tesla_coil: 'Zaps the nearest zombie for 70, arcing on to a second · needs 3 · more power hits harder and wears it faster',
-  saw_blade: 'Cuts 60 damage a second at full power · needs 1 · more power hits harder and wears it faster',
-  spike_floor: 'Tick: a 45 punch each time · steady: one 20 stab per zombie, and slows · needs 1 · wears out',
-  piston: 'While powered, shoves any zombie that steps onto the tile in front one tile on (1s reset) · needs 1 · turn it to aim',
-  latch: 'Memory: power on the back switches it on, power on the side switches it off · steady 10 out the front',
+  pressure_plate: 'Powers its wires · strength 10 · while a zombie stands on it',
+  tripwire: 'Sends a tick · strength 10 · when a zombie walks through the cord',
+  delay: 'Passes power on after a wait · in the back · out the front · boosted to 10',
+  tesla_coil: 'Zaps the nearest zombie for 70 · arcs on to a second · needs 3 · more power hits harder and wears it faster',
+  saw_blade: 'Cuts 60 a second at full power · needs 1 · more power hits harder and wears it faster',
+  spike_floor: 'Tick · a 45 punch each time · steady · one 20 stab per zombie and slows · needs 1 · wears out',
+  piston: 'Always out while powered · shoves any zombie that steps in front one tile on · 1s reset · needs 1 · turn it to aim',
+  latch: 'A switch · flip it on here · or power its back to switch it on · power its side to switch it off · steady power out the front',
 };
 
 // ---- raid -----------------------------------------------------------------------
@@ -806,7 +973,7 @@ function Result() {
   if (!r) return null;
   const won = r.outcome === 'won';
   const why =
-    r.reason === 'breach' ? 'A zombie reached your house.' : r.reason === 'timeout' ? 'Dawn came with zombies still out there.' : 'Every zombie is down.';
+    r.reason === 'breach' ? 'A zombie reached your house' : r.reason === 'timeout' ? 'Dawn came · zombies still out there' : 'Every zombie is down';
   return (
     <div class="modal-wrap">
       <div class={`card result ${won ? 'won' : 'lost'}`}>
@@ -868,6 +1035,7 @@ function StarIcon() {
 function SandboxPanel() {
   const phase = useObs(session.phase);
   const [json, setJson] = useState('');
+  const paths = useObs(session.showPaths);
   const raid = phase === 'raid';
   return (
     <div class="sandbox">
@@ -880,6 +1048,9 @@ function SandboxPanel() {
           Spawn random
         </button>
       </div>
+      <button class={`small-btn ${paths ? 'on' : ''}`} onClick={() => session.showPaths.set(!paths)}>
+        Zombie paths · {paths ? 'on' : 'off'}
+      </button>
       {raid ? (
         <button class="small-btn" onClick={() => session.actions.backToBuild()}>
           End raid

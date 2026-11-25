@@ -86,6 +86,7 @@ function withMove(env: ToolEnv, tool: BuildTool): BuildTool {
   type Held = { kind: 'part'; id: number; type: string; rot: number } | { kind: 'house' };
   let held: Held | null = null;
   let at: Tile | null = null;
+  let from: Tile | null = null;
   const grab = (t: Tile | null): Held | null => {
     if (!t) return null;
     const o = occupantAt(env.day, env.store.current, t.x, t.y);
@@ -101,6 +102,7 @@ function withMove(env: ToolEnv, tool: BuildTool): BuildTool {
     onDragStart: (p) => {
       held = grab(p.tile);
       at = p.tile;
+      from = p.tile;
     },
     onDragMove: (p) => {
       if (p.tile) at = p.tile;
@@ -125,10 +127,11 @@ function withMove(env: ToolEnv, tool: BuildTool): BuildTool {
     ghost: (hover) => {
       if (!held || !at) return tool.ghost(hover);
       const ok = valid(held, at);
-      if (held.kind === 'house') return { tiles: [{ ...at, tex: TEX.structures, frame: 'home', angle: 0, valid: ok }] };
+      const line = from ? { from, to: at } : undefined;
+      if (held.kind === 'house') return { tiles: [{ ...at, tex: TEX.structures, frame: 'home', angle: 0, valid: ok }], line };
       const frame = partView(held.type).frame ?? held.type;
       const angle = hasPartDef(held.type) && partDef(held.type).rotatable ? held.rot * 90 : 0;
-      return { tiles: [{ ...at, tex: TEX.parts, frame, angle, valid: ok }] };
+      return { tiles: [{ ...at, tex: TEX.parts, frame, angle, valid: ok }], line };
     },
   };
 }

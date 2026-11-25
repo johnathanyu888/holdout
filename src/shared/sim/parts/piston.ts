@@ -67,7 +67,7 @@ registerPart({
       }
       ctx.wear(p, PISTON_WEAR * powerMul(p.s.pw ?? 0));
     }
-    // Shown punched out for a moment after each shot.
-    p.active = (p.s.show ?? 0) > 0;
+    // Steady power keeps the head out; a tick shows it punched out for a moment.
+    p.active = held || (p.s.show ?? 0) > 0;
   },
 });

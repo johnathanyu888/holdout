@@ -1,19 +1,26 @@
-// Latch (chip): memory. Directional, turned with the part:
+// Latch (chip): a switch with memory. Directional, turned with the part:
 //   set    its back (west) side     power here switches it on
 //   reset  its south side           power here switches it off (reset wins)
-//   out    its front (east) side    steady power (strength 10) while it's on
-// It stays on after the set power goes away, until something resets it. So one
-// pressure plate can switch a trap on for the rest of the raid, and a second
-// plate further in can switch it off.
-// Its output counts as inlet power if the inlet is what set it (so it still
-// counts toward the inlet's 3-part limit).
+//   out    its front (east) side    steady power while it's on
+//
+// Two ways to switch it on:
+//  - In build mode, flip it on from its card (config.on = 1). It then starts the
+//    raid on, sending the inlet's own steady power (strength 6), and that power
+//    counts toward the inlet's 3-part limit: a remote switch for the inlet.
+//  - In the raid, power on its set pin switches it on (strength 10, sensor power
+//    if a sensor set it). It stays on after the set power goes, until a reset.
 
 import { registerPart } from '../core/registry';
 import { inputFromSides } from '../core/power';
-import { SOURCE_STRENGTH } from '../core/types';
+import { INLET_STRENGTH, SOURCE_STRENGTH } from '../core/types';
 
 const SET = 2;
 const RESET = 1;
+
+const sideOn = (p: { x: number; y: number; rot: number }, side: number, c: Uint8Array, t: Uint8Array) => {
+  const i = inputFromSides(p.x, p.y, p.rot, [side], c, t);
+  return i.c > 0 || i.t > 0;
+};
 
 registerPart({
   type: 'latch',
@@ -21,28 +28,26 @@ registerPart({
   kind: 'chip',
   needs: 0,
   rotatable: true,
+  defaultConfig: { on: 0 },
   pins: { in: [SET, RESET], out: [0] },
-  // Build preview: on while steady power reaches its set pin and none its reset pin.
-  previewOn: (p, powerC) =>
-    inputFromSides(p.x, p.y, p.rot, [SET], powerC, powerC).c > 0 &&
-    inputFromSides(p.x, p.y, p.rot, [RESET], powerC, powerC).c === 0,
-  initState: () => ({ on: 0, fromInlet: 0 }),
+  // Build preview: on while switched on (or steady power reaches its set pin), unless its reset pin is powered.
+  previewOn: (p, powerC) => !sideOn(p, RESET, powerC, powerC) && ((p.config?.on ?? 0) > 0 || sideOn(p, SET, powerC, powerC)),
+  previewStrength: (p, powerC) => (sideOn(p, SET, powerC, powerC) ? SOURCE_STRENGTH : INLET_STRENGTH),
+  initState: (p) => {
+    const on = (p.config.on ?? 0) > 0 ? 1 : 0;
+    return { on, fromInlet: on, str: on ? INLET_STRENGTH : SOURCE_STRENGTH };
+  },
   chip(ctx, p) {
     // Chips read last step's flood (still in the state at this point).
     const st = ctx.state;
-    const any = (c: Uint8Array, t: Uint8Array, side: number) => {
-      const i = inputFromSides(p.x, p.y, p.rot, [side], c, t);
-      return i.c > 0 || i.t > 0;
-    };
-    if (any(st.powerC, st.powerT, RESET)) p.s.on = 0;
-    else if (any(st.powerC, st.powerT, SET)) {
-      if (!p.s.on) {
-        p.s.on = 1;
-        p.s.fromInlet = any(st.sensC, st.sensT, SET) ? 0 : 1;
-        ctx.emit({ type: 'partFired', partId: p.id });
-      }
+    if (sideOn(p, RESET, st.powerC, st.powerT)) p.s.on = 0;
+    else if (sideOn(p, SET, st.powerC, st.powerT) && !(p.s.on && p.s.str === SOURCE_STRENGTH)) {
+      if (!p.s.on) ctx.emit({ type: 'partFired', partId: p.id });
+      p.s.on = 1;
+      p.s.str = SOURCE_STRENGTH;
+      p.s.fromInlet = sideOn(p, SET, st.sensC, st.sensT) ? 0 : 1;
     }
     p.active = p.s.on === 1;
-    return p.active ? { layer: 'c', strength: SOURCE_STRENGTH, inlet: p.s.fromInlet === 1 } : null;
+    return p.active ? { layer: 'c', strength: p.s.str ?? SOURCE_STRENGTH, inlet: p.s.fromInlet === 1 } : null;
   },
 });

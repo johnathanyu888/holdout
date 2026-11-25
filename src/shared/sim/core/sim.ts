@@ -466,7 +466,9 @@ export function powerPreview(
   const passing = new Set<number>();
   for (let pass = 0; pass <= chips.length; pass++) {
     const sources: Source[] = [inlet];
-    for (const p of chips) if (passing.has(p.id)) sources.push(...partSources(p, { layer: 'c', strength: SOURCE_STRENGTH }));
+    for (const p of chips)
+      if (passing.has(p.id))
+        sources.push(...partSources(p, { layer: 'c', strength: partDef(p.type).previewStrength?.(p, powerC) ?? SOURCE_STRENGTH }));
     flood(wire, sources, powerC, powerT);
     let changed = false;
     for (const p of chips) {

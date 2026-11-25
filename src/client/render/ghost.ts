@@ -18,6 +18,8 @@ export interface GhostTile {
 
 export interface Ghost {
   tiles: GhostTile[];
+  /** Moving something: a dashed path from where it was to where it's going. */
+  line?: { from: { x: number; y: number }; to: { x: number; y: number } };
 }
 
 const OK = 0x9dffa0;
@@ -31,10 +33,46 @@ export class GhostLayer {
     this.g = scene.add.graphics().setDepth(DEPTH.ghost);
   }
 
+  /**
+   * The way a picked-up part is going: its old tile outlined in dashes, and a
+   * dashed line with an arrowhead from there to the drop tile.
+   */
+  private drawMovePath(from: { x: number; y: number }, to: { x: number; y: number }, px: number): void {
+    if (from.x === to.x && from.y === to.y) return;
+    const g = this.g;
+    const o = tileOrigin(from.x, from.y);
+    const dash = (x1: number, y1: number, x2: number, y2: number, w: number, col: number, a: number) => {
+      const len = Math.hypot(x2 - x1, y2 - y1);
+      for (let d = 0; d < len; d += 16) {
+        const t0 = d / len;
+        const t1 = Math.min(len, d + 9) / len;
+        g.lineStyle(w, col, a).lineBetween(x1 + (x2 - x1) * t0, y1 + (y2 - y1) * t0, x1 + (x2 - x1) * t1, y1 + (y2 - y1) * t1);
+      }
+    };
+    // the empty spot it came from
+    g.fillStyle(0xffffff, 0.08).fillRect(o.x, o.y, TILE, TILE);
+    dash(o.x, o.y, o.x + TILE, o.y, 2 * px, 0xffffff, 0.8);
+    dash(o.x + TILE, o.y, o.x + TILE, o.y + TILE, 2 * px, 0xffffff, 0.8);
+    dash(o.x + TILE, o.y + TILE, o.x, o.y + TILE, 2 * px, 0xffffff, 0.8);
+    dash(o.x, o.y + TILE, o.x, o.y, 2 * px, 0xffffff, 0.8);
+    // the path, stopping short of the drop tile, with an arrowhead
+    const a = tileToWorld(from.x, from.y);
+    const b = tileToWorld(to.x, to.y);
+    const len = Math.hypot(b.x - a.x, b.y - a.y);
+    const ux = (b.x - a.x) / len;
+    const uy = (b.y - a.y) / len;
+    const end = { x: b.x - ux * TILE * 0.45, y: b.y - uy * TILE * 0.45 };
+    dash(a.x, a.y, end.x, end.y, 6 * px, 0x000000, 0.3);
+    dash(a.x, a.y, end.x, end.y, 3.5 * px, 0xffffff, 0.95);
+    const h = 12 * px;
+    g.fillStyle(0xffffff, 0.95).fillTriangle(end.x + ux * h, end.y + uy * h, end.x - uy * h * 0.7, end.y + ux * h * 0.7, end.x + uy * h * 0.7, end.y - ux * h * 0.7);
+  }
+
   /** px = one screen pixel in world units (keeps outlines a constant width). */
   draw(ghost: Ghost | null, px: number): void {
     this.g.clear();
     const tiles = ghost?.tiles ?? [];
+    if (ghost?.line) this.drawMovePath(ghost.line.from, ghost.line.to, px);
     let used = 0;
     for (const t of tiles) {
       const o = tileOrigin(t.x, t.y);
