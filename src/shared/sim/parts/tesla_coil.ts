@@ -2,7 +2,8 @@
 // and the arc jumps on to the next-nearest zombie within 1.5 tiles of that one.
 //  Constant power: zaps every 1.5s (15 steps) while anything is in range.
 //  Tick: one zap on the rising edge (if it has recharged).
-// Zombies still walking in from the forest are out of reach.
+// Zombies still walking in from the forest are out of reach. It is solid:
+// zombies walk round a coil, never over it.
 
 import { registerPart } from '../core/registry';
 import type { Zombie } from '../core/types';
@@ -34,6 +35,7 @@ registerPart({
   kind: 'action',
   needs: NEEDS,
   rotatable: false,
+  solid: true, // zombies walk round a coil, not over it
   durability: 900,
   range: TESLA_RANGE,
   initState: () => ({ cool: 0, lastT: 0, flash: 0 }),

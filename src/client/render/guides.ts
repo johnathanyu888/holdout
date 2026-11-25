@@ -343,6 +343,7 @@ export class GuideLayer {
     for (const w of c.walls) blocked[key(w.x, w.y)] = 1;
     for (const k of rockTiles(this.day)) blocked[k] = ROCK_HP;
     for (const p of c.parts) if (hasPartDef(p.type) && partDef(p.type).solid) blocked[key(p.x, p.y)] = ROCK_HP;
+    for (const f of this.day.fixtures ?? []) blocked[key(f.x, f.y)] = ROCK_HP;
     const field = new Int32Array(GRID * GRID);
     computeField(blocked, house.x, house.y, field);
     const starts: Tile[] = [];

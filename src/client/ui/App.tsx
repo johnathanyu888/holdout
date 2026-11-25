@@ -994,7 +994,7 @@ function Inspector() {
                   <th>Durability</th>
                   <td>
                     <span class="dur">
-                      {live ? `${wearLeft} of ${dur}` : `${dur}`}
+                      {`${live ? wearLeft : dur}/${dur}`}
                       <span class="dur-bar">
                         <i
                           class={wearLeft / dur > 0.5 ? 'hi' : wearLeft / dur > 0.2 ? 'mid' : 'low'}

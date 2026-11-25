@@ -3016,3 +3016,81 @@ body {
 .dur-bar i.hi { background: #7fd66b; }
 .dur-bar i.mid { background: #ffc46b; }
 .dur-bar i.low { background: #ff5a4f; }
+
+/* ---- tesla demo: the coil stands beside the lane; a zombie walking past is zapped
+   twice from the side and drops, never walking over the coil ---------------------- */
+.zd-tesla_coil .zd-lane {
+  height: 84px;
+}
+.zd-tesla_coil .zd-part {
+  left: 50%;
+  top: 4px;
+  bottom: auto;
+}
+.zd-tesla_coil .zd-zombie {
+  bottom: 4px;
+}
+.zd-tesla_coil .zd-zap {
+  left: 50%;
+  top: 34px;
+  bottom: auto;
+  width: 3px;
+  height: 30px;
+  margin-left: 4px;
+  transform: rotate(18deg);
+  transform-origin: 50% 0;
+}
+@keyframes zd-zap {
+  0%, 34% { opacity: 0; }
+  35%, 38% { opacity: 1; transform: rotate(18deg); }
+  39%, 62% { opacity: 0; }
+  63%, 66% { opacity: 1; transform: rotate(-14deg); }
+  67%, 100% { opacity: 0; }
+}
+
+/* ---- draft: cards rise into place (no 3D flip), the taken one lifts away ---------- */
+.draft-cards {
+  perspective: none;
+}
+.draft-card {
+  backface-visibility: visible;
+}
+.draft-card.side-0,
+.draft-card.side-1 {
+  animation: deal-up 300ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.draft-card.side-1 {
+  animation-delay: 70ms;
+}
+@keyframes deal-up {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.96);
+  }
+}
+.draft-card.chosen {
+  animation: lift-away 280ms ease-in forwards;
+}
+@keyframes lift-away {
+  0% {
+    transform: none;
+    box-shadow: 0 0 0 0 rgba(242, 193, 78, 0.6);
+  }
+  35% {
+    transform: scale(1.04);
+    box-shadow: 0 0 0 6px rgba(242, 193, 78, 0.3);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-22px) scale(0.92);
+  }
+}
+.draft-card.passed {
+  animation: fade-down 220ms ease-in forwards;
+}
+@keyframes fade-down {
+  to {
+    opacity: 0;
+    transform: translateY(10px) scale(0.96);
+  }
+}

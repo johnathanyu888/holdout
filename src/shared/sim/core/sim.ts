@@ -85,6 +85,8 @@ export function createSim(day: DayConfig, c: Contraption, opts: SimOptions = {})
   // Rocks, and solid parts (pistons): blocked for the whole raid (zombies path round them).
   for (const k of rockTiles(day)) wallHp[k] = ROCK_HP;
   for (const p of parts) if (hasPartDef(p.type) && partDef(p.type).solid) wallHp[key(p.x, p.y)] = ROCK_HP;
+  // Map machines are solid too, working or broken.
+  for (const f of day.fixtures ?? []) wallHp[key(f.x, f.y)] = ROCK_HP;
   const st: SimState = {
     day,
     tick: 0,

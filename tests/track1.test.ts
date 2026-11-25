@@ -419,3 +419,12 @@ describe('pistons are solid', () => {
     expect(onIt).toBe(false);
   });
 });
+
+describe('tesla coils are solid', () => {
+  it('zombies path round a coil (placed or a map machine, even broken), never over it', () => {
+    const placed = createSim(day({ x: 1, y: 15 }), build([{ id: 1, type: 'tesla_coil', x: 12, y: 6, rot: 0 }], []), { schedule: [] });
+    expect(placed.field[key(12, 6)]).toBe(FIELD_INF);
+    const broken: DayConfig = { ...day({ x: 1, y: 15 }), fixtures: [{ type: 'tesla_coil', x: 12, y: 6, rot: 0, broken: true, repairSeconds: 120 }] };
+    expect(createSim(broken, build([], []), { schedule: [] }).field[key(12, 6)]).toBe(FIELD_INF);
+  });
+});
