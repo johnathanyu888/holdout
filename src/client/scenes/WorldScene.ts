@@ -85,6 +85,8 @@ export class WorldScene extends Phaser.Scene {
     this.on(store.contraption.subscribe((c) => this.entities.sync(c)));
     // Repairing a map machine changes what's on the board too.
     this.on(session.repaired.subscribe(() => this.entities.sync(store.current)));
+    // Clearing a rock opens its tile (and the paths through it).
+    this.on(session.cleared.subscribe(() => this.entities.sync(store.current)));
     this.on(
       session.tool.subscribe((id) => {
         // Picking a hotbar item drops any selection (and its part card).
@@ -238,6 +240,7 @@ export class WorldScene extends Phaser.Scene {
     session.store.load({ house: null, parts: [], wires: [], walls: [], nextId: 1 });
     session.bought.set({});
     session.repaired.set([]);
+    session.cleared.set([]);
     session.shopOpen.set(false);
     session.selected.set(null);
     session.tool.set('select');

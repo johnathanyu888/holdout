@@ -200,6 +200,21 @@ A Shambler (100 HP, ~1.1s a tile) takes ~66 from one const saw; two in a row kil
 
 ---
 
+# PHASE 4b: Power rework, new parts, rocks (Track 1)
+**Why:** the always-on inlet let players skip sensors and routing. It now stays useful but can't run a whole defense.
+- **Inlet:** strength 15 → 6; powers at most 3 action parts (the 3 it reaches strongest, ties by part id), fixed for the raid from the build preview. Inlet blink mode removed.
+- **Power origin:** floods are split into inlet power and sensor power. Chips pass the origin on (a delay remembers it per step, a latch from what set it). Only inlet-origin power is capped.
+- **Strength → damage and wear:** damage × strength ÷ 9; wear += damage × strength ÷ 9; a part past its durability is worn out for the raid. Needs drop (saw 1, spikes 1, tesla 3, piston 1) so weak power still works, just softly.
+- **Piston:** action, rotatable. On power arriving it shoves zombies on the tile in front one tile on (20 damage if a wall or rock is in the way). 1s cooldown.
+- **Latch:** chip, rotatable. Set on the back pin, reset on the side pin, steady power out the front.
+- **Rocks:** `DayConfig.obstacles`. Block zombies, parts and wire. Tap to clear for 0:30 of Build time.
+- **Veteran build:** a ready-made build on the briefing for the demo (next).
+- **Next after this:** zombies that learn (avoid tiles where others died).
+
+**Done when:** tests cover the load cap, origin through chips, damage/wear scaling, piston pushes, latch set/reset and rocks blocking paths; the build preview shows which parts the inlet powers.
+
+---
+
 # PHASE 5: Zombies, pathing, walls, combat (Track 2)
 **5.1 Zombie model and roster**
 State: `id, type, x, y` (tile-unit floats), `hp`, `vx, vy`, `state: walking|bashing|dead`, `slowMul`, `lastWallHit: Map<wallId, tick>`, `ext`. Roster: **Shambler** 100 HP, 0.9 tiles/s, r 0.3; optional **Runner** 60 HP, 1.8 tiles/s. A fixed demo Mutation card is a stat multiplier with no ability. Dead zombies are removed next step with a `death` event.

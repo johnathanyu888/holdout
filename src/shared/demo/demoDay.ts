@@ -17,6 +17,8 @@ export const demoDay: DayConfig = {
     delay: 2,
     saw_blade: 3,
     spike_floor: 3,
+    piston: 2,
+    latch: 1,
   },
   materials: { wire: 36, wood: 24, stone: 0 },
   buildSeconds: 240,
@@ -32,6 +34,13 @@ export const demoDay: DayConfig = {
   par: 1000,
   // A broken Tesla coil near the inlet: 2:00 of build time to bring it back.
   fixtures: [{ type: 'tesla_coil', x: 6, y: 8, rot: 0, broken: true, repairSeconds: 120 }],
+  // Rocks bend the paths in; clearing one costs 0:30 of build time.
+  obstacles: [
+    { type: 'rock', x: 3, y: 5, clearSeconds: 30 },
+    { type: 'rock', x: 12, y: 10, clearSeconds: 30 },
+    { type: 'rock', x: 8, y: 13, clearSeconds: 30 },
+    { type: 'rock', x: 13, y: 2, clearSeconds: 30 },
+  ],
 };
 
 /** Sandbox: same map and inlet, effectively unlimited kit and materials, no clock pressure. */

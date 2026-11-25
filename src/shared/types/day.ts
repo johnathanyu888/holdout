@@ -35,7 +35,7 @@ export interface DayConfig {
   /** Mutation card name shown in the briefing, e.g. "Shamblers". */
   mutationName: string;
   mutationBlurb: string;
-  /** The map's one power inlet (always on, strength 15). */
+  /** The map's one power inlet (always on, strength 6, powers at most 3 action parts). */
   inlet: Tile;
   /** The house can't go within this many tiles of the lawn edge. */
   houseBand: number;
@@ -51,6 +51,16 @@ export interface DayConfig {
   par: number;
   /** Machines already on the map (wire into them, can't move or remove them). */
   fixtures?: Fixture[];
+  /** Rocks: block zombies, parts and wire until cleared (costs build time). */
+  obstacles?: Obstacle[];
+}
+
+export interface Obstacle {
+  type: 'rock';
+  x: number;
+  y: number;
+  /** Build time it takes to clear, in seconds. */
+  clearSeconds: number;
 }
 
 /**

@@ -12,8 +12,6 @@ import Phaser from 'phaser';
 import { GRID, TILE, TILE_COUNT, key, tileToWorld } from '@shared/grid';
 import { workingFixtures } from '@shared/build/fixtures';
 import {
-  INLET_BLINK_STEPS,
-  INLET_PART_ID,
   blinkerFloods,
   hasPartDef,
   partDef,
@@ -56,13 +54,32 @@ const SIDES: [dx: number, dy: number, turns: number][] = [
 ];
 
 /**
- * 0..1 brightness for a wire at this signal strength: 1 at 15 (next to the inlet),
- * falling evenly to 0.3 at strength 1 so even the weakest live wire still reads
- * as live; 0 when unpowered.
+ * 0..1 brightness for a wire at this signal strength: 1 at full power (9+, next
+ * to a sensor or delay), falling toward dim at strength 1; 0 when unpowered.
+ * The weak inlet (6) reads as clearly dimmer than sensor power.
  */
 function wireBrightness(strength: number): number {
   if (strength <= 0) return 0;
-  return 0.06 + 0.94 * Math.min(1, (strength - 1) / 14) ** 1.3;
+  return 0.06 + 0.94 * Math.min(1, (strength - 1) / 8) ** 1.3;
+}
+
+/** A grey boulder seen from above, drawn once into a texture. */
+function rockTexture(scene: Phaser.Scene): string {
+  const key = 'map-rock';
+  if (scene.textures.exists(key)) return key;
+  const g = scene.add.graphics();
+  // soft shadow, then the body in three tones, then a few cracks
+  g.fillStyle(0x000000, 0.28).fillEllipse(34, 40, 58, 40);
+  g.fillStyle(0x5d5a55, 1).fillEllipse(32, 33, 56, 46);
+  g.fillStyle(0x76726b, 1).fillEllipse(30, 30, 48, 38);
+  g.fillStyle(0x8f8a82, 1).fillEllipse(25, 25, 26, 18);
+  g.fillStyle(0x6a6660, 1).fillEllipse(44, 38, 18, 12);
+  g.lineStyle(1.6, 0x45423e, 0.9).lineBetween(31, 18, 36, 30).lineBetween(36, 30, 33, 41);
+  g.lineStyle(1.4, 0x45423e, 0.7).lineBetween(16, 34, 25, 37);
+  g.fillStyle(0x4f7a3a, 0.9).fillEllipse(14, 46, 12, 5); // a tuft of moss
+  g.generateTexture(key, 64, 60);
+  g.destroy();
+  return key;
 }
 
 /** Linear blend between two 0xRRGGBB colours. */
@@ -102,6 +119,8 @@ export class EntityLayer {
   /** Blinking delays in the build preview, and a scratch tick layer to combine them into. */
   private blinkers: ReturnType<typeof blinkerFloods> = [];
   private readonly livePowerT = new Uint8Array(TILE_COUNT);
+  /** Rocks on the map, by tile key. */
+  private readonly rocks = new Map<number, Phaser.GameObjects.Image>();
 
   constructor(
     private readonly scene: Phaser.Scene,
@@ -131,6 +150,7 @@ export class EntityLayer {
     // The player's parts plus the map's repaired machines; broken ones draw apart.
     this.allParts = [...c.parts, ...workingFixtures(this.day)];
     this.syncBroken();
+    this.syncRocks();
     this.blinkers = blinkerFloods(c, this.preview, this.day);
 
     // House
@@ -242,6 +262,31 @@ export class EntityLayer {
       }
   }
 
+  /** Creates / removes rock sprites to match the day's rocks (cleared ones go). */
+  private syncRocks(): void {
+    const want = new Set<number>();
+    for (const o of this.day.obstacles ?? []) {
+      const k = key(o.x, o.y);
+      want.add(k);
+      if (this.rocks.has(k)) continue;
+      const p = tileToWorld(o.x, o.y);
+      // A little turn and size per tile so rocks don't look stamped.
+      const v = (o.x * 7 + o.y * 13) % 5;
+      const s = this.scene.add
+        .image(p.x, p.y + 2, rockTexture(this.scene))
+        .setAngle(v * 37)
+        .setScale(0.92 + v * 0.03)
+        .setDepth(DEPTH.parts + p.y);
+      this.rocks.set(k, s);
+    }
+    for (const [k, s] of this.rocks)
+      if (!want.has(k)) {
+        // Cleared: crumble away.
+        this.scene.tweens.add({ targets: s, alpha: 0, scale: s.scale * 0.6, duration: 280, onComplete: () => s.destroy() });
+        this.rocks.delete(k);
+      }
+  }
+
   /** Creates / removes the broken-machine sprites to match the day's fixtures. */
   private syncBroken(): void {
     const fixtures = this.day.fixtures ?? [];
@@ -319,13 +364,9 @@ export class EntityLayer {
     this.updateBroken(time);
     this.drawCurrent(time, powerC, powerT);
 
-    // The inlet: a slow breath when steady; set to blink, it flashes with its beat.
-    if (this.c.inlet?.blink) {
-      const on = sim ? Math.floor(sim.tick / INLET_BLINK_STEPS) % 2 === 0 : blinkOn.has(INLET_PART_ID);
-      this.inlet.setScale(PART_SCALE * (on ? 1.07 : 1)).setTint(on ? 0xfff0c8 : 0x8f8f8f);
-    } else {
-      this.inlet.setScale(PART_SCALE * (1 + 0.035 * Math.sin(time * 3))).clearTint();
-    }
+    // The inlet is always on: a slow breath so it reads as live.
+    this.inlet.setScale(PART_SCALE * (1 + 0.035 * Math.sin(time * 3)));
+    const loaded = new Set(this.preview?.loaded ?? []);
 
     const simParts = sim ? new Map(sim.parts.map((p) => [p.id, p])) : null;
     this.poweredIds.clear();
@@ -339,7 +380,14 @@ export class EntityLayer {
           ? partInput(part, powerC, powerT)
           : (this.preview?.inputs.get(part.id) ?? { c: 0, t: 0 });
       const def = hasPartDef(part.type) ? partDef(part.type) : null;
-      const powered = !def || def.kind !== 'action' || Math.max(input.c, input.t) >= def.needs;
+      // Worn out: dark and still for the rest of the raid.
+      if (sp?.s.worn) {
+        s.setTint(0x55504c).setScale(PART_SCALE * 0.96);
+        continue;
+      }
+      // Build preview: an action only runs if it's one of the inlet's few parts.
+      const capped = !sp && def?.kind === 'action' && !loaded.has(part.id);
+      const powered = !def || def.kind !== 'action' || (!capped && Math.max(input.c, input.t) >= def.needs);
       if (powered && def?.kind === 'action') this.poweredIds.add(part.id);
       const view = partView(part.type);
       if (view.update) view.update(s, { time, powered, sim: sp, on: sp ? sp.active : blinkOn.has(part.id) });
@@ -429,6 +477,7 @@ export class EntityLayer {
 
   private glow: Phaser.GameObjects.Image | null = null;
   private rangeG: Phaser.GameObjects.Graphics | null = null;
+  private rangeFx: Phaser.GameObjects.Graphics | null = null;
   /** Action parts with enough power this frame (only these show a range circle). */
   private readonly poweredIds = new Set<number>();
 
@@ -439,17 +488,57 @@ export class EntityLayer {
    */
   private drawRanges(sel: { x: number; y: number } | null, time: number): void {
     this.rangeG ??= this.scene.add.graphics().setDepth(DEPTH.parts - 50);
+    this.rangeFx ??= this.scene.add.graphics().setDepth(DEPTH.parts - 49).setBlendMode(Phaser.BlendModes.ADD);
     const g = this.rangeG;
+    const fx = this.rangeFx;
     g.clear();
-    const pulse = 0.5 + 0.5 * Math.sin(time * 4.2);
+    fx.clear();
     for (const p of this.allParts) {
       const range = hasPartDef(p.type) ? partDef(p.type).range : undefined;
       if (!range || !this.poweredIds.has(p.id)) continue;
       const selected = !!sel && sel.x === p.x && sel.y === p.y;
       const c = tileToWorld(p.x, p.y);
       const r = range * TILE;
-      g.fillStyle(0xffffff, selected ? 0.12 + 0.05 * pulse : 0.07).fillCircle(c.x, c.y, r);
-      g.lineStyle(selected ? 3 : 2, 0xffffff, selected ? 0.55 + 0.3 * pulse : 0.28).strokeCircle(c.x, c.y, r);
+      const boost = selected ? 1.6 : 1;
+      // The reach itself: a faint disc and rim, always there.
+      g.fillStyle(0xffffff, 0.04 * boost).fillCircle(c.x, c.y, r);
+      g.lineStyle(selected ? 2.5 : 1.5, 0xffffff, 0.22 * boost).strokeCircle(c.x, c.y, r);
+      // A pulse: a see-through disc that widens from the part out to the rim, then
+      // starts again (each part offset a little so they don't beat in step).
+      const period = 1.7;
+      const k = (((time + p.id * 0.37) % period) + period) % period / period;
+      const e = 1 - (1 - k) ** 3;
+      const fade = k < 0.75 ? 1 : 1 - (k - 0.75) / 0.25;
+      g.fillStyle(0xffffff, 0.09 * fade * boost).fillCircle(c.x, c.y, r * e);
+      g.lineStyle(2, 0xffffff, 0.45 * fade * boost).strokeCircle(c.x, c.y, r * e);
+      if (p.type === 'tesla_coil') this.drawRimArcs(fx, c.x, c.y, r, time, p.id, boost);
+    }
+  }
+
+  /**
+   * Tesla coils crackle round the edge of their reach: a few short jagged arcs
+   * that crawl along the rim, re-rolled several times a second.
+   */
+  private drawRimArcs(g: Phaser.GameObjects.Graphics, cx: number, cy: number, r: number, time: number, id: number, boost: number): void {
+    const frame = Math.floor(time * 14);
+    const rnd = (n: number) => {
+      const x = Math.sin((frame * 12.9898 + id * 78.233 + n * 37.719) * 43758.5453);
+      return x - Math.floor(x);
+    };
+    const arcs = 4;
+    for (let a = 0; a < arcs; a++) {
+      const start = (a / arcs) * Math.PI * 2 + time * 0.9 + rnd(a) * 0.8;
+      const span = 0.35 + rnd(a + 10) * 0.35;
+      const pts: { x: number; y: number }[] = [];
+      const n = 8;
+      for (let i = 0; i <= n; i++) {
+        const t = start + (span * i) / n;
+        const jitter = i === 0 || i === n ? 0 : (rnd(a * 20 + i) - 0.5) * 9;
+        pts.push({ x: cx + Math.cos(t) * (r + jitter), y: cy + Math.sin(t) * (r + jitter) });
+      }
+      const flicker = 0.55 + 0.45 * rnd(a + 40);
+      g.lineStyle(5, 0x5fd8ff, 0.18 * flicker * boost).strokePoints(pts);
+      g.lineStyle(1.8, 0xe8fbff, 0.8 * flicker * Math.min(1, boost)).strokePoints(pts);
     }
   }
 
@@ -487,6 +576,8 @@ export class EntityLayer {
 
   destroy(): void {
     this.rangeG?.destroy();
+    this.rangeFx?.destroy();
+    for (const s of this.rocks.values()) s.destroy();
     for (const b of this.broken.values()) {
       b.sprite.destroy();
       b.badge.destroy();

@@ -89,7 +89,10 @@ function houseTool(env: ToolEnv): BuildTool {
     capturesDrag: false,
     onTap: (p) => {
       if (!p.tile || autoSelect(env, p.tile)) return;
-      report(env, env.store.apply((c) => placeHouse(env.day, c, p.tile!.x, p.tile!.y)));
+      const reason = env.store.apply((c) => placeHouse(env.day, c, p.tile!.x, p.tile!.y));
+      report(env, reason);
+      // Placed: put the tool away, so the next tap selects instead of moving the house.
+      if (!reason) env.putAway();
     },
     ghost: (t) =>
       t && {

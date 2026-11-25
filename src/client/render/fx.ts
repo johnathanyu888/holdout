@@ -202,6 +202,27 @@ export class FxLayer {
         case 'zap':
           this.lightning(e.x, e.y, e.to);
           break;
+        case 'worn': {
+          // Worn out: a shudder and a puff of grey smoke, then it stays dark.
+          const s = this.entities.partSprite(e.partId);
+          if (!s) break;
+          this.scene.tweens.add({ targets: s, angle: { from: s.angle - 8, to: s.angle }, duration: 260, ease: 'Elastic.easeOut' });
+          for (let i = 0; i < 6; i++) {
+            const puff = this.scene.add
+              .circle(s.x + (Math.random() - 0.5) * 24, s.y + (Math.random() - 0.5) * 16, 7 + Math.random() * 6, 0x8a8580, 0.55)
+              .setDepth(s.depth + 2);
+            this.scene.tweens.add({
+              targets: puff,
+              y: puff.y - 26 - Math.random() * 20,
+              scale: 1.8,
+              alpha: 0,
+              duration: 700 + Math.random() * 300,
+              ease: 'Quad.easeOut',
+              onComplete: () => puff.destroy(),
+            });
+          }
+          break;
+        }
         case 'partFired': {
           const s = this.entities.partSprite(e.partId);
           if (s) {

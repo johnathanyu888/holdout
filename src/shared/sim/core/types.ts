@@ -17,8 +17,20 @@ export const STEPS_PER_SECOND = 10;
 export const STEP_SECONDS = 1 / STEPS_PER_SECOND;
 
 /** Signal strength from the power inlet and from triggers/chips. */
-export const INLET_STRENGTH = 15;
+export const INLET_STRENGTH = 6;
 export const SOURCE_STRENGTH = 10;
+/** The inlet powers at most this many action parts (the ones it reaches strongest). */
+export const INLET_MAX_LOAD = 3;
+/**
+ * Strength that counts as full power (a sensor one wire tile away). Damage and
+ * wear scale with strength / FULL_POWER.
+ */
+export const FULL_POWER = 9;
+
+/** Damage multiplier for a part running at `strength`. */
+export function powerMul(strength: number): number {
+  return Math.min(SOURCE_STRENGTH, Math.max(0, strength)) / FULL_POWER;
+}
 
 export type Layer = 'c' | 't';
 
@@ -26,6 +38,8 @@ export type Layer = 'c' | 't';
 export interface Signal {
   layer: Layer;
   strength: number;
+  /** Power that started at the inlet (directly or through chips). Only inlet power is capped. */
+  inlet?: boolean;
 }
 
 /** Power arriving at a part this step, per layer (0 = none). */
@@ -67,8 +81,10 @@ export interface SimPart {
   config: Record<string, number>;
   /** The part's own state (its PartDef owns the shape). */
   s: Record<string, number>;
-  /** Power that reached the part in the latest flood. */
+  /** Power that reached the part in the latest flood (inlet power only if the part is on the inlet's load). */
   input: PowerIn;
+  /** The sensor-made part of `input` (chips use it to tell where their power came from). */
+  sens: PowerIn;
   /** What the part emits into the next flood (triggers this step, chips one step later). */
   output: Signal | null;
   /** True while the part is visibly working (for the renderer: spinning, spikes up...). */
@@ -96,9 +112,16 @@ export interface SimState {
   /** Wall HP per tile (0 = no wall). */
   wallHp: Int16Array;
   wallMat: (WallMaterial | null)[];
-  /** Latest flood: strength per tile, per layer. */
+  /** Latest flood: strength per tile, per layer (inlet and sensor power combined). */
   powerC: Uint8Array;
   powerT: Uint8Array;
+  /** The same flood split by origin: sensor-made, and inlet-made. */
+  sensC: Uint8Array;
+  sensT: Uint8Array;
+  inletC: Uint8Array;
+  inletT: Uint8Array;
+  /** Ids of the action parts the inlet powers (fixed for the raid, from the build preview). */
+  inletLoad: number[];
   zombies: Zombie[]; // sorted by id
   nextZombieId: number;
   schedule: SpawnEntry[];
@@ -108,8 +131,6 @@ export interface SimState {
   fieldDirty: boolean;
   outcome: Outcome;
   stats: { spawned: number; killed: number; breachBy: number | null };
-  /** 1 = the power inlet blinks (0.5s on as a tick, 0.5s off); 0 = steady. */
-  inletBlink: number;
 }
 
 /** Helpers handed to part and zombie code each step. */
@@ -118,8 +139,13 @@ export interface SimCtx {
   emit(e: SimEvent): void;
   /** Live zombies whose centre is in tile (x, y), in id order. */
   zombiesOn(x: number, y: number): Zombie[];
-  /** Deals damage (emits hit, and death when it kills). */
+  /**
+   * Deals damage from a part: scaled by the strength powering it (powerMul), and
+   * wears the part by the damage dealt times that same multiplier. Emits hit / death.
+   */
   damage(z: Zombie, amount: number, partId: number): void;
+  /** Wears a part by `amount` (already scaled by the caller); it stops for good past its durability. */
+  wear(part: SimPart, amount: number): void;
 }
 
 /**
@@ -143,10 +169,14 @@ export interface PartDef {
    * a part reads the strongest wire on any side and emits into all of them.
    */
   pins?: { in: number[]; out: number[] };
+  /** Wear a part can take before it stops for the raid (see SimCtx.damage). Absent = never wears out. */
+  durability?: number;
   /** Ranged parts: how far (tiles, from the tile centre) they reach zombies. Drawn as a range circle. */
   range?: number;
   /** Chips: in the build preview, does constant power in mean constant power out? (default true) */
   passesConstant?: boolean | ((config: Record<string, number>) => boolean);
+  /** Chips: build preview override, from the steady flood (e.g. a latch reads its set and reset pins). */
+  previewOn?(part: { x: number; y: number; rot: number }, powerC: Uint8Array): boolean;
   initState(part: SimPart): Record<string, number>;
   /** Triggers: read the world, return what to emit into this step's flood. */
   sense?(ctx: SimCtx, part: SimPart): Signal | null;

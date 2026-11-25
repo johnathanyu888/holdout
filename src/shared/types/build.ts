@@ -33,8 +33,6 @@ export interface Contraption {
   walls: WallTile[];
   /** Next part id to hand out. */
   nextId: number;
-  /** The map's power inlet setting: blink = 1 pulses it on/off every 0.5s (as ticks); absent = steady. */
-  inlet?: { blink?: number };
 }
 
 export function emptyContraption(): Contraption {

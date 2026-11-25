@@ -17,12 +17,16 @@ import type { DayConfig } from '../../types/day';
 import type { SimEvent } from './events';
 import { FIELD_INF, computeField, nextTile } from './pathing';
 import { type Source, flood, floodLayer, inputAt, inputFromSides, sideKey } from './power';
+import { ROCK_HP, rockTiles } from '../../build/rocks';
 import { hasPartDef, partDef, zombieDef } from './registry';
 import { seedRng } from './rng';
 import { buildSchedule } from './spawn';
 import {
+  FULL_POWER,
+  INLET_MAX_LOAD,
   INLET_STRENGTH,
   SOURCE_STRENGTH,
+  powerMul,
   STEP_SECONDS,
   STEPS_PER_SECOND,
   type PowerIn,
@@ -35,10 +39,6 @@ import {
 } from './types';
 
 export const WALL_HP: Record<WallMaterial, number> = { wood: 120, stone: 300 };
-/** A blinking inlet is on for this many steps, then off for as many (0.5s each). */
-export const INLET_BLINK_STEPS = 5;
-/** Stand-in id for the inlet in blinker lists. */
-export const INLET_PART_ID = -1;
 /** Zombies closer than this (centre to centre, tiles) push apart. */
 export const SEPARATION = 0.5;
 /** A zombie whose centre gets this close to the house centre breaches it. */
@@ -64,6 +64,7 @@ export function createSim(day: DayConfig, c: Contraption, opts: SimOptions = {})
         config: { ...(hasPartDef(p.type) ? partDef(p.type).defaultConfig : {}), ...p.config },
         s: {},
         input: { c: 0, t: 0 },
+        sens: { c: 0, t: 0 },
         output: null,
         active: false,
       };
@@ -81,6 +82,8 @@ export function createSim(day: DayConfig, c: Contraption, opts: SimOptions = {})
     wallHp[key(w.x, w.y)] = WALL_HP[w.material];
     wallMat[key(w.x, w.y)] = w.material;
   }
+  // Rocks: solid for the whole raid (zombies path round them).
+  for (const k of rockTiles(day)) wallHp[k] = ROCK_HP;
   const st: SimState = {
     day,
     tick: 0,
@@ -93,6 +96,11 @@ export function createSim(day: DayConfig, c: Contraption, opts: SimOptions = {})
     wallMat,
     powerC: new Uint8Array(TILE_COUNT),
     powerT: new Uint8Array(TILE_COUNT),
+    sensC: new Uint8Array(TILE_COUNT),
+    sensT: new Uint8Array(TILE_COUNT),
+    inletC: new Uint8Array(TILE_COUNT),
+    inletT: new Uint8Array(TILE_COUNT),
+    inletLoad: powerPreview(day, c).loaded,
     zombies: [],
     nextZombieId: 1,
     schedule: opts.schedule ? [...opts.schedule].sort((a, b) => a.step - b.step) : buildSchedule(day.spawns),
@@ -101,7 +109,6 @@ export function createSim(day: DayConfig, c: Contraption, opts: SimOptions = {})
     fieldDirty: true,
     outcome: 'running',
     stats: { spawned: 0, killed: 0, breachBy: null },
-    inletBlink: c.inlet?.blink ? 1 : 0,
   };
   refreshField(st);
   return st;
@@ -114,12 +121,28 @@ function refreshField(st: SimState): void {
 }
 
 function makeCtx(st: SimState, events: SimEvent[]): SimCtx {
+  const wear = (p: SimPart, amount: number) => {
+    const dur = hasPartDef(p.type) ? partDef(p.type).durability : undefined;
+    if (!dur || p.s.worn || amount <= 0) return;
+    p.s.wear = (p.s.wear ?? 0) + amount;
+    if ((p.s.wear ?? 0) >= dur) {
+      p.s.worn = 1;
+      p.active = false;
+      events.push({ type: 'worn', partId: p.id });
+    }
+  };
   return {
     state: st,
     emit: (e) => events.push(e),
     zombiesOn: (x, y) => st.zombies.filter((z) => !z.dead && Math.floor(z.x) === x && Math.floor(z.y) === y),
-    damage: (z, amount, partId) => {
-      if (z.dead || amount <= 0) return;
+    wear,
+    damage: (z, base, partId) => {
+      if (z.dead || base <= 0) return;
+      // Stronger power hits harder, and wears the part by the damage times the same factor.
+      const p = st.parts.find((q) => q.id === partId);
+      const m = p ? powerMul(p.s.pw ?? FULL_POWER) : 1;
+      const amount = Math.max(1, Math.round(base * m));
+      if (p) wear(p, amount * m);
       z.hp -= amount;
       events.push({ type: 'hit', id: z.id, partId, amount, x: z.x, y: z.y });
       if (z.hp <= 0) {
@@ -210,9 +233,16 @@ export function step(st: SimState): SimEvent[] {
   // 3. power
   runFlood(st);
 
-  // 4. act
+  // 4. act (worn-out parts are done for the raid)
   for (const p of st.parts) {
     if (!hasPartDef(p.type)) continue;
+    if (p.s.worn) {
+      p.active = false;
+      continue;
+    }
+    // The strength it runs at (kept through a tick's short window after the power is gone).
+    const pw = Math.max(p.input.c, p.input.t);
+    if (pw > 0) p.s.pw = pw;
     partDef(p.type).act?.(ctx, p, p.input);
   }
 
@@ -228,16 +258,26 @@ export function step(st: SimState): SimEvent[] {
 }
 
 function runFlood(st: SimState): void {
-  // The inlet: steady power, or (blinking) a tick for 5 steps then nothing for 5.
-  const inletK = key(st.day.inlet.x, st.day.inlet.y);
-  const sources: Source[] = !st.inletBlink
-    ? [{ k: inletK, layer: 'c', strength: INLET_STRENGTH }]
-    : Math.floor(st.tick / INLET_BLINK_STEPS) % 2 === 0
-      ? [{ k: inletK, layer: 't', strength: INLET_STRENGTH }]
-      : [];
+  // Inlet-made and sensor-made power flood separately, so the inlet's load can be capped.
+  const sources: Source[] = [{ k: key(st.day.inlet.x, st.day.inlet.y), layer: 'c', strength: INLET_STRENGTH, inlet: true }];
   for (const p of st.parts) if (p.output) sources.push(...partSources(p, p.output));
-  flood(st.wire, sources, st.powerC, st.powerT);
-  for (const p of st.parts) p.input = partInput(p, st.powerC, st.powerT);
+  flood(st.wire, sources.filter((s) => !s.inlet), st.sensC, st.sensT);
+  flood(st.wire, sources.filter((s) => s.inlet), st.inletC, st.inletT);
+  for (let k = 0; k < TILE_COUNT; k++) {
+    st.powerC[k] = Math.max(st.sensC[k] as number, st.inletC[k] as number);
+    st.powerT[k] = Math.max(st.sensT[k] as number, st.inletT[k] as number);
+  }
+  const load = new Set(st.inletLoad);
+  for (const p of st.parts) {
+    const s = partInput(p, st.sensC, st.sensT);
+    p.sens = s;
+    const action = hasPartDef(p.type) && partDef(p.type).kind === 'action';
+    if (action && !load.has(p.id)) p.input = s;
+    else {
+      const i = partInput(p, st.inletC, st.inletT);
+      p.input = { c: Math.max(s.c, i.c), t: Math.max(s.t, i.t) };
+    }
+  }
 }
 
 /** Where a part's output goes: all four sides, or only its `out` pins. */
@@ -258,16 +298,11 @@ export function blinkerFloods(
   preview: { powerC: Uint8Array; powerT: Uint8Array },
   day?: DayConfig,
 ): { id: number; steps: number; powerT: Uint8Array }[] {
+  const all = day ? [...c.parts, ...workingFixtures(day)] : c.parts;
   const wire = new Uint8Array(TILE_COUNT);
   for (const w of c.wires) wire[key(w.x, w.y)] = 1;
   const out: { id: number; steps: number; powerT: Uint8Array }[] = [];
-  // A blinking inlet beats too (id INLET_PART_ID).
-  if (day && c.inlet?.blink) {
-    const t = new Uint8Array(TILE_COUNT);
-    floodLayer(wire, [{ k: key(day.inlet.x, day.inlet.y), layer: 't', strength: INLET_STRENGTH }], t);
-    out.push({ id: INLET_PART_ID, steps: INLET_BLINK_STEPS, powerT: t });
-  }
-  for (const p of c.parts) {
+  for (const p of all) {
     if (!hasPartDef(p.type) || partDef(p.type).kind !== 'chip') continue;
     const cfg = { ...partDef(p.type).defaultConfig, ...p.config };
     if (!cfg.blink) continue;
@@ -418,24 +453,25 @@ export function snapshot(st: SimState): SimState {
 export function powerPreview(
   day: DayConfig,
   c: Contraption,
-): { powerC: Uint8Array; powerT: Uint8Array; inputs: Map<number, PowerIn> } {
+): { powerC: Uint8Array; powerT: Uint8Array; inputs: Map<number, PowerIn>; loaded: number[] } {
   const wire = new Uint8Array(TILE_COUNT);
   for (const w of c.wires) wire[key(w.x, w.y)] = 1;
   const powerC = new Uint8Array(TILE_COUNT);
   const powerT = new Uint8Array(TILE_COUNT);
-  const inlet: Source = { k: key(day.inlet.x, day.inlet.y), layer: 'c', strength: INLET_STRENGTH };
+  const inlet: Source = { k: key(day.inlet.x, day.inlet.y), layer: 'c', strength: INLET_STRENGTH, inlet: true };
   const all = [...c.parts, ...workingFixtures(day)];
   const chips = all.filter((p) => hasPartDef(p.type) && partDef(p.type).kind === 'chip');
   const passing = new Set<number>();
   for (let pass = 0; pass <= chips.length; pass++) {
-    const sources: Source[] = c.inlet?.blink ? [] : [inlet];
+    const sources: Source[] = [inlet];
     for (const p of chips) if (passing.has(p.id)) sources.push(...partSources(p, { layer: 'c', strength: SOURCE_STRENGTH }));
     flood(wire, sources, powerC, powerT);
     let changed = false;
     for (const p of chips) {
-      const pc = partDef(p.type).passesConstant;
-      const passes = typeof pc === 'function' ? pc({ ...partDef(p.type).defaultConfig, ...p.config }) : pc !== false;
-      const on = partInput(p, powerC, powerT).c > 0 && passes;
+      const def = partDef(p.type);
+      const pc = def.passesConstant;
+      const passes = typeof pc === 'function' ? pc({ ...def.defaultConfig, ...p.config }) : pc !== false;
+      const on = def.previewOn ? def.previewOn(p, powerC) : partInput(p, powerC, powerT).c > 0 && passes;
       if (on !== passing.has(p.id)) {
         changed = true;
         if (on) passing.add(p.id);
@@ -446,7 +482,21 @@ export function powerPreview(
   }
   const inputs = new Map<number, PowerIn>();
   for (const p of all) inputs.set(p.id, partInput(p, powerC, powerT));
-  return { powerC, powerT, inputs };
+  // Blinking delays send ticks, not steady power; their beat counts as reaching a part too.
+  const beat = new Uint8Array(TILE_COUNT);
+  for (const b of blinkerFloods(c, { powerC, powerT }, day))
+    for (let k = 0; k < TILE_COUNT; k++) if ((b.powerT[k] as number) > (beat[k] as number)) beat[k] = b.powerT[k] as number;
+  // The inlet's load: the INLET_MAX_LOAD action parts it reaches strongest (ties: placed first).
+  const reach = all
+    .filter((p) => hasPartDef(p.type) && partDef(p.type).kind === 'action')
+    .map((p) => {
+      const got = partInput(p, powerC, beat);
+      return { id: p.id, s: Math.max(got.c, got.t), needs: partDef(p.type).needs };
+    })
+    .filter((r) => r.s > 0 && r.s >= r.needs)
+    .sort((a, b) => b.s - a.s || a.id - b.id);
+  const loaded = reach.slice(0, INLET_MAX_LOAD).map((r) => r.id);
+  return { powerC, powerT, inputs, loaded };
 }
 
 // ---- hashing (determinism goldens) ------------------------------------------

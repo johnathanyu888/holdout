@@ -1,10 +1,10 @@
 // The DOM UI over the canvas. Reads the session; calls session.actions.
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
-import { WALL_COST, configureInlet, configurePart } from '@shared/build/rules';
-import { hasPartDef, partDef, powerPreview } from '@shared/sim';
+import { WALL_COST, configurePart } from '@shared/build/rules';
+import { INLET_MAX_LOAD, INLET_STRENGTH, hasPartDef, partDef, powerMul, powerPreview } from '@shared/sim';
 import { useObs } from '../core/observable';
-import { buy, repairFixture, session, toast } from '../core/session';
+import { buy, clearRock, repairFixture, session, toast } from '../core/session';
 import { canAffordAny, shopFor } from '../core/shop';
 import { fixtureAt, workingFixtures } from '@shared/build/fixtures';
 import {
@@ -34,6 +34,7 @@ export function App() {
       {phase === 'build' && session.mode === 'demo' && <Shop />}
       {phase === 'build' && <Inspector />}
       {phase === 'build' && <InletCard />}
+      {phase === 'build' && <RockCard />}
       {phase === 'build' && session.mode === 'demo' && <TimeWarning />}
       {phase === 'raid' && <RaidBar />}
       {phase === 'result' && <Result />}
@@ -537,41 +538,64 @@ function useFloatingCard(anchor: { x: number; y: number; size: number } | null) 
 }
 
 /**
- * The power inlet's card: it's always on, and can run steady or blink every 0.5s
- * (blinking sends ticks, like a Blink delay, so spikes punch on each beat).
+ * The power inlet's card: steady but weak (strength 6), and it only powers the
+ * INLET_MAX_LOAD action parts it reaches strongest. Shows how many are in use.
  */
 function InletCard() {
   const sel = useObs(session.selected);
   const anchor = useObs(session.selAnchor);
   const c = useObs(session.store.contraption);
+  useObs(session.repaired);
   const isInlet = !!sel && sel.x === session.day.inlet.x && sel.y === session.day.inlet.y;
   const { ref, below, style } = useFloatingCard(isInlet ? anchor : null);
   if (!isInlet || !anchor) return null;
-  const blink = !!c.inlet?.blink;
-  const set = (b: number) => session.store.apply((cc) => configureInlet(cc, b));
+  const used = powerPreview(session.day, c).loaded.length;
   return (
     <div class={`inspector floating ${below ? 'below' : 'above'}`} ref={ref} style={style}>
       <img src={icon('power_inlet')} alt="" />
       <div class="insp-body">
         <div class="insp-title">
           Power inlet
-          <span class="insp-power ok">Always on · 15</span>
+          <span class={`insp-power ${used < INLET_MAX_LOAD ? 'ok' : 'bad'}`}>
+            {used} of {INLET_MAX_LOAD} in use
+          </span>
         </div>
         <div class="insp-sub">
-          {blink
-            ? 'Blinking: a tick every 0.5s, then a 0.5s gap. Spikes punch on every beat.'
-            : 'Steady: powers whatever it is wired to, non-stop.'}
+          Steady but weak ({INLET_STRENGTH}). Powers the {INLET_MAX_LOAD} nearest parts wired to it; sensors power the rest.
         </div>
-        <div class="insp-controls">
-          <div class="insp-seg" role="group" aria-label="Inlet mode">
-            <button class={!blink ? 'on' : ''} onClick={() => set(0)}>
-              Steady
-            </button>
-            <button class={blink ? 'on blink' : ''} onClick={() => set(1)}>
-              Blink 0.5s
-            </button>
-          </div>
-        </div>
+      </div>
+    </div>
+  );
+}
+
+/** A rock: what it does, and the button to clear it for build time. */
+function RockCard() {
+  const sel = useObs(session.selected);
+  const anchor = useObs(session.selAnchor);
+  useObs(session.cleared);
+  const left = useObs(session.clock.left);
+  const rock = sel ? (session.day.obstacles ?? []).find((o) => o.x === sel.x && o.y === sel.y) : undefined;
+  const { ref, below, style } = useFloatingCard(rock ? anchor : null);
+  if (!rock || !anchor) return null;
+  const can = session.mode !== 'demo' || left - rock.clearSeconds >= 5;
+  return (
+    <div class={`inspector floating ${below ? 'below' : 'above'}`} ref={ref} style={style}>
+      <div class="insp-rock" aria-hidden="true" />
+      <div class="insp-body">
+        <div class="insp-title">Rock</div>
+        <div class="insp-sub">Zombies walk round it. Nothing can be built or wired through it.</div>
+        <button
+          class="repair-btn"
+          disabled={!can}
+          onClick={() => {
+            const why = clearRock(rock.x, rock.y);
+            if (why) toast(why);
+          }}
+        >
+          <IconWrench />
+          Clear · −{fmtClock(rock.clearSeconds)}
+        </button>
+        {!can && <div class="insp-note">Not enough build time left</div>}
       </div>
     </div>
   );
@@ -636,10 +660,19 @@ function Inspector() {
   // Live power for a selected placed part (the build preview: inlet + chips, no zombies).
   let power: { text: string; ok: boolean } | null = null;
   {
-    const got = powerPreview(session.day, c).inputs.get(selPart.id) ?? { c: 0, t: 0 };
+    const pv = powerPreview(session.day, c);
+    const got = pv.inputs.get(selPart.id) ?? { c: 0, t: 0 };
     const s = Math.max(got.c, got.t);
+    const pct = `${Math.round(powerMul(s) * 100)}%`;
     if (def.kind === 'action')
-      power = s >= def.needs ? { text: `Powered · ${s}`, ok: true } : s > 0 ? { text: `Too weak · ${s} of ${def.needs}`, ok: false } : { text: 'No power yet', ok: false };
+      power =
+        s >= def.needs && pv.loaded.includes(selPart.id)
+          ? { text: `Powered · ${pct}`, ok: true }
+          : s >= def.needs
+            ? { text: `Inlet full · ${INLET_MAX_LOAD} of ${INLET_MAX_LOAD}`, ok: false }
+            : s > 0
+              ? { text: `Too weak · ${s} of ${def.needs}`, ok: false }
+              : { text: 'Waits for a sensor', ok: false };
     else if (def.kind === 'chip') power = s > 0 ? { text: `Input · ${s}`, ok: true } : { text: 'No input yet', ok: false };
   }
   const delay = selPart?.type === 'delay' ? (selPart.config?.delay ?? 5) : null;
@@ -693,9 +726,11 @@ const PART_INFO: Record<string, string> = {
   pressure_plate: 'Powers its wires (10) while a zombie stands on it',
   tripwire: 'Sends a tick (10) when a zombie walks through the cord',
   delay: 'Passes power on after a wait · in on the left, out on the right',
-  tesla_coil: 'Zaps the nearest zombie for 70, arcing on to a second · needs 6',
-  saw_blade: 'Cuts 60 damage a second while powered · needs 2',
-  spike_floor: 'Tick: a 45-damage punch each time · steady power: one 20 stab per zombie, and slows · needs 2',
+  tesla_coil: 'Zaps the nearest zombie for 70, arcing on to a second · needs 3 · more power hits harder and wears it faster',
+  saw_blade: 'Cuts 60 damage a second at full power · needs 1 · more power hits harder and wears it faster',
+  spike_floor: 'Tick: a 45 punch each time · steady: one 20 stab per zombie, and slows · needs 1 · wears out',
+  piston: 'When power arrives, shoves zombies on the tile in front one tile on · needs 1 · turn it to aim',
+  latch: 'Memory: power on the back switches it on, power on the side switches it off · steady 10 out the front',
 };
 
 // ---- raid -----------------------------------------------------------------------

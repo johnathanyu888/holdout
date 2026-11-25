@@ -1,4 +1,4 @@
-// Spike floor (action, needs 2).
+// Spike floor (action, needs 1). Damage scales with strength; wears out.
 //  Tick: on the rising edge, spikes punch up: 45 damage to every zombie on the
 //        tile, then a 1s (10-step) cooldown before the next punch. Repeated
 //        damage needs repeated ticks (a tripwire, a Blink delay...).
@@ -13,7 +13,7 @@ export const SPIKE_PUNCH = 45;
 export const SPIKE_HELD_STAB = 20;
 export const SPIKE_COOLDOWN = 10;
 export const SPIKE_SLOW = 0.5;
-const NEEDS = 2;
+const NEEDS = 1;
 const SHOW_STEPS = 3;
 
 registerPart({
@@ -22,6 +22,7 @@ registerPart({
   kind: 'action',
   needs: NEEDS,
   rotatable: false,
+  durability: 600,
   initState: () => ({ lastT: 0, cool: 0, show: 0 }),
   act(ctx, p, input) {
     if ((p.s.cool ?? 0) > 0) p.s.cool = (p.s.cool ?? 0) - 1;

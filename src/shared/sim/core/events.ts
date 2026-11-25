@@ -7,5 +7,7 @@ export type SimEvent =
   | { type: 'death'; id: number; partId: number; x: number; y: number }
   | { type: 'partFired'; partId: number }
   | { type: 'zap'; partId: number; x: number; y: number; to: { x: number; y: number }[] }
+  | { type: 'worn'; partId: number }
+  | { type: 'push'; id: number; partId: number; fromX: number; fromY: number; x: number; y: number }
   | { type: 'breach'; id: number }
   | { type: 'end'; outcome: 'won' | 'lost'; reason: 'cleared' | 'breach' | 'timeout' };

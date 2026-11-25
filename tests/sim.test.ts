@@ -134,7 +134,7 @@ describe('spawn schedule', () => {
 });
 
 // One shambler walks straight down x=12 from the north edge to the house at (12, 14).
-const lane = (zombies = 1): DayConfig => ({ ...demoDay, inlet: { x: 14, y: 6 }, raidMaxSeconds: 60 });
+const lane = (zombies = 1): DayConfig => ({ ...demoDay, inlet: { x: 14, y: 6 }, raidMaxSeconds: 60, fixtures: [], obstacles: [] });
 const one = [{ step: 0, x: 12, y: 0, type: 'shambler' }];
 
 function run(st: SimState, maxSteps = 1000): SimEvent[] {
@@ -155,23 +155,22 @@ describe('raid', () => {
     expect(st.tick).toBeLessThan(205);
   });
 
-  it('two inlet-powered saws in a row kill a shambler', () => {
+  it('two saws on the weak inlet wound a shambler but do not kill it', () => {
     const c: Contraption = {
       house: { x: 12, y: 14 },
       parts: [
         { id: 1, type: 'saw_blade', x: 12, y: 6, rot: 0 },
         { id: 2, type: 'saw_blade', x: 12, y: 7, rot: 0 },
       ],
-      wires: wiresOf([13, 6], [13, 7]), // the inlet at (14, 6) feeds (13, 6) at 14
+      wires: wiresOf([13, 6], [13, 7]), // the inlet at (14, 6) feeds (13, 6) at 5, (13, 7) at 4
       walls: [],
       nextId: 3,
     };
     const st = createSim(lane(), c, { schedule: one });
     const ev = run(st);
-    expect(st.outcome).toBe('won');
-    const deaths = ev.filter((e) => e.type === 'death');
-    expect(deaths).toHaveLength(1);
-    expect(Math.floor((deaths[0] as { y: number }).y)).toBe(7);
+    expect(ev.some((e) => e.type === 'hit')).toBe(true);
+    expect(ev.some((e) => e.type === 'death')).toBe(false);
+    expect(st.outcome).toBe('lost');
   });
 
   it('a pressure plate powers a saw only while it is held', () => {
@@ -251,7 +250,7 @@ describe('raid', () => {
       nextId: 2,
     };
     const p = powerPreview(lane(), c);
-    expect(p.powerC[key(11, 6)]).toBe(12);
-    expect(p.inputs.get(1)).toEqual({ c: 12, t: 0 });
+    expect(p.powerC[key(11, 6)]).toBe(3); // 6 -> 5, 4, 3
+    expect(p.inputs.get(1)).toEqual({ c: 3, t: 0 });
   });
 });

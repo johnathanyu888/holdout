@@ -82,6 +82,18 @@ function createSession() {
     local.save(repairedKey, list);
   });
 
+  // Cleared rocks (tile keys "x,y"): gone from the player's copy of the day.
+  const clearedKey = `cleared:${day.id}`;
+  const applyCleared = (list: string[]) =>
+    (day.obstacles = (baseDay.obstacles ?? []).filter((o) => !list.includes(`${o.x},${o.y}`)));
+  const cleared0 = (restore && local.load<string[]>(clearedKey)) || [];
+  applyCleared(cleared0);
+  const cleared = new Obs<string[]>(cleared0);
+  cleared.subscribe((list) => {
+    applyCleared(list);
+    local.save(clearedKey, list);
+  });
+
   const bought = new Obs<Record<string, number>>(bought0);
   bought.subscribe((b) => {
     applyPurchases(baseDay, day, b);
@@ -99,6 +111,8 @@ function createSession() {
     bought,
     /** Map machines the player has repaired (indices into day.fixtures). */
     repaired,
+    /** Rocks the player has cleared ("x,y"). */
+    cleared,
     shopOpen: new Obs(false),
     phase: new Obs<Phase>('boot'),
     clock,
@@ -147,6 +161,21 @@ export function repairFixture(index: number): string | null {
   }
   session.repaired.set([...session.repaired.value, index]);
   toast(`Repaired · −${Math.floor(f.repairSeconds / 60)}:${String(f.repairSeconds % 60).padStart(2, '0')}`);
+  return null;
+}
+
+/** Clears the rock on (x, y) for its clear time off the Build clock (free in the sandbox). */
+export function clearRock(x: number, y: number): string | null {
+  const r = (session.day.obstacles ?? []).find((o) => o.x === x && o.y === y);
+  if (!r) return null;
+  if (session.phase.value !== 'build') return 'You can only clear rocks while building';
+  if (session.mode === 'demo') {
+    if (session.clock.left.value - r.clearSeconds < MIN_LEFT_AFTER_BUY) return 'Not enough time left';
+    session.clock.spend(r.clearSeconds);
+  }
+  session.selected.set(null);
+  session.cleared.set([...session.cleared.value, `${x},${y}`]);
+  toast(`Rock cleared · −${Math.floor(r.clearSeconds / 60)}:${String(r.clearSeconds % 60).padStart(2, '0')}`);
   return null;
 }
 

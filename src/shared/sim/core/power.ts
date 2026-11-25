@@ -14,6 +14,8 @@ export interface Source {
   strength: number;
   /** Only emit into this neighbour tile (directional pins); all four sides when absent. */
   to?: number;
+  /** Inlet-made power (flooded separately so it can be capped). */
+  inlet?: boolean;
 }
 
 const SIDE_DX = [1, 0, -1, 0];
