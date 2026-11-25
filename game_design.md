@@ -18,7 +18,7 @@ This file covers the proof-of-concept demo. Bigger ideas are in **Expansion** (s
 | Phase | Time | What happens |
 | --- | --- | --- |
 | **Briefing** | 30s | Mutation card, City card, today's kit. Make a plan. |
-| **Build** | 4:00 | Place your house, place parts, lay wire, spend seconds in the Time Shop. |
+| **Build** | 4:00 | Place your house, place parts, lay wire. Build time also pays for repairing machines and clearing rocks. |
 | **Raid** | 30s | Fully automatic. Playback at 1x / 2x / 4x. |
 | **Result** | — | Score, the Mutation card, the Radio transmission. Stars arrive at the daily reset. |
 
@@ -139,7 +139,7 @@ Every circuit is the same three things in a row:
 5. Move the zombies.
 
 ### 4.2 Parts: full specs
-★ = in the demo's starting set. The rest unlock over time (section 8). Numbers are starting values for tuning. Every part is 1 tile unless noted. **Shop** = its Time Shop price in seconds off the Build clock.
+★ = in the demo's starting set. The rest unlock over time (section 8). Numbers are starting values for tuning. Every part is 1 tile unless noted. The **Shop** columns are left over from the removed Time Shop and are no longer used.
 
 #### 4.2a Triggers / power (component 1)
 
@@ -230,9 +230,9 @@ Every circuit is the same three things in a row:
 - **Stockpile:** unused raw materials carry over to tomorrow, up to a cap that grows with progression. Being frugal is a real choice.
 - **Blueprints:** save a contraption, then print it on a later day in one go by paying its raw materials + a small fee. The Stockpile is what makes blueprints useful.
 
-### 4.6 Time Shop
-- Spend seconds from the 4:00 Build clock on extra parts (e.g. Saw = 20s). Scrap lowers prices.
-- Trade-off: more tools, less time to place them.
+### 4.6 Time Shop (removed)
+- Cut from the game. The kit is all you get; build time is spent only on repairing machines and clearing rocks.
+- Replacement under discussion: a draft in the briefing (pick between two offers).
 
 ## 5. Mutations
 

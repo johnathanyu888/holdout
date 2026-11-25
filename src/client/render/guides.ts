@@ -1,9 +1,9 @@
 // Teaching overlays drawn over the board in build mode, so players can read what
 // parts do from the board itself:
 //
-//  - Part guides: for the selected part, or the part about to be placed, what it
-//    does and where: a piston's push arrow and target tile, the tile a trap hurts,
-//    a sensor's trigger tile, and a chip's pins (IN / OUT, SET / RESET / OUT).
+//  - Direction arrows: for the selected part, or the part about to be placed, if
+//    it points somewhere (a piston's push, a delay's or latch's output), a white
+//    arrow that slides out that way and back, over and over.
 //  - Power trace: for a selected part (or wire), the wire route back to whatever
 //    powers it, with the signal strength on every tile (it drops 1 per tile).
 //  - Strength numbers on every powered wire while the Wire tool is out.
@@ -28,13 +28,7 @@ const SIDE_DY = [0, 1, 0, -1];
 const CYAN = 0x5fd8ff;
 const AMBER = 0xffb43c;
 const RED = 0xff5a4f;
-const HIT = 0xff6a55;
 
-/** Labels for chip pins, by part type and side (rot 0). */
-const PIN_LABELS: Record<string, Record<number, string>> = {
-  delay: { 2: 'IN', 0: 'OUT' },
-  latch: { 2: 'SET', 1: 'RESET', 0: 'OUT' },
-};
 
 /** The tiles a selection covers: a rock's whole block, else the one tile. */
 export function footprint(day: DayConfig, t: Tile): { x: number; y: number; w: number; h: number } {
@@ -106,55 +100,36 @@ export class GuideLayer {
     for (let i = this.used; i < this.labels.length; i++) this.labels[i]?.setVisible(false);
   }
 
-  // ---- part guides -------------------------------------------------------------
+  // ---- direction arrows ----------------------------------------------------------
 
-  private drawPartGuide(type: string, x: number, y: number, rot: number, time: number): void {
-    if (!hasPartDef(type)) return;
+  /** Which way a part acts, as a side (0 E, 1 S, 2 W, 3 N, before turning), or null if it doesn't point anywhere. */
+  private facing(type: string): number | null {
+    if (!hasPartDef(type)) return null;
     const def = partDef(type);
-    const pulse = 0.5 + 0.5 * Math.sin(time * 5);
-    const g = this.g;
-    const tileBox = (tx: number, ty: number, col: number, a: number) => {
-      if (tx < 0 || ty < 0 || tx >= GRID || ty >= GRID) return;
-      const t = tileOrigin(tx, ty);
-      g.fillStyle(col, a * 0.35).fillRect(t.x + 3, t.y + 3, TILE - 6, TILE - 6);
-      g.lineStyle(3, col, a).strokeRect(t.x + 3, t.y + 3, TILE - 6, TILE - 6);
-    };
-    if (type === 'piston') {
-      const d = rot % 4;
-      const fx = x + (SIDE_DX[d] as number);
-      const fy = y + (SIDE_DY[d] as number);
-      tileBox(fx, fy, HIT, 0.55 + 0.35 * pulse);
-      this.label(fx, fy, 'PUSH', HIT, 0.32);
-      const a = tileToWorld(x, y);
-      const b = tileToWorld(fx + (SIDE_DX[d] as number), fy + (SIDE_DY[d] as number));
-      this.arrow(a.x + ((b.x - a.x) / 4), a.y + ((b.y - a.y) / 4), b.x - ((b.x - a.x) / 6), b.y - ((b.y - a.y) / 6), HIT, 0.9);
-      return;
-    }
-    if (def.kind === 'action' && !def.range) {
-      tileBox(x, y, HIT, 0.5 + 0.35 * pulse);
-      this.label(x, y, 'HITS', HIT, -0.36);
-    } else if (def.kind === 'trigger') {
-      tileBox(x, y, CYAN, 0.5 + 0.35 * pulse);
-      this.label(x, y, 'TRIGGER', CYAN, -0.36);
-    }
-    if (def.pins) {
-      const names = PIN_LABELS[type] ?? {};
-      for (const s of def.pins.in) this.pin(x, y, (s + rot) % 4, true, names[s] ?? 'IN');
-      for (const s of def.pins.out) this.pin(x, y, (s + rot) % 4, false, names[s] ?? 'OUT');
-    }
+    if (type === 'piston') return 0;
+    return def.pins?.out[0] ?? null;
   }
 
-  /** An arrow on one side of a part: into it (an input pin) or out of it (an output pin), with its name. */
-  private pin(x: number, y: number, side: number, input: boolean, name: string): void {
+  /**
+   * A white arrow off the side the part acts toward, sliding out that way and
+   * back again in a loop (ease in and out), so you read which way it goes.
+   */
+  private drawPartGuide(type: string, x: number, y: number, rot: number, time: number): void {
+    const side = this.facing(type);
+    if (side === null) return;
+    const d = (side + rot) % 4;
+    const dx = SIDE_DX[d] as number;
+    const dy = SIDE_DY[d] as number;
     const c = tileToWorld(x, y);
-    const dx = SIDE_DX[side] as number;
-    const dy = SIDE_DY[side] as number;
-    const near = { x: c.x + dx * TILE * 0.42, y: c.y + dy * TILE * 0.42 };
-    const far = { x: c.x + dx * TILE * 0.9, y: c.y + dy * TILE * 0.9 };
-    const col = input ? CYAN : AMBER;
-    if (input) this.arrow(far.x, far.y, near.x, near.y, col, 0.95);
-    else this.arrow(near.x, near.y, far.x, far.y, col, 0.95);
-    this.labelAt(c.x + dx * TILE * 0.95, c.y + dy * TILE * 0.95 + (dy === 0 ? -16 : dy * 12), name, col);
+    // 0..1..0: out along the facing, then back.
+    const swing = 0.5 - 0.5 * Math.cos(time * 4.4);
+    const base = TILE * 0.5 + swing * TILE * 0.3;
+    const len = TILE * 0.42;
+    const x1 = c.x + dx * base;
+    const y1 = c.y + dy * base;
+    const x2 = c.x + dx * (base + len);
+    const y2 = c.y + dy * (base + len);
+    this.arrow(x1, y1, x2, y2, 0xffffff, 0.95);
   }
 
   private arrow(x1: number, y1: number, x2: number, y2: number, col: number, a: number): void {
@@ -162,17 +137,22 @@ export class GuideLayer {
     const len = Math.hypot(x2 - x1, y2 - y1) || 1;
     const ux = (x2 - x1) / len;
     const uy = (y2 - y1) / len;
-    g.lineStyle(7, 0x000000, 0.35).lineBetween(x1, y1, x2 - ux * 8, y2 - uy * 8);
-    g.lineStyle(4, col, a).lineBetween(x1, y1, x2 - ux * 8, y2 - uy * 8);
-    const h = 13;
-    g.fillStyle(col, a).fillTriangle(
-      x2,
-      y2,
-      x2 - ux * h - uy * h * 0.7,
-      y2 - uy * h + ux * h * 0.7,
-      x2 - ux * h + uy * h * 0.7,
-      y2 - uy * h - ux * h * 0.7,
-    );
+    const h = 15;
+    const shaftEnd = { x: x2 - ux * (h - 2), y: y2 - uy * (h - 2) };
+    const head = (grow: number, col2: number, a2: number) =>
+      g.fillStyle(col2, a2).fillTriangle(
+        x2 + ux * grow,
+        y2 + uy * grow,
+        x2 - ux * (h + grow) - uy * (h * 0.72 + grow),
+        y2 - uy * (h + grow) + ux * (h * 0.72 + grow),
+        x2 - ux * (h + grow) + uy * (h * 0.72 + grow),
+        y2 - uy * (h + grow) - ux * (h * 0.72 + grow),
+      );
+    // dark outline first, so it reads on grass, wire and parts alike
+    g.lineStyle(9, 0x0d1116, 0.45).lineBetween(x1, y1, shaftEnd.x, shaftEnd.y);
+    head(2.5, 0x0d1116, 0.45);
+    g.lineStyle(5, col, a).lineBetween(x1, y1, shaftEnd.x, shaftEnd.y);
+    head(0, col, a);
   }
 
   // ---- power trace and strength numbers ---------------------------------------------
@@ -265,16 +245,19 @@ export class GuideLayer {
     const g = this.g;
     const loaded = pv.loaded;
     const ic = tileToWorld(this.day.inlet.x, this.day.inlet.y);
-    // Three lights over the inlet: lit = a slot in use.
-    const w = 13;
+    // Three bulbs on the inlet itself, along its bottom edge: lit = a slot in use.
+    const r = 5;
     const gap = 5;
-    const left = ic.x - (INLET_MAX_LOAD * w + (INLET_MAX_LOAD - 1) * gap) / 2;
-    const top = ic.y - TILE * 0.78;
-    g.fillStyle(0x0d1116, 0.85).fillRoundedRect(left - 5, top - 5, INLET_MAX_LOAD * (w + gap) - gap + 10, w + 10, 6);
+    const span = INLET_MAX_LOAD * 2 * r + (INLET_MAX_LOAD - 1) * gap;
+    const left = ic.x - span / 2 + r;
+    const by0 = ic.y + TILE * 0.3;
+    g.fillStyle(0x0d1116, 0.9).fillRoundedRect(ic.x - span / 2 - 4, by0 - r - 3, span + 8, 2 * r + 6, r + 3);
     for (let i = 0; i < INLET_MAX_LOAD; i++) {
       const lit = i < loaded.length;
-      g.fillStyle(lit ? CYAN : 0x3a4250, 1).fillRoundedRect(left + i * (w + gap), top, w, w, 3);
-      if (lit) g.fillStyle(0xffffff, 0.5).fillRoundedRect(left + i * (w + gap) + 2, top + 2, w - 4, 4, 2);
+      const bx0 = left + i * (2 * r + gap);
+      if (lit) g.fillStyle(CYAN, 0.35).fillCircle(bx0, by0, r + 3);
+      g.fillStyle(lit ? CYAN : 0x3a4250, 1).fillCircle(bx0, by0, r);
+      if (lit) g.fillStyle(0xffffff, 0.6).fillCircle(bx0 - 1.5, by0 - 1.5, 1.8);
     }
     const loadedSet = new Set(loaded);
     for (const p of o.parts) {
@@ -360,11 +343,6 @@ export class GuideLayer {
 
   // ---- text ------------------------------------------------------------------------
 
-  /** A small caption on a tile, offset up (-) or down (+) by a fraction of a tile. */
-  private label(x: number, y: number, text: string, col: number, dy: number): void {
-    const c = tileToWorld(x, y);
-    this.labelAt(c.x, c.y + dy * TILE, text, col);
-  }
 
   private labelAt(x: number, y: number, text: string, col: number, size = 12, outline = true): void {
     let t = this.labels[this.used];

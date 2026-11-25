@@ -11,7 +11,7 @@ import type { DayConfig } from '@shared/types/day';
 import { type ApiClient, createApi, local } from './api';
 import { Obs } from './observable';
 import { PhaseClock } from './phaseClock';
-import { MIN_LEFT_AFTER_BUY, type ShopItem, applyPurchases } from './shop';
+
 import { BuildStore } from './store';
 
 export type Mode = 'demo' | 'sandbox';
@@ -60,14 +60,11 @@ function createSession() {
   const params = new URLSearchParams(location.search);
   const mode: Mode = params.has('sandbox') ? 'sandbox' : 'demo';
   const baseDay: DayConfig = mode === 'sandbox' ? sandboxDay : demoDay;
-  // The player's own copy: Time Shop purchases add to its kit.
+  // The player's own copy (repairs and cleared rocks change it).
   const day: DayConfig = structuredClone(baseDay);
-  // A reload starts the night completely fresh (no build, purchases, repairs or
-  // spent time). Only the sandbox remembers its build across reloads.
+  // A reload starts the night completely fresh (no build, repairs or spent
+  // time). Only the sandbox remembers its build across reloads.
   const restore = mode === 'sandbox';
-  const boughtKey = `bought:${day.id}`;
-  const bought0 = (restore && local.load<Record<string, number>>(boughtKey)) || {};
-  applyPurchases(baseDay, day, bought0);
   const saveKey = `contraption:${day.id}`;
   const saved = restore ? local.load<Contraption>(saveKey) : null;
   const store = new BuildStore(day, saved && validate(day, saved).length === 0 ? saved : undefined);
@@ -75,7 +72,7 @@ function createSession() {
 
   const clock = new PhaseClock(day.buildSeconds);
 
-  // Repaired map machines (fixture indices), saved like purchases.
+  // Repaired map machines (fixture indices).
   const repairedKey = `repaired:${day.id}`;
   const applyRepairs = (list: number[]) =>
     (day.fixtures ?? []).forEach((f, i) => (f.broken = (baseDay.fixtures?.[i]?.broken ?? false) && !list.includes(i)));
@@ -99,12 +96,6 @@ function createSession() {
     local.save(clearedKey, list);
   });
 
-  const bought = new Obs<Record<string, number>>(bought0);
-  bought.subscribe((b) => {
-    applyPurchases(baseDay, day, b);
-    local.save(boughtKey, b);
-  });
-
   return {
     api: createApi() as ApiClient,
     init: null as InitResponse | null,
@@ -112,13 +103,10 @@ function createSession() {
     baseDay,
     day,
     store,
-    /** Time Shop purchases (counts per shop item id). */
-    bought,
     /** Map machines the player has repaired (indices into day.fixtures). */
     repaired,
     /** Rocks the player has cleared ("x,y"). */
     cleared,
-    shopOpen: new Obs(false),
     phase: new Obs<Phase>('boot'),
     clock,
     tool: new Obs<ToolId>('select'),
@@ -165,39 +153,32 @@ export function repairFixture(index: number): string | null {
   if (!f || !f.broken) return null;
   if (session.phase.value !== 'build') return 'You can only repair while building';
   if (session.mode === 'demo') {
-    if (session.clock.left.value - f.repairSeconds < MIN_LEFT_AFTER_BUY) return 'Not enough time left';
+    if (session.clock.left.value - f.repairSeconds < MIN_LEFT) return 'Not enough time left';
     session.clock.spend(f.repairSeconds);
   }
   session.repaired.set([...session.repaired.value, index]);
-  toast(`Repaired · −${Math.floor(f.repairSeconds / 60)}:${String(f.repairSeconds % 60).padStart(2, '0')}`);
+  toast(`Repaired (−${Math.floor(f.repairSeconds / 60)}:${String(f.repairSeconds % 60).padStart(2, '0')})`);
   return null;
 }
 
 /** Clears the rock covering (x, y) for its clear time off the Build clock (free in the sandbox). */
+/** Repairing or clearing can't take the Build clock below this many seconds. */
+const MIN_LEFT = 5;
+
 export function clearRock(x: number, y: number): string | null {
   const r = (session.day.obstacles ?? []).find((o) => covers(o, x, y));
   if (!r) return null;
   if (session.phase.value !== 'build') return 'You can only clear rocks while building';
   if (session.mode === 'demo') {
-    if (session.clock.left.value - r.clearSeconds < MIN_LEFT_AFTER_BUY) return 'Not enough time left';
+    if (session.clock.left.value - r.clearSeconds < MIN_LEFT) return 'Not enough time left';
     session.clock.spend(r.clearSeconds);
   }
   session.selected.set(null);
   session.cleared.set([...session.cleared.value, `${r.x},${r.y}`]);
-  toast(`Rock cleared · −${Math.floor(r.clearSeconds / 60)}:${String(r.clearSeconds % 60).padStart(2, '0')}`);
+  toast(`Rock cleared (−${Math.floor(r.clearSeconds / 60)}:${String(r.clearSeconds % 60).padStart(2, '0')})`);
   return null;
 }
 
-/** Buys one of a shop item with Build seconds. Returns why not, or null. */
-export function buy(item: ShopItem): string | null {
-  if (session.mode !== 'demo' || session.phase.value !== 'build') return 'The shop is open while you build';
-  const left = session.clock.left.value;
-  if (left - item.price < MIN_LEFT_AFTER_BUY) return 'Not enough time left';
-  session.clock.spend(item.price);
-  session.bought.set({ ...session.bought.value, [item.id]: (session.bought.value[item.id] ?? 0) + 1 });
-  toast(`${item.label} bought · −${item.price}s`);
-  return null;
-}
 
 let toastId = 0;
 /** Shows a short message (e.g. why a placement was refused). */

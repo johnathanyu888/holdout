@@ -139,7 +139,7 @@ Autosave the `Contraption` to `localStorage` (mock mode) and later `POST /api/sa
 **Contains:** entity rendering, autotiling, ghosts, HUD, tray, FX, art gaps.
 
 **3.1 Layers (bottom → top, as depth bands)**
-ground map · entry-edge overlay · grid lines · wires · parts and structures (y-sorted) · walls · zombies (y-sorted) · FX · ghost/selection. Depth = `y*10 + layerOffset`.
+ground map, entry-edge overlay, grid lines, wires, parts and structures (y-sorted), walls, zombies (y-sorted), FX, ghost/selection. Depth = `y*10 + layerOffset`.
 
 **3.2 Entity renderer**
 Diffs the store on each change and creates/updates/destroys sprites by id. Registered `PartView`s draw each kind.
@@ -248,8 +248,8 @@ Pathing around walls, enclosed house → bash field, contact cadence, separation
 - Starting kit (tunable guess): Plate ×4, Tripwire ×3, Delay ×2, Saw ×3, Spike ×3, Wire 60, Wood 12.
 - Counters live in the store; placing spends and erasing refunds exactly the same amount (tested).
 
-**6.2 Time Shop (optional)**
-Spend seconds from the Build clock on extra parts: Saw 20s, Spike 15s, Plate 10s, Tripwire 8s, Delay 8s. The panel shows the price and the clock after purchase; refunds are not allowed.
+**6.2 Time Shop: removed**
+The Time Shop was built, then cut. The kit is fixed; build time pays only for repairs and clearing rocks.
 
 **6.3 Tray UX**
 Counts on every tool button, a disabled state with a reason when out of stock, and a low-resource warning.

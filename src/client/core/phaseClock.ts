@@ -31,7 +31,7 @@ export class PhaseClock {
     this.lastNow = null;
   }
 
-  /** Spend seconds (Time Shop). */
+  /** Spend seconds (repairing a machine, clearing a rock). */
   spend(seconds: number): void {
     this.left.set(Math.max(0, this.left.value - seconds));
   }

@@ -24,7 +24,6 @@ import { addWoodsShade } from '../render/woods';
 import { ZombieLayer } from '../render/zombies';
 import { type BuildTool, createTool } from '../tools/tools';
 import { hotbarTools } from '../ui/slots';
-import { canAffordAny, shopFor } from '../core/shop';
 import { worldToScreen } from '../core/viewMath';
 
 /** Delay between the raid's last step and the result card. */
@@ -248,10 +247,8 @@ export class WorldScene extends Phaser.Scene {
 
   private clearNight(): void {
     session.store.load({ house: null, parts: [], wires: [], walls: [], nextId: 1 });
-    session.bought.set({});
     session.repaired.set([]);
     session.cleared.set([]);
-    session.shopOpen.set(false);
     session.selected.set(null);
     session.tool.set('select');
     session.clock.reset(session.day.buildSeconds);
@@ -462,9 +459,6 @@ export class WorldScene extends Phaser.Scene {
     }
     this.publishSelectionAnchor(sel);
 
-    // The shop shuts itself once nothing on sale is affordable any more.
-    if (phase === 'build' && session.shopOpen.value && !canAffordAny(shopFor(session.baseDay), session.clock.left.value))
-      session.shopOpen.set(false);
 
     const v = this.camera.current;
     this.debug.update({
@@ -476,7 +470,7 @@ export class WorldScene extends Phaser.Scene {
       tile: this.hover?.tile ?? null,
       world: this.hover?.world ?? null,
       entities: this.children.length,
-      gesture: `${this.router.gesture}${this.router.handMode ? ' (hand)' : ''} · ${phase}`,
+      gesture: `${this.router.gesture}${this.router.handMode ? ' (hand)' : ''} / ${phase}`,
       api: `${session.api.mode}${session.init?.userName ? ` as ${session.init.userName}` : ''}`,
     });
   }

@@ -4,8 +4,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { WALL_COST, configurePart } from '@shared/build/rules';
 import { INLET_MAX_LOAD, INLET_STRENGTH, hasPartDef, partDef, powerMul, powerPreview } from '@shared/sim';
 import { useObs } from '../core/observable';
-import { buy, clearRock, repairFixture, session, toast } from '../core/session';
-import { canAffordAny, shopFor } from '../core/shop';
+import { clearRock, repairFixture, session, toast } from '../core/session';
 import { fixtureAt, workingFixtures } from '@shared/build/fixtures';
 import { covers } from '@shared/build/rocks';
 import {
@@ -33,7 +32,6 @@ export function App() {
       <TopBar />
       {phase === 'briefing' && <Briefing />}
       {phase === 'build' && <Tray />}
-      {phase === 'build' && session.mode === 'demo' && <Shop />}
       {phase === 'build' && <Inspector />}
       {phase === 'build' && <InletCard />}
       {phase === 'build' && <RockCard />}
@@ -48,30 +46,30 @@ export function App() {
 
 /** What a hotbar slot is, as a coloured tag plus a few words (shown above the hotbar). */
 function slotKind(id: string, hasHouse: boolean): { tag: string; cls: string; text: string } | null {
-  if (id === 'select') return { tag: 'Select', cls: 'k-neutral', text: 'tap to pick · drag to move' };
+  if (id === 'select') return { tag: 'Select', cls: 'k-neutral', text: 'tap to pick, drag to move' };
   if (id === 'erase') return { tag: 'Remove', cls: 'k-neutral', text: 'tap or drag over things' };
   if (id === 'house') return { tag: 'Home', cls: 'k-home', text: hasHouse ? 'drag it to move' : 'place it first' };
-  if (id === 'wire') return { tag: 'Connect', cls: 'k-connect', text: 'carries power · −1 strength a tile' };
-  if (id.startsWith('wall:')) return { tag: 'Defense', cls: 'k-defense', text: 'blocks zombies · they path round' };
+  if (id === 'wire') return { tag: 'Connect', cls: 'k-connect', text: 'carries power, −1 strength a tile' };
+  if (id.startsWith('wall:')) return { tag: 'Defense', cls: 'k-defense', text: 'blocks zombies, they path round' };
   const type = id.slice(5);
   if (!hasPartDef(type)) return null;
   const d = partDef(type);
-  if (d.kind === 'trigger') return { tag: 'Power', cls: 'k-power', text: 'a sensor · makes power when zombies trip it' };
+  if (d.kind === 'trigger') return { tag: 'Power', cls: 'k-power', text: 'a sensor, makes power when zombies trip it' };
   if (d.kind === 'chip') return { tag: 'Logic', cls: 'k-logic', text: type === 'latch' ? 'a switch with memory' : 'shapes power on its way' };
-  if (type === 'piston') return { tag: 'Steer', cls: 'k-steer', text: 'pushes zombies · needs power' };
-  return { tag: 'Attack', cls: 'k-attack', text: `deals damage · needs power ${d.needs}+` };
+  if (type === 'piston') return { tag: 'Steer', cls: 'k-steer', text: 'pushes zombies, needs power' };
+  return { tag: 'Attack', cls: 'k-attack', text: `deals damage, needs power ${d.needs}+` };
 }
 
 /** First-pick explainers: a tiny diagram (atlas icons and arrows) and one line. */
 const EXPLAIN: Record<string, { flow: string[]; line: string }> = {
-  'part:pressure_plate': { flow: ['pressure_plate', '→', 'wire_straight', '→', 'saw_blade'], line: 'A zombie steps on it · power runs down the wire · the trap fires' },
-  'part:tripwire': { flow: ['tripwire', '→', 'wire_straight', '→', 'spike_floor'], line: 'Crossing it sends one short tick · spikes punch on each tick' },
-  'part:delay': { flow: ['pressure_plate', '→', 'delay', '→', 'saw_blade'], line: 'Power in the back · out the front a moment later · boosted to full strength' },
-  'part:latch': { flow: ['pressure_plate', '→', 'latch', '→', 'saw_blade'], line: 'One press switches it on for good · or flip it on from its card' },
-  'part:saw_blade': { flow: ['pressure_plate', '→', 'wire_straight', '→', 'saw_blade'], line: 'Cuts whatever is on its tile while powered · more power cuts harder' },
-  'part:spike_floor': { flow: ['tripwire', '→', 'wire_straight', '→', 'spike_floor'], line: 'Punches on each tick · held up on steady power it stabs once and slows' },
-  'part:piston': { flow: ['power_inlet', '→', 'wire_straight', '→', 'piston'], line: 'While powered it shoves anything in front one tile on · aim it with R' },
-  wire: { flow: ['power_inlet', '→', 'wire_straight', '→', 'saw_blade'], line: 'Carries power from a source to parts · strength drops 1 a tile' },
+  'part:pressure_plate': { flow: ['pressure_plate', '→', 'wire_straight', '→', 'saw_blade'], line: 'A zombie steps on it, power runs down the wire, the trap fires.' },
+  'part:tripwire': { flow: ['tripwire', '→', 'wire_straight', '→', 'spike_floor'], line: 'Crossing it sends one short tick. Spikes punch on each tick.' },
+  'part:delay': { flow: ['pressure_plate', '→', 'delay', '→', 'saw_blade'], line: 'Power goes in the back and comes out the front a moment later, at full strength.' },
+  'part:latch': { flow: ['pressure_plate', '→', 'latch', '→', 'saw_blade'], line: 'One press switches it on for good. You can also flip it on from its card.' },
+  'part:saw_blade': { flow: ['pressure_plate', '→', 'wire_straight', '→', 'saw_blade'], line: 'Cuts whatever is on its tile while powered. More power cuts harder.' },
+  'part:spike_floor': { flow: ['tripwire', '→', 'wire_straight', '→', 'spike_floor'], line: 'Punches on each tick. Held up on steady power, it stabs once and slows.' },
+  'part:piston': { flow: ['power_inlet', '→', 'wire_straight', '→', 'piston'], line: 'While powered it shoves anything in front of it one tile on. Aim it with R.' },
+  wire: { flow: ['power_inlet', '→', 'wire_straight', '→', 'saw_blade'], line: 'Carries power from a source to parts. Strength drops 1 a tile.' },
 };
 
 const seen = new Set<string>();
@@ -121,11 +119,9 @@ function TopBar() {
   const left = useObs(session.clock.left);
   const raid = useObs(session.raid);
   const hand = useObs(session.handMode);
-  const shopOpen = useObs(session.shopOpen);
   const raidTime = useObs(session.raidTime);
   useObs(session.store.historyVersion);
   const building = phase === 'build';
-  const affordable = canAffordAny(shopFor(session.baseDay), left);
 
   let clock: preact.ComponentChildren = null;
   if (building && session.mode === 'demo')
@@ -135,15 +131,6 @@ function TopBar() {
           <span class="pill-label">BUILD</span>
           {fmtClock(left)}
         </div>
-        <button
-          class={`shop-btn ${shopOpen ? 'on' : ''}`}
-          title={affordable ? 'Time Shop · trade build seconds for parts' : 'Not enough time left to buy anything'}
-          disabled={!affordable}
-          onClick={() => session.shopOpen.set(!shopOpen)}
-        >
-          <IconCart />
-          <span>Shop</span>
-        </button>
       </div>
     );
   else if ((phase === 'raid' || phase === 'result') && raid)
@@ -172,7 +159,7 @@ function TopBar() {
             </IconBtn>
           </>
         )}
-        <IconBtn title="Hand · drags always pan (H)" active={hand} onClick={() => session.handMode.set(!hand)}>
+        <IconBtn title="Hand: drags always pan (H)" active={hand} onClick={() => session.handMode.set(!hand)}>
           <IconHand />
         </IconBtn>
         <IconBtn title="Zoom out (-)" onClick={() => session.actions.zoomBy(0.8)}>
@@ -291,7 +278,7 @@ function Briefing() {
             <img src={icon('shambler')} alt="" />
           </div>
           <div class="brief-head">
-            <div class="eyebrow">NIGHT 1 · TONIGHT'S MUTATION</div>
+            <div class="eyebrow">NIGHT 1, TONIGHT'S MUTATION</div>
             <h1>{day.mutationName}</h1>
             <p class="blurb">{day.mutationBlurb}</p>
           </div>
@@ -325,9 +312,9 @@ function Briefing() {
 
         <div class="section-label">TONIGHT</div>
         <ol class="brief-steps">
-          <li>Place your house · anywhere inside the clearing</li>
-          <li>Wire traps to sensors · or to the inlet (it powers 3)</li>
-          <li>Press Fight · every zombie must fall before one reaches the house</li>
+          <li>Place your house anywhere inside the clearing.</li>
+          <li>Wire traps to sensors, or to the inlet (it powers 3).</li>
+          <li>Press Fight. Every zombie must fall before one reaches the house.</li>
         </ol>
 
         <button class="big-btn" onClick={go}>
@@ -362,7 +349,6 @@ function Briefing() {
 function Tray() {
   const tool = useObs(session.tool);
   const c = useObs(session.store.contraption);
-  useObs(session.bought); // purchases change the counts
   const inv = session.store.inventory;
   const { day } = session;
   // Tapping the active slot again puts it away (back to tap-to-select). An empty
@@ -374,7 +360,7 @@ function Tray() {
     }
     const s = slot(id);
     if (tool !== id && s.count !== undefined && s.count <= 0 && session.mode === 'demo')
-      toast(`Out of ${s.label.toLowerCase()} · you can buy more in the Time Shop`);
+      toast(`Out of ${s.label.toLowerCase()}`);
     session.tool.set(tool === id ? 'select' : id);
     if (id === 'select') session.tool.set('select');
     if (tool !== id) showFirstTip(id);
@@ -578,59 +564,6 @@ function ToolBtn(p: {
   );
 }
 
-/** The Time Shop: trade seconds off the Build clock for parts and materials. */
-function Shop() {
-  const open = useObs(session.shopOpen);
-  const left = useObs(session.clock.left);
-  const bought = useObs(session.bought);
-  if (!open) return null;
-  return (
-    <div class="shop" role="dialog" aria-label="Time Shop">
-      <div class="shop-head">
-        <div>
-          <div class="eyebrow">TIME SHOP</div>
-          <div class="shop-title">Trade seconds for parts</div>
-        </div>
-        <button class="shop-close" aria-label="Close" onClick={() => session.shopOpen.set(false)}>
-          ×
-        </button>
-      </div>
-      <div class="shop-list">
-        {shopFor(session.baseDay).map((item) => {
-          const can = left - item.price >= 5;
-          const n = bought[item.id] ?? 0;
-          return (
-            <div class="shop-item" key={item.id}>
-              <img src={icon(item.icon)} alt="" />
-              <div class="shop-text">
-                <b>
-                  {item.label}
-                  {n > 0 && <span class="shop-owned">+{n}</span>}
-                </b>
-                <span>{item.blurb}</span>
-              </div>
-              <button class="shop-buy" disabled={!can} onClick={() => buy(item)}>
-                <IconClock />−{item.price}s
-              </button>
-            </div>
-          );
-        })}
-      </div>
-      <div class="shop-foot">Every second spent here · a second less to build</div>
-    </div>
-  );
-}
-
-function IconCart() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M3 4 H5.5 L7.6 15 H18 L20 7.5 H6.4" />
-      <circle cx="9" cy="19.5" r="1.6" />
-      <circle cx="16.5" cy="19.5" r="1.6" />
-    </svg>
-  );
-}
-
 function IconWrench() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
@@ -735,7 +668,7 @@ function RockCard() {
             {rock.w ?? 1}×{rock.h ?? 1}
           </span>
         </div>
-        <div class="insp-sub">Zombies walk round it · nothing can be built or wired through it</div>
+        <div class="insp-sub">Zombies walk round it. Nothing can be built or wired through it.</div>
         <button
           class="repair-btn"
           disabled={!can}
@@ -745,7 +678,7 @@ function RockCard() {
           }}
         >
           <IconWrench />
-          Clear · −{fmtClock(rock.clearSeconds)}
+          Clear (−{fmtClock(rock.clearSeconds)})
         </button>
         {!can && <div class="insp-note">Not enough build time left</div>}
       </div>
@@ -800,7 +733,7 @@ function Inspector() {
           <div class="insp-sub">{PART_INFO[type] ?? ''}. Repair it and it works where it stands.</div>
           <button class="repair-btn" disabled={!can} onClick={() => repairFixture(fxIndex)}>
             <IconWrench />
-            Repair · −{fmtClock(cost)}
+            Repair (−{fmtClock(cost)})
           </button>
           {!can && <div class="insp-note">Not enough build time left</div>}
         </div>
@@ -819,13 +752,13 @@ function Inspector() {
     if (def.kind === 'action')
       power =
         s >= def.needs && pv.loaded.includes(selPart.id)
-          ? { text: `Powered · ${pct}`, ok: true }
+          ? { text: `Powered, ${pct}`, ok: true }
           : s >= def.needs
-            ? { text: `Inlet full · ${INLET_MAX_LOAD} of ${INLET_MAX_LOAD}`, ok: false }
+            ? { text: `Inlet full (${INLET_MAX_LOAD} of ${INLET_MAX_LOAD})`, ok: false }
             : s > 0
-              ? { text: `Too weak · ${s} of ${def.needs}`, ok: false }
+              ? { text: `Too weak (${s} of ${def.needs})`, ok: false }
               : { text: 'No power yet', ok: false };
-    else if (def.kind === 'chip') power = s > 0 ? { text: `Input · ${s}`, ok: true } : { text: 'No input yet', ok: false };
+    else if (def.kind === 'chip') power = s > 0 ? { text: `Input ${s}`, ok: true } : { text: 'No input yet', ok: false };
   }
   const strength = (() => {
     const got = powerPreview(session.day, c).inputs.get(selPart.id);
@@ -895,7 +828,7 @@ function Inspector() {
 function SignalMeter(p: { s: number }) {
   const bars = Math.min(5, Math.ceil(p.s / 2));
   return (
-    <div class="sig" title={`Signal strength ${p.s} · damage x${powerMul(p.s).toFixed(2)}`}>
+    <div class="sig" title={`Signal strength ${p.s}, damage x${powerMul(p.s).toFixed(2)}`}>
       <span class="sig-bars">
         {[0, 1, 2, 3, 4].map((i) => (
           <i key={i} class={i < bars ? `on b${bars}` : ''} style={{ height: `${5 + i * 3}px` }} />
@@ -907,18 +840,18 @@ function SignalMeter(p: { s: number }) {
 }
 
 const DELAY_STEPS = [5, 10, 20];
-const BLINK_INFO = 'Turns steady power into a beat · a tick then a gap · the same length each';
+const BLINK_INFO = 'Turns steady power into a beat: a tick, then a gap of the same length.';
 
 /** One line on what each part does (the inspector card). */
 const PART_INFO: Record<string, string> = {
-  pressure_plate: 'Powers its wires · strength 10 · while a zombie stands on it',
-  tripwire: 'Sends a tick · strength 10 · when a zombie walks through the cord',
-  delay: 'Passes power on after a wait · in the back · out the front · boosted to 10',
-  tesla_coil: 'Zaps the nearest zombie for 70 · arcs on to a second · needs 3 · more power hits harder and wears it faster',
-  saw_blade: 'Cuts 60 a second at full power · needs 1 · more power hits harder and wears it faster',
-  spike_floor: 'Tick · a 45 punch each time · steady · one 20 stab per zombie and slows · needs 1 · wears out',
-  piston: 'Always out while powered · shoves any zombie that steps in front one tile on · 1s reset · needs 1 · turn it to aim',
-  latch: 'A switch · flip it on here · or power its back to switch it on · power its side to switch it off · steady power out the front',
+  pressure_plate: 'Powers its wires (strength 10) while a zombie stands on it.',
+  tripwire: 'Sends a tick (strength 10) when a zombie walks through the cord.',
+  delay: 'Passes power on after a wait. In the back, out the front, boosted to 10.',
+  tesla_coil: 'Zaps the nearest zombie for 70 and arcs on to a second. Needs 3. More power hits harder and wears it faster.',
+  saw_blade: 'Cuts 60 a second at full power. Needs 1. More power hits harder and wears it faster.',
+  spike_floor: 'A tick punches for 45. Steady power stabs each zombie once for 20 and slows it. Needs 1. Wears out.',
+  piston: 'Stays out while powered and shoves any zombie that steps in front one tile on, with a 1s reset. Needs 1. Turn it to aim.',
+  latch: 'A switch. Flip it on here, or power its back to switch it on. Power its side to switch it off. Steady power comes out the front.',
 };
 
 // ---- raid -----------------------------------------------------------------------
@@ -973,11 +906,11 @@ function Result() {
   if (!r) return null;
   const won = r.outcome === 'won';
   const why =
-    r.reason === 'breach' ? 'A zombie reached your house' : r.reason === 'timeout' ? 'Dawn came · zombies still out there' : 'Every zombie is down';
+    r.reason === 'breach' ? 'A zombie reached your house' : r.reason === 'timeout' ? 'Dawn came with zombies still out there' : 'Every zombie is down';
   return (
     <div class="modal-wrap">
       <div class={`card result ${won ? 'won' : 'lost'}`}>
-        <div class="eyebrow">NIGHT 1 · {won ? 'SURVIVED' : 'OVERRUN'}</div>
+        <div class="eyebrow">NIGHT 1, {won ? 'SURVIVED' : 'OVERRUN'}</div>
         <h1>{won ? 'You held out.' : 'They got in.'}</h1>
         <p class="blurb">{why}</p>
         <div class="stars" aria-label={won ? '1 star' : 'no stars'}>
@@ -1049,7 +982,7 @@ function SandboxPanel() {
         </button>
       </div>
       <button class={`small-btn ${paths ? 'on' : ''}`} onClick={() => session.showPaths.set(!paths)}>
-        Zombie paths · {paths ? 'on' : 'off'}
+        Zombie paths: {paths ? 'on' : 'off'}
       </button>
       {raid ? (
         <button class="small-btn" onClick={() => session.actions.backToBuild()}>
