@@ -1,7 +1,7 @@
 // Piston (action, needs 1, rotatable). Shoves every zombie on the tile in front
 // of it one tile further on, in the direction it faces. If a wall, rock or the
-// lawn edge is in the way, the zombie slams into it instead and takes 20 (scaled
-// by strength).
+// lawn edge is in the way, the zombie slams into it instead and takes 20; a
+// normal shove does 10 (both scaled by strength).
 //  Steady power: armed. It fires whenever a zombie is on the front tile, then
 //    needs 1s (10 steps) to reset.
 //  Tick: one shot on the rising edge, if anything is in front.
@@ -14,6 +14,8 @@ import { registerPart } from '../core/registry';
 import { powerMul } from '../core/types';
 
 export const PISTON_SLAM = 20;
+/** Every shove hurts a little too (scaled by strength). */
+export const PISTON_SHOVE = 10;
 export const PISTON_COOLDOWN = 10;
 const PISTON_WEAR = 10;
 const NEEDS = 1;
@@ -66,6 +68,7 @@ registerPart({
         z.x += dx;
         z.y += dy;
         ctx.emit({ type: 'push', id: z.id, partId: p.id, fromX, fromY, x: z.x, y: z.y });
+        ctx.damage(z, PISTON_SHOVE, p.id);
       }
       ctx.wear(p, PISTON_WEAR * powerMul(p.s.pw ?? 0));
     }

@@ -18,6 +18,7 @@ import { EntityLayer } from '../render/entities';
 import { FxLayer } from '../render/fx';
 import { GhostLayer } from '../render/ghost';
 import { GuideLayer, footprint } from '../render/guides';
+import { buildSteps } from '@shared/build/connect';
 import { DEPTH } from '../render/layers';
 import { AmbientLayer } from '../render/ambient';
 import { addWoodsShade } from '../render/woods';
@@ -433,6 +434,10 @@ export class WorldScene extends Phaser.Scene {
       hover: this.hover?.tile ?? null,
       rot: session.rot.value,
       showPaths: session.mode === 'sandbox' && session.showPaths.value,
+      wireHint: phase === 'build' && session.mode === 'demo' && (() => {
+        const s = buildSteps(session.day, session.store.current);
+        return s.house && s.trap && !s.wired;
+      })(),
     });
 
     // Ghost preview (build only), hover and selection outlines.

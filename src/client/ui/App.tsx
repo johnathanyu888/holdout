@@ -10,6 +10,7 @@ import { useObs } from '../core/observable';
 import { clearRock, repairFixture, session, toast } from '../core/session';
 import { fixtureAt, workingFixtures } from '@shared/build/fixtures';
 import { covers, obstacleYield } from '@shared/build/rocks';
+import { buildSteps } from '@shared/build/connect';
 import type { DraftOffer, Pick } from '@shared/build/draft';
 import {
   IconErase,
@@ -40,6 +41,7 @@ export function App() {
       {phase === 'build' && <InletCard />}
       {phase === 'build' && <RockCard />}
       {phase === 'build' && <CardHint />}
+      {phase === 'build' && session.mode === 'demo' && <BuildGuide />}
       {phase === 'build' && session.mode === 'demo' && <TimeWarning />}
       {phase === 'raid' && <RaidBar />}
       {phase === 'result' && <Result />}
@@ -82,28 +84,16 @@ const WIRING: Record<string, Step[]> = {
   piston: [{ icon: 'power_inlet', role: 'Power' }, WIRE, THIS('piston')],
 };
 
-/** One line under the circuit picture: what happens, in order. */
-const CIRCUIT_LINE: Record<string, string> = {
-  pressure_plate: 'A zombie steps on it, power runs down the wire, the trap fires.',
-  tripwire: 'A zombie walks through, a pulse runs down the wire, the trap fires.',
-  delay: 'Power goes in its back, waits, then comes out its front.',
-  latch: 'Power on its back switches it on, and it keeps powering the trap.',
-  saw_blade: 'A zombie on the plate powers the wire, and the saw cuts.',
-  spike_floor: 'A zombie crosses the tripwire, a pulse runs down, the spikes punch.',
-  tesla_coil: 'A zombie on the plate powers the wire, and the coil zaps.',
-  piston: 'The inlet powers the wire, and the piston pushes out.',
-};
-
-/** Each part's key numbers, as small chips on its card. */
-const CHIPS: Record<string, string[]> = {
-  pressure_plate: ['Makes power 10', 'While stepped on'],
-  tripwire: ['Makes a short pulse', 'Each crossing'],
-  delay: ['Waits 0.5 to 2s', 'Boosts to 10'],
-  latch: ['Stays on', 'Switch it here'],
-  saw_blade: ['60 a second', 'Needs 1', 'Wears out'],
-  spike_floor: ['20 stab, 45 punch', 'Slows', 'Needs 1'],
-  tesla_coil: ['70 a zap', 'Reach 1.5 tiles', 'Needs 3'],
-  piston: ['Shoves 1 tile', 'Blocks zombies', 'Needs 1'],
+/** Each part's key numbers, as label and value rows of the table on its card. */
+const STATS: Record<string, [string, string][]> = {
+  pressure_plate: [['Power', '10'], ['When', 'a zombie is on it']],
+  tripwire: [['Power', '10, a short pulse'], ['When', 'a zombie crosses it']],
+  delay: [['Wait', '0.5 to 2s'], ['Power out', '10']],
+  latch: [['Power out', '10 (6 if switched on here)'], ['Turns off', 'with power on its side']],
+  saw_blade: [['Damage', '60 a second'], ['Hits', 'its own tile']],
+  spike_floor: [['Stab', '20, then slows'], ['Pulse', '45 punch'], ['Hits', 'its own tile']],
+  tesla_coil: [['Zap', '70'], ['Reach', '1.5 tiles'], ['Recharge', '1.5s']],
+  piston: [['Shove', '1 tile'], ['Damage', '10, or 20 into a wall'], ['Blocks', 'zombies']],
 };
 
 /** Tray labels: short enough to fit under a 64px button. */
@@ -548,6 +538,8 @@ function Tray() {
     },
   };
   const ready = !!c.house;
+  const steps = buildSteps(session.day, c);
+  const nudgeWire = session.mode === 'demo' && steps.house && steps.trap && !steps.wired && tool !== 'wire';
   // One name tag above the hotbar: the slot under the pointer, else the active one.
   const [hover, setHover] = useState<string | null>(null);
   const tipId = hover ?? (tool !== 'select' || session.mode === 'sandbox' ? tool : null);
@@ -620,7 +612,7 @@ function Tray() {
           {hotbarTools(day, session.mode).map((id, i) => {
             const s = slot(id);
             return (
-              <ToolBtn key={id} id={id} keyHint={slotKey(i)} cur={tool} onPick={pick} onHover={setHover} dnd={dnd} {...s}>
+              <ToolBtn key={id} id={id} keyHint={slotKey(i)} cur={tool} onPick={pick} onHover={setHover} dnd={dnd} nudge={nudgeWire && id === 'wire'} {...s}>
                 {s.icon}
               </ToolBtn>
             );
@@ -661,6 +653,8 @@ function ToolBtn(p: {
   count?: number;
   badge?: string;
   alert?: boolean;
+  /** Pulse to draw the eye (the next thing to use). */
+  nudge?: boolean;
   dnd?: { down(id: string, e: PointerEvent): void; move(e: PointerEvent): void; up(e: PointerEvent): void; cancel(): void };
   children: preact.ComponentChildren;
 }) {
@@ -668,7 +662,7 @@ function ToolBtn(p: {
   const on = p.cur === p.id;
   return (
     <button
-      class={`tool ${on ? 'active' : ''} ${empty ? 'empty' : ''}`}
+      class={`tool ${on ? 'active' : ''} ${empty ? 'empty' : ''} ${p.nudge ? 'nudge' : ''}`}
       aria-label={`${p.title ?? p.label} (${p.keyHint})`}
       aria-pressed={on}
       data-slot={p.id}
@@ -722,16 +716,39 @@ function IconSwords() {
 /** Places a floating card above (or below, near the top) a screen anchor, kept on screen. */
 function useFloatingCard(anchor: { x: number; y: number; size: number } | null) {
   const ref = useRef<HTMLDivElement>(null);
-  const [w, setW] = useState(280);
+  const [box, setBox] = useState({ w: 280, h: 120 });
   useLayoutEffect(() => {
-    if (ref.current && ref.current.offsetWidth !== w) setW(ref.current.offsetWidth);
+    const el = ref.current;
+    if (el && (el.offsetWidth !== box.w || el.offsetHeight !== box.h)) setBox({ w: el.offsetWidth, h: el.offsetHeight });
   });
   if (!anchor) return { ref, below: false, style: {} };
-  const below = anchor.y < 190;
-  const x = Math.max(10 + w / 2, Math.min(window.innerWidth - 10 - w / 2, anchor.x));
-  const arrow = Math.max(14, Math.min(w - 14, anchor.x - (x - w / 2)));
-  const style = { left: `${x}px`, top: `${below ? anchor.y + anchor.size + 12 : anchor.y - 12}px`, '--arrow': `${arrow}px` };
-  return { ref, below, style };
+  return { ref, ...placeCard(anchor, box.w, box.h) };
+}
+
+/**
+ * Where a card floats: above the anchor, or below it if there's more room there,
+ * never under the top bar or the hotbar, and scaled down (to at least 55%) when
+ * even the roomier side is too short, so a zoomed-in view never cuts it off.
+ */
+function placeCard(anchor: { x: number; y: number; size: number }, w: number, h: number) {
+  const vw = window.innerWidth;
+  const top = 62;
+  const bottom = document.querySelector('.tray-wrap')?.getBoundingClientRect().top ?? window.innerHeight - 10;
+  const roomAbove = anchor.y - 12 - top;
+  const roomBelow = bottom - 10 - (anchor.y + anchor.size + 12);
+  const below = h > roomAbove && roomBelow > roomAbove;
+  const room = below ? roomBelow : roomAbove;
+  const fit = Math.max(0.55, Math.min(1, room / h, (vw - 20) / w));
+  const sw = w * fit;
+  const x = Math.max(10 + sw / 2, Math.min(vw - 10 - sw / 2, anchor.x));
+  const arrow = Math.max(14, Math.min(w - 14, (anchor.x - (x - sw / 2)) / fit));
+  const style = {
+    left: `${x}px`,
+    top: `${below ? anchor.y + anchor.size + 12 : anchor.y - 12}px`,
+    '--arrow': `${arrow}px`,
+    '--fit': fit,
+  };
+  return { below, style };
 }
 
 /**
@@ -775,6 +792,44 @@ function CardHint() {
   return (
     <div class="card-hint" style={{ left: `${at.x}px`, top: `${at.y}px` }} aria-hidden="true">
       Tap it to see how it works
+    </div>
+  );
+}
+
+/**
+ * The first-steps checklist under the night chip: place the house, place a trap,
+ * wire a trap to power. The step you're on is highlighted; done steps tick off.
+ * Once all three are done it says so for a moment, then gets out of the way.
+ */
+function BuildGuide() {
+  const c = useObs(session.store.contraption);
+  const st = buildSteps(session.day, c);
+  const all = st.house && st.trap && st.wired;
+  const [gone, setGone] = useState(false);
+  useEffect(() => {
+    if (!all) return setGone(false);
+    const t = setTimeout(() => setGone(true), 2600);
+    return () => clearTimeout(t);
+  }, [all]);
+  if (gone) return null;
+  const steps: [boolean, string][] = [
+    [st.house, 'Place your house'],
+    [st.trap, 'Place a trap'],
+    [st.wired, 'Wire it to the inlet'],
+  ];
+  const now = steps.findIndex(([done]) => !done);
+  return (
+    <div class={`build-guide ${all ? 'done' : ''}`}>
+      {all ? (
+        <div class="bg-ready">Ready. Add more, or press Fight.</div>
+      ) : (
+        steps.map(([done, text], i) => (
+          <div key={i} class={`bg-step ${done ? 'done' : ''} ${i === now ? 'now' : ''}`}>
+            <span class="bg-tick">{done ? '✓' : i + 1}</span>
+            {text}
+          </div>
+        ))
+      )}
     </div>
   );
 }
@@ -835,8 +890,6 @@ function Inspector() {
   const sel = useObs(session.selected);
   const anchor = useObs(session.selAnchor);
   const c = useObs(session.store.contraption);
-  const cardRef = useRef<HTMLDivElement>(null);
-  const [w, setW] = useState(280);
   useObs(session.repaired);
   const left = useObs(session.clock.left);
   const fxIndex = sel ? fixtureAt(session.day, sel.x, sel.y) : -1;
@@ -846,18 +899,9 @@ function Inspector() {
       workingFixtures(session.day).find((p) => p.x === sel.x && p.y === sel.y))
     : undefined;
   const type = selPart?.type ?? (fixture?.broken ? fixture.type : undefined);
-  useLayoutEffect(() => {
-    if (cardRef.current) setW(cardRef.current.offsetWidth);
-  });
+  const { ref: cardRef, below, style: pos } = useFloatingCard(type && hasPartDef(type) ? anchor : null);
   if (!type || !hasPartDef(type) || !anchor) return null;
   const def = partDef(type);
-  const below = anchor.y < 190;
-  const vw = window.innerWidth;
-  const cardX = Math.max(10 + w / 2, Math.min(vw - 10 - w / 2, anchor.x));
-  const arrow = Math.max(14, Math.min(w - 14, anchor.x - (cardX - w / 2)));
-  const pos = below
-    ? { left: `${cardX}px`, top: `${anchor.y + anchor.size + 12}px`, '--arrow': `${arrow}px` }
-    : { left: `${cardX}px`, top: `${anchor.y - 12}px`, '--arrow': `${arrow}px` };
 
   // A broken map machine: what it is, and the repair button.
   if (fixture?.broken && fxIndex >= 0) {
@@ -871,7 +915,7 @@ function Inspector() {
             {def.label}
             <span class="insp-power bad">Broken</span>
           </div>
-          <div class="insp-sub">{PART_INFO[type] ?? ''}. Repair it and it works where it stands.</div>
+          <div class="insp-sub">{PART_INFO[type] ?? ''} Repair it and it works where it stands.</div>
           <button class="repair-btn" disabled={!can} onClick={() => repairFixture(fxIndex)}>
             <IconWrench />
             Repair (−{fmtClock(cost)})
@@ -919,16 +963,21 @@ function Inspector() {
           {def.label}
           {power && <span class={`insp-power ${power.ok ? 'ok' : 'bad'}`}>{power.text}</span>}
         </div>
-        {strength !== null && <SignalMeter s={strength} />}
+        {strength !== null && <SignalMeter s={strength} needs={def.kind === 'action' ? def.needs : undefined} />}
         <div class="insp-sub">{(type === 'delay' && blink ? BLINK_INFO : PART_INFO[type]) ?? ''}</div>
-        {CHIPS[type] && (
-          <div class="insp-chips">
-            {(CHIPS[type] as string[]).map((c) => (
-              <span key={c}>{c}</span>
-            ))}
-          </div>
+        {STATS[type] && (
+          <table class="insp-stats">
+            <tbody>
+              {(STATS[type] as [string, string][]).map(([k, v]) => (
+                <tr key={k}>
+                  <th>{k}</th>
+                  <td>{v}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         )}
-        {WIRING[type] && <PartDemo steps={WIRING[type] as Step[]} line={CIRCUIT_LINE[type]} />}
+        {WIRING[type] && <PartDemo steps={WIRING[type] as Step[]} />}
         {ZDEMO[type] && <ZombieDemo type={type} />}
         {latchOn !== null && selPart && (
           <div class="insp-controls">
@@ -975,7 +1024,7 @@ function Inspector() {
  * Signal strength as five bars (full at 9+, a sensor one tile away), with the
  * number: the same strength the wires show, and what it means for damage.
  */
-function SignalMeter(p: { s: number }) {
+function SignalMeter(p: { s: number; needs?: number }) {
   const bars = Math.min(5, Math.ceil(p.s / 2));
   return (
     <div class="sig" title={`Signal strength ${p.s}, damage x${powerMul(p.s).toFixed(2)}`}>
@@ -985,16 +1034,17 @@ function SignalMeter(p: { s: number }) {
         ))}
       </span>
       <span class="sig-text">Signal {p.s}</span>
+      {p.needs !== undefined && <span class={`sig-need ${p.s >= p.needs ? 'ok' : 'low'}`}>needs {p.needs}+</span>}
     </div>
   );
 }
 
-/** What each trap does to a zombie, for the card's demo: a caption and the damage numbers that pop. */
-const ZDEMO: Record<string, { caption: string; hits: string[] }> = {
-  saw_blade: { caption: 'Cuts it the whole way across: about 66 of its 100 health at full power.', hits: ['-66'] },
-  spike_floor: { caption: 'Steady power: one 20 stab, and it crosses at half speed. A tick punches for 45.', hits: ['-20'] },
-  tesla_coil: { caption: 'Zaps the nearest zombie in reach for 70, then again after 1.5s.', hits: ['-70', '-70'] },
-  piston: { caption: 'Shoves it one tile on, into spikes, a saw, or a wall (20 damage).', hits: [] },
+/** What each trap does to a zombie, for the card's demo: the damage numbers that pop. */
+const ZDEMO: Record<string, { hits: string[] }> = {
+  saw_blade: { hits: ['-66'] },
+  spike_floor: { hits: ['-20'] },
+  tesla_coil: { hits: ['-70', '-70'] },
+  piston: { hits: ['-10'] },
 };
 
 /**
@@ -1010,6 +1060,11 @@ function ZombieDemo(p: { type: string }) {
       <div class="zd-lane">
         <img class="zd-part" src={icon(p.type)} alt="" />
         {p.type === 'tesla_coil' && <i class="zd-zap" />}
+        {p.type === 'piston' && (
+          <i class="zd-head">
+            <b />
+          </i>
+        )}
         <div class="zd-zombie">
           <span class="zd-hp">
             <i />
@@ -1022,7 +1077,6 @@ function ZombieDemo(p: { type: string }) {
           </span>
         ))}
       </div>
-      <div class="zd-caption">{d.caption}</div>
     </div>
   );
 }
@@ -1058,14 +1112,14 @@ const BLINK_INFO = 'Turns steady power into a beat: on, off, on, off.';
 
 /** One line on what each part does (the inspector card). */
 const PART_INFO: Record<string, string> = {
-  pressure_plate: 'Sends power down its wire while a zombie stands on it.',
-  tripwire: 'Sends a short pulse of power each time a zombie walks through.',
-  delay: 'Passes power on after a short wait, back at full strength.',
-  tesla_coil: 'Zaps the nearest zombie in reach, again every 1.5 seconds.',
-  saw_blade: 'Cuts every zombie on its tile while it has power.',
-  spike_floor: 'Stabs zombies on its tile and slows them. A pulse makes it punch hard.',
-  piston: 'Pushes out while powered and shoves zombies in front of it one tile.',
-  latch: 'A switch that stays on. Power its back to turn it on, its side to turn it off.',
+  pressure_plate: 'Makes power while a zombie stands on it.',
+  tripwire: 'Sends a pulse when a zombie walks through.',
+  delay: 'Passes power on after a wait.',
+  tesla_coil: 'Zaps the nearest zombie in reach.',
+  saw_blade: 'Cuts zombies on its tile.',
+  spike_floor: 'Stabs and slows zombies on its tile.',
+  piston: 'Shoves zombies in front of it.',
+  latch: 'A switch that stays on.',
 };
 
 // ---- raid -----------------------------------------------------------------------

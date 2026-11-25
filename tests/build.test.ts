@@ -151,7 +151,7 @@ describe('draft', () => {
     expect(draftedKit(d, [])).toEqual({ kit: { pressure_plate: 2, tripwire: 1 }, materials: { wire: 24, wood: 9, stone: 0 } });
     const k = draftedKit(d, [0, 1, 0, 1, 0, 1, 0]);
     expect(Object.keys(k.kit)).toEqual(['pressure_plate', 'tripwire', 'saw_blade', 'spike_floor', 'delay', 'latch']);
-    expect(k.kit).toMatchObject({ saw_blade: 3, spike_floor: 3, delay: 3, latch: 1, pressure_plate: 5, tripwire: 2 });
+    expect(k.kit).toMatchObject({ saw_blade: 4, spike_floor: 4, delay: 3, latch: 1, pressure_plate: 5, tripwire: 2 });
     expect(k.materials).toEqual({ wire: 44, wood: 21, stone: 0 });
   });
   it('every way through the draft ends with 2 or 3 attack picks', async () => {
@@ -165,5 +165,21 @@ describe('draft', () => {
       expect(n).toBeLessThanOrEqual(3);
       expect(Object.keys(draftedKit(d, picks).kit).length).toBeGreaterThan(0);
     }
+  });
+});
+
+describe('build guide: is a trap wired to power?', () => {
+  it('counts a trap only when its wire reaches the inlet or a sensor (through chips too)', async () => {
+    const { wiredTraps, buildSteps } = await import('@shared/build/connect');
+    const d = { ...demoDay, inlet: { x: 3, y: 3 }, obstacles: [], fixtures: [] };
+    const base = { house: { x: 8, y: 8 }, walls: [], nextId: 10 };
+    const saw = { id: 1, type: 'saw_blade', x: 6, y: 3, rot: 0 as const };
+    expect(wiredTraps(d, { ...base, parts: [saw], wires: [] }).size).toBe(0);
+    expect(buildSteps(d, { ...base, parts: [saw], wires: [] })).toEqual({ house: true, trap: true, wired: false });
+    const run = [{ x: 4, y: 3 }, { x: 5, y: 3 }];
+    expect([...wiredTraps(d, { ...base, parts: [saw], wires: run })]).toEqual([1]);
+    // through a delay: inlet, wire, delay, wire, saw
+    const viaDelay = { ...base, parts: [{ id: 2, type: 'delay', x: 5, y: 3, rot: 0 as const }, { ...saw, x: 7, y: 3 }], wires: [{ x: 4, y: 3 }, { x: 6, y: 3 }] };
+    expect([...wiredTraps(d, viaDelay)]).toEqual([1]);
   });
 });

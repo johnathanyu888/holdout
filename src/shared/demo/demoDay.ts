@@ -43,12 +43,12 @@ export const demoDay: DayConfig = {
   draft: {
     base: { kit: { pressure_plate: 2, tripwire: 1 }, materials: { wire: 24, wood: 9, stone: 0 } },
     rounds: [
-      [{ parts: { saw_blade: 3 } }, { parts: { spike_floor: 4 } }],
+      [{ parts: { saw_blade: 4 } }, { parts: { spike_floor: 5 } }],
       [{ parts: { piston: 2 } }, { parts: { delay: 2 } }],
       [{ parts: { pressure_plate: 3 } }, { parts: { tripwire: 3 } }],
-      [{ parts: { saw_blade: 2, pressure_plate: 1 } }, { parts: { spike_floor: 3, tripwire: 1 } }],
+      [{ parts: { saw_blade: 3, pressure_plate: 1 } }, { parts: { spike_floor: 4, tripwire: 1 } }],
       [{ parts: { latch: 1, delay: 1 } }, { parts: { piston: 1, pressure_plate: 1 } }],
-      [{ parts: { saw_blade: 2 } }, { materials: { wire: 20 } }],
+      [{ parts: { saw_blade: 3 } }, { materials: { wire: 20 } }],
       [{ materials: { wood: 12 } }, { materials: { wire: 12 }, parts: { pressure_plate: 1 } }],
     ],
   },

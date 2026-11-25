@@ -57,6 +57,8 @@ export interface GuideInput {
   hover: Tile | null;
   rot: number;
   showPaths: boolean;
+  /** A trap is placed but nothing powers it: point at the inlet, where the wire should start. */
+  wireHint?: boolean;
 }
 
 export class GuideLayer {
@@ -80,6 +82,7 @@ export class GuideLayer {
     this.used = 0;
     if (o.showPaths) this.drawPaths(o);
     if (o.building && o.preview) {
+      if (o.wireHint) this.drawWireHint(o.time);
       this.drawInletSlots(o);
       if (o.tool === 'wire') this.drawAllStrengths(o);
       const sel = o.sel;
@@ -288,6 +291,17 @@ export class GuideLayer {
         g.fillStyle(0x2a1d05, 1).fillRoundedRect(bx - 1.6, by + bob - 5.5, 3.2, 7, 1.2).fillCircle(bx, by + bob + 4.2, 1.7);
       }
     }
+  }
+
+  /** Rings rippling out of the inlet, and a label: start your wire here. */
+  private drawWireHint(time: number): void {
+    const c = tileToWorld(this.day.inlet.x, this.day.inlet.y);
+    for (let i = 0; i < 2; i++) {
+      const k = (time * 0.8 + i * 0.5) % 1;
+      this.under.lineStyle(4, 0xfff2b0, 0.7 * (1 - k)).strokeCircle(c.x, c.y, TILE * (0.45 + 0.6 * k));
+    }
+    const bob = Math.sin(time * 4) * 3;
+    this.labelAt(c.x, c.y - TILE * 0.95 + bob, 'Start wire here', 0xfff2b0, 15);
   }
 
   // ---- sandbox: zombie routes ----------------------------------------------------------
