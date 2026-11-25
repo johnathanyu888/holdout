@@ -2,6 +2,7 @@
 // everything derived from it (spawn schedule, flow fields, power) is computed.
 
 import type { Tile } from '../grid';
+import type { Draft } from '../build/draft';
 
 export interface Materials {
   wire: number;
@@ -53,6 +54,8 @@ export interface DayConfig {
   fixtures?: Fixture[];
   /** Rocks: block zombies, parts and wire until cleared (costs build time). */
   obstacles?: Obstacle[];
+  /** The briefing draft. With one, the kit is the draft's base plus the picks (kit/materials above are ignored). */
+  draft?: Draft;
 }
 
 export interface Obstacle {

@@ -249,6 +249,7 @@ export class WorldScene extends Phaser.Scene {
     session.store.load({ house: null, parts: [], wires: [], walls: [], nextId: 1 });
     session.repaired.set([]);
     session.cleared.set([]);
+    session.draftPicks.set([]);
     session.selected.set(null);
     session.tool.set('select');
     session.clock.reset(session.day.buildSeconds);

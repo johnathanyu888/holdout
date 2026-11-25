@@ -7,6 +7,7 @@ import { useObs } from '../core/observable';
 import { clearRock, repairFixture, session, toast } from '../core/session';
 import { fixtureAt, workingFixtures } from '@shared/build/fixtures';
 import { covers } from '@shared/build/rocks';
+import type { DraftOffer, Pick } from '@shared/build/draft';
 import {
   IconErase,
   IconFit,
@@ -236,11 +237,19 @@ const WARNINGS = [
 const BRIEFING_SECONDS = 30;
 
 function Briefing() {
+  const picks = useObs(session.draftPicks);
+  const draft = session.baseDay.draft;
+  const drafting = !!draft && session.mode === 'demo' && picks.length < draft.rounds.length;
+  // The countdown only runs once the draft is done.
   const [left, setLeft] = useState(BRIEFING_SECONDS);
   useEffect(() => {
+    if (drafting) return;
+    setLeft(BRIEFING_SECONDS);
     const t = setInterval(() => setLeft((n) => n - 1), 1000);
     return () => clearInterval(t);
-  }, []);
+  }, [drafting]);
+  // Newest kit entries flash when a pick lands.
+  const [fresh, setFresh] = useState<string[]>([]);
   // Leaving: the card lifts away and the night fades out, then building starts.
   const [leaving, setLeaving] = useState(false);
   const go = () => {
@@ -249,7 +258,7 @@ function Briefing() {
     setTimeout(() => session.actions.startBuild(), 380);
   };
   useEffect(() => {
-    if (left <= 0) go();
+    if (left <= 0 && !drafting) go();
   }, [left]);
   // On a short screen the card scrolls: a "more below" cue until you reach the end.
   const cardRef = useRef<HTMLDivElement>(null);
@@ -278,7 +287,7 @@ function Briefing() {
             <img src={icon('shambler')} alt="" />
           </div>
           <div class="brief-head">
-            <div class="eyebrow">NIGHT 1, TONIGHT'S MUTATION</div>
+            <div class="eyebrow">TONIGHT'S MUTATION</div>
             <h1>{day.mutationName}</h1>
             <p class="blurb">{day.mutationBlurb}</p>
           </div>
@@ -299,10 +308,22 @@ function Briefing() {
           </div>
         </div>
 
-        <div class="section-label">YOUR KIT</div>
+        {drafting && draft && (
+          <DraftRound
+            round={picks.length}
+            total={draft.rounds.length}
+            offers={draft.rounds[picks.length] as [DraftOffer, DraftOffer]}
+            onPick={(p, keys) => {
+              setFresh(keys);
+              session.draftPicks.set([...picks, p]);
+            }}
+          />
+        )}
+
+        <div class="section-label">{drafting ? 'YOUR KIT SO FAR' : 'YOUR KIT'}</div>
         <div class="kit">
           {kit.map((k) => (
-            <div class="kit-item" key={k.key} title={k.label}>
+            <div class={`kit-item ${fresh.includes(k.key) ? 'fresh' : ''}`} key={k.key} title={k.label}>
               <img src={icon(k.icon)} alt="" />
               <span class="kit-name">{k.label}</span>
               <b>{k.n}</b>
@@ -317,15 +338,17 @@ function Briefing() {
           <li>Press Fight. Every zombie must fall before one reaches the house.</li>
         </ol>
 
-        <button class="big-btn" onClick={go}>
-          Start building
+        <button class="big-btn" onClick={go} disabled={drafting}>
+          {drafting ? 'Finish your draft first' : 'Start building'}
         </button>
-        <div class="brief-auto">
-          <div class="brief-bar">
-            <i style={{ width: `${(Math.max(0, left) / BRIEFING_SECONDS) * 100}%` }} />
+        {!drafting && (
+          <div class="brief-auto">
+            <div class="brief-bar">
+              <i style={{ width: `${(Math.max(0, left) / BRIEFING_SECONDS) * 100}%` }} />
+            </div>
+            <span>Starts on its own in {Math.max(0, left)}s</span>
           </div>
-          <span>Starts on its own in {Math.max(0, left)}s</span>
-        </div>
+        )}
         {more && (
           <button
             class="brief-more"
@@ -343,11 +366,91 @@ function Briefing() {
   );
 }
 
+/**
+ * One draft round: two cards, left or right. Tapping one lifts it and fades the
+ * other, then the next round deals in. Each card lists what it gives, with the
+ * kind of thing it is (Attack, Power, Logic...).
+ */
+function DraftRound(p: {
+  round: number;
+  total: number;
+  offers: [DraftOffer, DraftOffer];
+  onPick(pick: Pick, keys: string[]): void;
+}) {
+  const [chosen, setChosen] = useState<Pick | null>(null);
+  useEffect(() => setChosen(null), [p.round]);
+  const take = (pick: Pick) => {
+    if (chosen !== null) return;
+    setChosen(pick);
+    const o = p.offers[pick];
+    const keys = [...Object.keys(o.parts ?? {}), ...Object.keys(o.materials ?? {})];
+    setTimeout(() => p.onPick(pick, keys), 420);
+  };
+  return (
+    <div class="draft">
+      <div class="draft-head">
+        <span class="section-label">DRAFT</span>
+        <span class="draft-count">
+          Pick {p.round + 1} of {p.total}
+        </span>
+        <span class="draft-dots" aria-hidden="true">
+          {Array.from({ length: p.total }, (_, i) => (
+            <i key={i} class={i < p.round ? 'done' : i === p.round ? 'now' : ''} />
+          ))}
+        </span>
+      </div>
+      <div class="draft-cards" key={p.round}>
+        {([0, 1] as Pick[]).map((side) => (
+          <button
+            key={side}
+            class={`draft-card ${chosen === side ? 'chosen' : chosen !== null ? 'passed' : ''}`}
+            onClick={() => take(side)}
+          >
+            <OfferBody offer={p.offers[side]} />
+          </button>
+        ))}
+        <span class="draft-or">OR</span>
+      </div>
+    </div>
+  );
+}
+
+/** What a draft card gives: each item's icon, name and count, and its kind. */
+function OfferBody(p: { offer: DraftOffer }) {
+  const items = [
+    ...Object.entries(p.offer.parts ?? {}).map(([t, n]) => ({ key: t, icon: t, name: partLabel(t), n, kind: slotKind(`part:${t}`, true) })),
+    ...Object.entries(p.offer.materials ?? {}).map(([m, n]) => ({
+      key: m,
+      icon: m,
+      name: m === 'wire' ? 'Wire' : m === 'wood' ? 'Wood' : 'Stone',
+      n: n ?? 0,
+      kind: m === 'wire' ? slotKind('wire', true) : slotKind(`wall:${m}`, true),
+    })),
+  ];
+  return (
+    <>
+      {items.map((it) => (
+        <div class="offer-item" key={it.key}>
+          <img src={icon(it.icon)} alt="" />
+          <div class="offer-text">
+            <b>
+              {it.n > 1 ? `${it.n}× ` : ''}
+              {it.name}
+            </b>
+            {it.kind && <span class={`kind-tag ${it.kind.cls}`}>{it.kind.tag}</span>}
+          </div>
+        </div>
+      ))}
+    </>
+  );
+}
+
 // ---- build tray -----------------------------------------------------------------
 
 /** The build hotbar: square slots with number keys, plus the Fight button. */
 function Tray() {
   const tool = useObs(session.tool);
+  useObs(session.draftPicks); // the kit (and so the slots) comes from the draft
   const c = useObs(session.store.contraption);
   const inv = session.store.inventory;
   const { day } = session;
@@ -910,7 +1013,7 @@ function Result() {
   return (
     <div class="modal-wrap">
       <div class={`card result ${won ? 'won' : 'lost'}`}>
-        <div class="eyebrow">NIGHT 1, {won ? 'SURVIVED' : 'OVERRUN'}</div>
+        <div class="eyebrow">NIGHT 1 {won ? 'SURVIVED' : 'OVERRUN'}</div>
         <h1>{won ? 'You held out.' : 'They got in.'}</h1>
         <p class="blurb">{why}</p>
         <div class="stars" aria-label={won ? '1 star' : 'no stars'}>

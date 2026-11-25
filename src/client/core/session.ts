@@ -4,6 +4,7 @@
 
 import { validate } from '@shared/build/rules';
 import { covers } from '@shared/build/rocks';
+import { type Pick, draftedKit } from '@shared/build/draft';
 import { demoDay, sandboxDay } from '@shared/demo/demoDay';
 import type { InitResponse } from '@shared/types/api';
 import type { Contraption, Rot } from '@shared/types/build';
@@ -72,6 +73,17 @@ function createSession() {
 
   const clock = new PhaseClock(day.buildSeconds);
 
+  // The briefing draft (left or right per round): the kit is the base plus the picks.
+  const draftPicks = new Obs<Pick[]>([]);
+  const applyDraft = (picks: Pick[]) => {
+    if (!baseDay.draft) return;
+    const k = draftedKit(baseDay.draft, picks);
+    day.kit = k.kit;
+    day.materials = k.materials;
+  };
+  applyDraft([]);
+  draftPicks.subscribe(applyDraft);
+
   // Repaired map machines (fixture indices).
   const repairedKey = `repaired:${day.id}`;
   const applyRepairs = (list: number[]) =>
@@ -107,6 +119,8 @@ function createSession() {
     repaired,
     /** Rocks the player has cleared ("x,y"). */
     cleared,
+    /** Draft picks so far (0 = left card, 1 = right). */
+    draftPicks,
     phase: new Obs<Phase>('boot'),
     clock,
     tool: new Obs<ToolId>('select'),

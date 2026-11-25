@@ -32,6 +32,17 @@ export const demoDay: DayConfig = {
     groupMax: 3,
   },
   par: 1000,
+  // Everyone drafts from the same offers: a small base, then 5 picks of left or right.
+  draft: {
+    base: { kit: { pressure_plate: 2, tripwire: 1 }, materials: { wire: 20, wood: 9, stone: 0 } },
+    rounds: [
+      [{ parts: { saw_blade: 2 } }, { parts: { spike_floor: 3 } }],
+      [{ parts: { piston: 2 } }, { parts: { delay: 2 } }],
+      [{ parts: { latch: 1, tripwire: 1 } }, { parts: { pressure_plate: 2 } }],
+      [{ materials: { wire: 14 } }, { parts: { saw_blade: 1 } }],
+      [{ materials: { wood: 12 } }, { parts: { spike_floor: 1, tripwire: 1 } }],
+    ],
+  },
   // A broken Tesla coil near the inlet: 2:00 of build time to bring it back.
   fixtures: [{ type: 'tesla_coil', x: 6, y: 8, rot: 0, broken: true, repairSeconds: 120 }],
   // Rocks bend the paths in; clearing one costs 0:30 of build time.
@@ -55,4 +66,5 @@ export const sandboxDay: DayConfig = {
   buildSeconds: 99_999,
   raidMaxSeconds: 120,
   spawns: { ...demoDay.spawns, zombies: [] },
+  draft: undefined, // no draft: everything, unlimited
 };

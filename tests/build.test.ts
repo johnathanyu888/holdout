@@ -143,3 +143,15 @@ describe('validate', () => {
     expect(problems).toContain('part id 9 >= nextId');
   });
 });
+
+describe('draft', () => {
+  it('the kit is the base plus each pick, in a stable order', async () => {
+    const { draftedKit } = await import('@shared/build/draft');
+    const d = demoDay.draft!;
+    expect(draftedKit(d, [])).toEqual({ kit: { pressure_plate: 2, tripwire: 1 }, materials: { wire: 20, wood: 9, stone: 0 } });
+    const k = draftedKit(d, [0, 1, 0, 0, 1]);
+    expect(Object.keys(k.kit)).toEqual(['pressure_plate', 'tripwire', 'saw_blade', 'spike_floor', 'delay', 'latch']);
+    expect(k.kit).toMatchObject({ saw_blade: 2, delay: 2, latch: 1, tripwire: 3, spike_floor: 1 });
+    expect(k.materials.wire).toBe(34);
+  });
+});
