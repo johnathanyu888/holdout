@@ -12,7 +12,7 @@ import {
 import { demoDay } from '@shared/demo/demoDay';
 import { type Contraption, emptyContraption } from '@shared/types/build';
 
-const day = demoDay;
+const day = { ...demoDay, obstacles: [] }; // no rocks in the way of these placements
 const ok = (r: ReturnType<typeof placeHouse>): Contraption => {
   if (!r.ok) throw new Error(r.reason);
   return r.c;

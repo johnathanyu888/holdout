@@ -31,6 +31,8 @@ export interface PointerInfo {
 export interface ToolHandler {
   /** If false, a 1-pointer drag pans the camera instead of reaching the tool. */
   readonly capturesDrag: boolean;
+  /** Optional per-press override: does a drag that starts here reach the tool? (e.g. grabbing a placed part) */
+  capturesDragAt?(p: PointerInfo): boolean;
   onTap?(p: PointerInfo): void;
   onDragStart?(p: PointerInfo): void;
   onDragMove?(p: PointerInfo): void;
@@ -156,9 +158,10 @@ export class InputRouter {
         return;
       case 'pending': {
         if (e.pointerId !== m.id || dist(p, m.start) < DRAG_THRESHOLD) return;
-        if (this.tool?.capturesDrag) {
+        const start = this.info(m.start);
+        if (this.tool && (this.tool.capturesDragAt ? this.tool.capturesDragAt(start) : this.tool.capturesDrag)) {
           this.mode = { kind: 'toolDrag', id: m.id };
-          this.tool.onDragStart?.(this.info(m.start));
+          this.tool.onDragStart?.(start);
           this.tool.onDragMove?.(this.info(p));
         } else {
           this.camera.panBy(p.x - m.start.x, p.y - m.start.y);

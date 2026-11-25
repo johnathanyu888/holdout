@@ -3,6 +3,7 @@
 // registers the actions the UI calls (start raid, zoom...).
 
 import { validate } from '@shared/build/rules';
+import { covers } from '@shared/build/rocks';
 import { demoDay, sandboxDay } from '@shared/demo/demoDay';
 import type { InitResponse } from '@shared/types/api';
 import type { Contraption, Rot } from '@shared/types/build';
@@ -164,9 +165,9 @@ export function repairFixture(index: number): string | null {
   return null;
 }
 
-/** Clears the rock on (x, y) for its clear time off the Build clock (free in the sandbox). */
+/** Clears the rock covering (x, y) for its clear time off the Build clock (free in the sandbox). */
 export function clearRock(x: number, y: number): string | null {
-  const r = (session.day.obstacles ?? []).find((o) => o.x === x && o.y === y);
+  const r = (session.day.obstacles ?? []).find((o) => covers(o, x, y));
   if (!r) return null;
   if (session.phase.value !== 'build') return 'You can only clear rocks while building';
   if (session.mode === 'demo') {
@@ -174,7 +175,7 @@ export function clearRock(x: number, y: number): string | null {
     session.clock.spend(r.clearSeconds);
   }
   session.selected.set(null);
-  session.cleared.set([...session.cleared.value, `${x},${y}`]);
+  session.cleared.set([...session.cleared.value, `${r.x},${r.y}`]);
   toast(`Rock cleared · −${Math.floor(r.clearSeconds / 60)}:${String(r.clearSeconds % 60).padStart(2, '0')}`);
   return null;
 }

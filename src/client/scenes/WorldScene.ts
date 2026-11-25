@@ -529,7 +529,7 @@ export class WorldScene extends Phaser.Scene {
           // Hotbar: 1..9, 0 pick a slot; pressing the active slot's key puts it away.
           if (!building || !/^[0-9]$/.test(e.key)) return;
           const i = e.key === '0' ? 9 : Number(e.key) - 1;
-          const id = hotbarTools(session.day)[i];
+          const id = hotbarTools(session.day, session.mode)[i];
           if (!id) return;
           session.tool.set(session.tool.value === id ? 'select' : id);
         }

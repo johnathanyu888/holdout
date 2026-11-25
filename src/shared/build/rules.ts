@@ -104,6 +104,21 @@ export function placePart(
   return { ok: true, c: { ...c, parts: [...c.parts, part], nextId: c.nextId + 1 } };
 }
 
+/** Can placed part `id` move to (x, y)? Its own tile counts as free. */
+export function checkMovePart(day: DayConfig, c: Contraption, id: number, x: number, y: number): string | null {
+  const part = c.parts.find((p) => p.id === id);
+  if (!part) return 'No such part';
+  if (part.x === x && part.y === y) return null;
+  return needEmpty(day, c, x, y);
+}
+
+/** Moves a placed part (keeping its id, turn and settings) to another tile. */
+export function movePart(day: DayConfig, c: Contraption, id: number, x: number, y: number): Result {
+  const why = checkMovePart(day, c, id, x, y);
+  if (why) return { ok: false, reason: why };
+  return { ok: true, c: { ...c, parts: c.parts.map((p) => (p.id === id ? { ...p, x, y } : p)) } };
+}
+
 export function checkWire(day: DayConfig, c: Contraption, x: number, y: number): string | null {
   if (!inLawn(x, y)) return 'Off the lawn';
   const o = occupantAt(day, c, x, y);

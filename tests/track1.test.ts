@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { eraseAt, placePart } from '@shared/build/rules';
+import { eraseAt, movePart, placePart } from '@shared/build/rules';
 import { FIXTURE_ID_BASE } from '@shared/build/fixtures';
 import { demoDay } from '@shared/demo/demoDay';
 import { key } from '@shared/grid';
@@ -339,5 +339,34 @@ describe('rocks', () => {
     const st = createSim(rocky, build([], []), { schedule: [] });
     expect(st.wallHp[key(8, 8)]).toBe(ROCK_HP);
     expect(st.field[key(8, 8)]).toBe(FIELD_INF);
+  });
+});
+
+describe('piston on steady power', () => {
+  it('fires on a zombie that walks onto the tile in front', () => {
+    // piston (11, 5) facing east onto (12, 5), on the inlet at (10, 4) via (11, 4);
+    // the shambler walks down x = 12.5 and gets shoved east to x = 13.
+    const c = build([{ id: 1, type: 'piston', x: 11, y: 5, rot: 0 }], wires([11, 4]));
+    const st = createSim(day({ x: 10, y: 4 }), c, { schedule: one });
+    const ev = run(st, 200);
+    const push = ev.find((e) => e.type === 'push');
+    expect(push).toBeDefined();
+    expect(Math.floor((push as { x: number }).x)).toBe(13);
+  });
+});
+
+describe('big rocks and moving parts', () => {
+  const rocky: DayConfig = { ...day({ x: 1, y: 15 }), obstacles: [{ type: 'rock', x: 8, y: 8, w: 2, h: 2, clearSeconds: 60 }] };
+  it('a 2x2 rock covers all four tiles', () => {
+    const st = createSim(rocky, build([], []), { schedule: [] });
+    for (const [x, y] of [[8, 8], [9, 8], [8, 9], [9, 9]] as const) expect(st.wallHp[key(x, y)]).toBe(ROCK_HP);
+    expect(st.wallHp[key(10, 8)]).toBe(0);
+    expect(placePart(rocky, build([], []), 'saw_blade', 9, 9)).toEqual({ ok: false, reason: 'A rock is in the way' });
+  });
+  it('a placed part can move to a free tile, keeping its id and turn, but not onto a rock', () => {
+    const c = build([{ id: 7, type: 'piston', x: 3, y: 3, rot: 2 }], []);
+    const moved = movePart(rocky, c, 7, 4, 3);
+    expect(moved.ok && moved.c.parts[0]).toEqual({ id: 7, type: 'piston', x: 4, y: 3, rot: 2 });
+    expect(movePart(rocky, c, 7, 8, 9)).toEqual({ ok: false, reason: 'A rock is in the way' });
   });
 });

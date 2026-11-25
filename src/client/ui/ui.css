@@ -1295,8 +1295,11 @@
     font-size: 13px;
     padding: 6px 12px;
   }
+  /* Phones: the sandbox panel sits under the top bar, clear of the two-row hotbar. */
   .sandbox {
-    bottom: calc(var(--safe-b) + 200px);
+    top: calc(var(--safe-t) + 60px);
+    bottom: auto;
+    width: 190px;
   }
 }
 
@@ -1396,6 +1399,12 @@
   padding: 22px 22px 18px;
   display: flex;
   flex-direction: column;
+}
+
+/* On a short screen the card scrolls; nothing inside it gets squeezed thin. */
+.card.briefing > *,
+.card > * {
+  flex-shrink: 0;
 }
 
 .brief-hero {
@@ -1631,8 +1640,8 @@
 @media (max-width: 560px) {
   .tray {
     display: grid;
-    /* six across: a 12-slot kit is two rows */
-    grid-template-columns: repeat(6, minmax(0, 54px));
+    /* always two rows: as many columns as half the slots (set from the slot count) */
+    grid-template-columns: repeat(var(--cols, 6), minmax(0, 54px));
     justify-content: center;
     gap: 5px;
     padding: 6px;

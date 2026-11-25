@@ -36,10 +36,11 @@ export const demoDay: DayConfig = {
   fixtures: [{ type: 'tesla_coil', x: 6, y: 8, rot: 0, broken: true, repairSeconds: 120 }],
   // Rocks bend the paths in; clearing one costs 0:30 of build time.
   obstacles: [
-    { type: 'rock', x: 3, y: 5, clearSeconds: 30 },
-    { type: 'rock', x: 12, y: 10, clearSeconds: 30 },
-    { type: 'rock', x: 8, y: 13, clearSeconds: 30 },
-    { type: 'rock', x: 13, y: 2, clearSeconds: 30 },
+    { type: 'rock', x: 2, y: 5, w: 2, h: 2, clearSeconds: 60 },
+    { type: 'rock', x: 12, y: 10, w: 2, h: 1, clearSeconds: 35 },
+    { type: 'rock', x: 8, y: 12, w: 1, h: 2, clearSeconds: 35 },
+    { type: 'rock', x: 13, y: 2, clearSeconds: 15 },
+    { type: 'rock', x: 5, y: 11, clearSeconds: 15 },
   ],
 };
 

@@ -63,21 +63,40 @@ function wireBrightness(strength: number): number {
   return 0.06 + 0.94 * Math.min(1, (strength - 1) / 8) ** 1.3;
 }
 
-/** A grey boulder seen from above, drawn once into a texture. */
-function rockTexture(scene: Phaser.Scene): string {
-  const key = 'map-rock';
+/** One boulder from above: shadow, body in three tones, cracks. Centre (cx, cy), size rx x ry. */
+function drawBoulder(g: Phaser.GameObjects.Graphics, cx: number, cy: number, rx: number, ry: number): void {
+  g.fillStyle(0x000000, 0.28).fillEllipse(cx + rx * 0.08, cy + ry * 0.3, rx * 2.05, ry * 1.75);
+  g.fillStyle(0x5d5a55, 1).fillEllipse(cx, cy, rx * 2, ry * 2);
+  g.fillStyle(0x76726b, 1).fillEllipse(cx - rx * 0.07, cy - ry * 0.13, rx * 1.7, ry * 1.65);
+  g.fillStyle(0x8f8a82, 1).fillEllipse(cx - rx * 0.25, cy - ry * 0.35, rx * 0.95, ry * 0.8);
+  g.fillStyle(0x6a6660, 1).fillEllipse(cx + rx * 0.42, cy + ry * 0.22, rx * 0.65, ry * 0.5);
+  g.lineStyle(1.6, 0x45423e, 0.9)
+    .lineBetween(cx - rx * 0.03, cy - ry * 0.65, cx + rx * 0.14, cy - ry * 0.13)
+    .lineBetween(cx + rx * 0.14, cy - ry * 0.13, cx + rx * 0.04, cy + ry * 0.35);
+  g.lineStyle(1.4, 0x45423e, 0.7).lineBetween(cx - rx * 0.57, cy + ry * 0.04, cx - rx * 0.25, cy + ry * 0.17);
+}
+
+/**
+ * A rock covering w x h tiles, from above, drawn once per size into a texture:
+ * one big boulder filling the block, with smaller stones round it on the
+ * bigger sizes and a tuft of moss.
+ */
+function rockTexture(scene: Phaser.Scene, w: number, h: number): string {
+  const key = `map-rock-${w}x${h}`;
   if (scene.textures.exists(key)) return key;
+  const T = 64;
+  const W = w * T;
+  const H = h * T;
   const g = scene.add.graphics();
-  // soft shadow, then the body in three tones, then a few cracks
-  g.fillStyle(0x000000, 0.28).fillEllipse(34, 40, 58, 40);
-  g.fillStyle(0x5d5a55, 1).fillEllipse(32, 33, 56, 46);
-  g.fillStyle(0x76726b, 1).fillEllipse(30, 30, 48, 38);
-  g.fillStyle(0x8f8a82, 1).fillEllipse(25, 25, 26, 18);
-  g.fillStyle(0x6a6660, 1).fillEllipse(44, 38, 18, 12);
-  g.lineStyle(1.6, 0x45423e, 0.9).lineBetween(31, 18, 36, 30).lineBetween(36, 30, 33, 41);
-  g.lineStyle(1.4, 0x45423e, 0.7).lineBetween(16, 34, 25, 37);
-  g.fillStyle(0x4f7a3a, 0.9).fillEllipse(14, 46, 12, 5); // a tuft of moss
-  g.generateTexture(key, 64, 60);
+  const big = w * h > 1;
+  drawBoulder(g, W / 2, H / 2 - 2, W * (big ? 0.4 : 0.44), H * (big ? 0.38 : 0.37));
+  if (big) {
+    // a couple of loose stones at the corners
+    drawBoulder(g, W * 0.17, H * 0.8, T * 0.16, T * 0.13);
+    drawBoulder(g, W * 0.86, H * 0.2, T * 0.13, T * 0.11);
+  }
+  g.fillStyle(0x4f7a3a, 0.9).fillEllipse(W * 0.22, H * 0.86, 12, 5); // moss
+  g.generateTexture(key, W, H);
   g.destroy();
   return key;
 }
@@ -269,14 +288,20 @@ export class EntityLayer {
       const k = key(o.x, o.y);
       want.add(k);
       if (this.rocks.has(k)) continue;
-      const p = tileToWorld(o.x, o.y);
-      // A little turn and size per tile so rocks don't look stamped.
+      const w = o.w ?? 1;
+      const h = o.h ?? 1;
+      // Centre of the block it covers.
+      const a = tileToWorld(o.x, o.y);
+      const b = tileToWorld(o.x + w - 1, o.y + h - 1);
+      // Single stones get a little turn and size each so they don't look stamped;
+      // bigger rocks flip instead (their shape has to stay inside the block).
       const v = (o.x * 7 + o.y * 13) % 5;
       const s = this.scene.add
-        .image(p.x, p.y + 2, rockTexture(this.scene))
-        .setAngle(v * 37)
-        .setScale(0.92 + v * 0.03)
-        .setDepth(DEPTH.parts + p.y);
+        .image((a.x + b.x) / 2, (a.y + b.y) / 2 + 2, rockTexture(this.scene, w, h))
+        .setAngle(w === 1 && h === 1 ? v * 37 : 0)
+        .setFlipX(v % 2 === 1)
+        .setScale(w === 1 && h === 1 ? 0.92 + v * 0.03 : 1)
+        .setDepth(DEPTH.parts + b.y);
       this.rocks.set(k, s);
     }
     for (const [k, s] of this.rocks)

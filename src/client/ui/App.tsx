@@ -7,9 +7,11 @@ import { useObs } from '../core/observable';
 import { buy, clearRock, repairFixture, session, toast } from '../core/session';
 import { canAffordAny, shopFor } from '../core/shop';
 import { fixtureAt, workingFixtures } from '@shared/build/fixtures';
+import { covers } from '@shared/build/rocks';
 import {
   IconErase,
   IconFit,
+  IconSelect,
   IconHand,
   IconMinus,
   IconPause,
@@ -303,13 +305,15 @@ function Tray() {
     if (tool !== id && s.count !== undefined && s.count <= 0 && session.mode === 'demo')
       toast(`Out of ${s.label.toLowerCase()} · you can buy more in the Time Shop`);
     session.tool.set(tool === id ? 'select' : id);
+    if (id === 'select') session.tool.set('select');
   };
   const ready = !!c.house;
   // One name tag above the hotbar: the slot under the pointer, else the active one.
   const [hover, setHover] = useState<string | null>(null);
-  const tipId = hover ?? (tool !== 'select' ? tool : null);
+  const tipId = hover ?? (tool !== 'select' || session.mode === 'sandbox' ? tool : null);
 
   const slot = (id: string): { label: string; title?: string; icon: preact.ComponentChildren; count?: number; badge?: string; alert?: boolean } => {
+    if (id === 'select') return { label: 'Select', title: 'Select · tap to pick, drag to move', icon: <IconSelect /> };
     if (id === 'erase') return { label: 'Remove', icon: <IconErase /> };
     if (id === 'house')
       return { label: 'House', icon: <img src={icon('home')} alt="" />, badge: c.house ? '✓' : '!', alert: !c.house };
@@ -376,8 +380,14 @@ function Tray() {
             {tipDetail && <span>{tipDetail}</span>}
           </div>
         )}
-        <div class="tray" role="toolbar" aria-label="Build tools" onMouseLeave={() => setHover(null)}>
-          {hotbarTools(day).map((id, i) => {
+        <div
+          class="tray"
+          role="toolbar"
+          aria-label="Build tools"
+          style={{ '--cols': Math.ceil(hotbarTools(day, session.mode).length / 2) }}
+          onMouseLeave={() => setHover(null)}
+        >
+          {hotbarTools(day, session.mode).map((id, i) => {
             const s = slot(id);
             return (
               <ToolBtn key={id} id={id} keyHint={slotKey(i)} cur={tool} onPick={pick} onHover={setHover} {...s}>
@@ -568,13 +578,19 @@ function InletCard() {
   );
 }
 
+/** What to call a rock by its size. */
+function rockName(w: number, h: number): string {
+  const n = w * h;
+  return n >= 4 ? 'Boulder' : n >= 2 ? 'Rock' : 'Stone';
+}
+
 /** A rock: what it does, and the button to clear it for build time. */
 function RockCard() {
   const sel = useObs(session.selected);
   const anchor = useObs(session.selAnchor);
   useObs(session.cleared);
   const left = useObs(session.clock.left);
-  const rock = sel ? (session.day.obstacles ?? []).find((o) => o.x === sel.x && o.y === sel.y) : undefined;
+  const rock = sel ? (session.day.obstacles ?? []).find((o) => covers(o, sel.x, sel.y)) : undefined;
   const { ref, below, style } = useFloatingCard(rock ? anchor : null);
   if (!rock || !anchor) return null;
   const can = session.mode !== 'demo' || left - rock.clearSeconds >= 5;
@@ -582,7 +598,12 @@ function RockCard() {
     <div class={`inspector floating ${below ? 'below' : 'above'}`} ref={ref} style={style}>
       <div class="insp-rock" aria-hidden="true" />
       <div class="insp-body">
-        <div class="insp-title">Rock</div>
+        <div class="insp-title">
+          {rockName(rock.w ?? 1, rock.h ?? 1)}
+          <span class="insp-power">
+            {rock.w ?? 1}×{rock.h ?? 1}
+          </span>
+        </div>
         <div class="insp-sub">Zombies walk round it. Nothing can be built or wired through it.</div>
         <button
           class="repair-btn"
@@ -729,7 +750,7 @@ const PART_INFO: Record<string, string> = {
   tesla_coil: 'Zaps the nearest zombie for 70, arcing on to a second · needs 3 · more power hits harder and wears it faster',
   saw_blade: 'Cuts 60 damage a second at full power · needs 1 · more power hits harder and wears it faster',
   spike_floor: 'Tick: a 45 punch each time · steady: one 20 stab per zombie, and slows · needs 1 · wears out',
-  piston: 'When power arrives, shoves zombies on the tile in front one tile on · needs 1 · turn it to aim',
+  piston: 'While powered, shoves any zombie that steps onto the tile in front one tile on (1s reset) · needs 1 · turn it to aim',
   latch: 'Memory: power on the back switches it on, power on the side switches it off · steady 10 out the front',
 };
 

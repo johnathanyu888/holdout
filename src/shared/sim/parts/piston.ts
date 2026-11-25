@@ -1,9 +1,11 @@
-// Piston (action, needs 1, rotatable). When power arrives (a rising edge, of
-// either kind) it shoves every zombie on the tile in front of it one tile
-// further on, in the direction it faces. If a wall, rock or the lawn edge is in
-// the way, the zombie slams into it instead and takes 20 (scaled by strength).
-// 1s (10-step) cooldown. Steady power pushes once and keeps the head out; a beat
-// of ticks pumps it. Each push wears it a little.
+// Piston (action, needs 1, rotatable). Shoves every zombie on the tile in front
+// of it one tile further on, in the direction it faces. If a wall, rock or the
+// lawn edge is in the way, the zombie slams into it instead and takes 20 (scaled
+// by strength).
+//  Steady power: armed. It fires whenever a zombie is on the front tile, then
+//    needs 1s (10 steps) to reset.
+//  Tick: one shot on the rising edge, if anything is in front.
+// Each push wears it a little.
 // The point: shove zombies into spikes, saws or a Tesla coil's reach.
 
 import { GRID, key } from '../../grid';
@@ -30,35 +32,42 @@ registerPart({
     if ((p.s.cool ?? 0) > 0) p.s.cool = (p.s.cool ?? 0) - 1;
     if ((p.s.show ?? 0) > 0) p.s.show = (p.s.show ?? 0) - 1;
     const held = input.c >= NEEDS;
-    const on = held || input.t >= NEEDS;
-    const rising = on && !p.s.last;
-    p.s.last = on ? 1 : 0;
-    if (rising && !p.s.cool) {
+    const tickOn = input.t >= NEEDS;
+    const rising = tickOn && !p.s.last;
+    p.s.last = tickOn ? 1 : 0;
+    const dx = DX[p.rot] as number;
+    const dy = DY[p.rot] as number;
+    const fx = p.x + dx;
+    const fy = p.y + dy;
+    const inFront = fx >= 0 && fy >= 0 && fx < GRID && fy < GRID ? ctx.zombiesOn(fx, fy).filter((z) => !z.ext.enter) : [];
+    if ((held || rising) && !p.s.cool && inFront.length) {
       p.s.cool = PISTON_COOLDOWN;
       p.s.show = SHOW_STEPS;
       ctx.emit({ type: 'partFired', partId: p.id });
-      const dx = DX[p.rot] as number;
-      const dy = DY[p.rot] as number;
-      const fx = p.x + dx;
-      const fy = p.y + dy;
       const tx = fx + dx;
       const ty = fy + dy;
       const st = ctx.state;
       const blocked = tx < 0 || ty < 0 || tx >= GRID || ty >= GRID || (st.wallHp[key(tx, ty)] ?? 0) > 0;
-      const pushed = fx >= 0 && fy >= 0 && fx < GRID && fy < GRID ? ctx.zombiesOn(fx, fy) : [];
-      for (const z of pushed) {
+      for (const z of inFront) {
         if (blocked) {
           ctx.damage(z, PISTON_SLAM, p.id);
           continue;
         }
         const fromX = z.x;
         const fromY = z.y;
+        // Remember where it was, so this step's motion (and the slide on screen) starts there.
+        if (!z.ext.pushed) {
+          z.ext.pushed = 1;
+          z.ext.pfx = fromX;
+          z.ext.pfy = fromY;
+        }
         z.x += dx;
         z.y += dy;
         ctx.emit({ type: 'push', id: z.id, partId: p.id, fromX, fromY, x: z.x, y: z.y });
       }
       ctx.wear(p, PISTON_WEAR * powerMul(p.s.pw ?? 0));
     }
-    p.active = held || (p.s.show ?? 0) > 0;
+    // Shown punched out for a moment after each shot.
+    p.active = (p.s.show ?? 0) > 0;
   },
 });

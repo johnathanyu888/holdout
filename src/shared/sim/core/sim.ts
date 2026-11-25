@@ -327,8 +327,10 @@ function moveZombies(st: SimState, events: SimEvent[]): void {
   const live = st.zombies.filter((z) => !z.dead);
 
   for (const z of live) {
-    z.px = z.x;
-    z.py = z.y;
+    // A zombie shoved this step (piston) moves on from where it was shoved from.
+    z.px = z.ext.pushed ? (z.ext.pfx as number) : z.x;
+    z.py = z.ext.pushed ? (z.ext.pfy as number) : z.y;
+    z.ext.pushed = 0;
     if (z.ext.enter) {
       // Walking in out of the forest: straight to the edge tile, then path as normal.
       const dx = (z.ext.ex as number) - z.x;

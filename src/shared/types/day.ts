@@ -57,8 +57,12 @@ export interface DayConfig {
 
 export interface Obstacle {
   type: 'rock';
+  /** Top-left tile. */
   x: number;
   y: number;
+  /** Size in tiles (default 1 x 1). */
+  w?: number;
+  h?: number;
   /** Build time it takes to clear, in seconds. */
   clearSeconds: number;
 }

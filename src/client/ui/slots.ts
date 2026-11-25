@@ -4,8 +4,10 @@
 
 import type { DayConfig } from '@shared/types/day';
 
-export function hotbarTools(day: DayConfig): string[] {
+export function hotbarTools(day: DayConfig, mode: 'demo' | 'sandbox' = 'demo'): string[] {
   return [
+    // The sandbox gets an explicit Select slot (the demo selects with no tool active).
+    ...(mode === 'sandbox' ? ['select'] : []),
     'erase',
     'house',
     ...Object.keys(day.kit).map((t) => `part:${t}`),

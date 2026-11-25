@@ -3,6 +3,9 @@
 //
 //   select       the default (no hotbar slot): tap a tile to select it (rotate with R)
 //                Placing tools also select a placed part when you tap it (auto-select).
+//                Select, house and part tools: press on a placed part or the house
+//                and drag to move it.
+//   Tapping off the lawn puts any tool away (back to select).
 //   house        tap to place or move the house
 //   part:<type>  tap to place a part at the current rotation
 //   wire         tap one tile, or drag an L-shaped path (one undo step)
@@ -14,8 +17,10 @@ import {
   WALL_COST,
   checkHouse,
   checkPart,
+  checkMovePart,
   checkWall,
   eraseAt,
+  movePart,
   occupantAt,
   placeHouse,
   placePart,
@@ -50,12 +55,82 @@ export interface ToolEnv {
 }
 
 export function createTool(id: string, env: ToolEnv): BuildTool {
-  if (id === 'house') return houseTool(env);
+  const tool = makeTool(id, env);
+  // Tapping off the lawn always puts the tool away.
+  const tap = tool.onTap;
+  return {
+    ...tool,
+    onTap: (p) => {
+      if (!p.tile) return id === 'select' ? env.select(null) : env.putAway();
+      tap?.(p);
+    },
+  };
+}
+
+function makeTool(id: string, env: ToolEnv): BuildTool {
+  if (id === 'house') return withMove(env, houseTool(env));
   if (id === 'wire') return wireTool(env);
   if (id === 'erase') return eraseTool(env);
   if (id.startsWith('wall:')) return wallTool(env, id.slice(5) as WallMaterial);
-  if (id.startsWith('part:')) return partTool(env, id.slice(5));
-  return selectTool(env);
+  if (id.startsWith('part:')) return withMove(env, partTool(env, id.slice(5)));
+  return withMove(env, selectTool(env));
+}
+
+/**
+ * Drag-to-move: a press on a placed part (or the house) that turns into a drag
+ * picks it up; it follows the finger as a ghost and drops on release (if the
+ * tile is free). A drag that starts anywhere else does what the tool did before
+ * (pans the camera).
+ */
+function withMove(env: ToolEnv, tool: BuildTool): BuildTool {
+  type Held = { kind: 'part'; id: number; type: string; rot: number } | { kind: 'house' };
+  let held: Held | null = null;
+  let at: Tile | null = null;
+  const grab = (t: Tile | null): Held | null => {
+    if (!t) return null;
+    const o = occupantAt(env.day, env.store.current, t.x, t.y);
+    if (o.kind === 'part') return { kind: 'part', id: o.part.id, type: o.part.type, rot: o.part.rot };
+    if (o.kind === 'house') return { kind: 'house' };
+    return null;
+  };
+  const valid = (h: Held, t: Tile) =>
+    h.kind === 'part' ? !checkMovePart(env.day, env.store.current, h.id, t.x, t.y) : !checkHouse(env.day, env.store.current, t.x, t.y);
+  return {
+    ...tool,
+    capturesDragAt: (p) => grab(p.tile) !== null,
+    onDragStart: (p) => {
+      held = grab(p.tile);
+      at = p.tile;
+    },
+    onDragMove: (p) => {
+      if (p.tile) at = p.tile;
+    },
+    onDragEnd: () => {
+      const h = held;
+      const t = at;
+      held = null;
+      at = null;
+      if (!h || !t) return;
+      const r =
+        h.kind === 'part'
+          ? env.store.apply((c) => movePart(env.day, c, h.id, t.x, t.y))
+          : env.store.apply((c) => placeHouse(env.day, c, t.x, t.y));
+      report(env, r);
+      if (!r) env.select(t);
+    },
+    onCancel: () => {
+      held = null;
+      at = null;
+    },
+    ghost: (hover) => {
+      if (!held || !at) return tool.ghost(hover);
+      const ok = valid(held, at);
+      if (held.kind === 'house') return { tiles: [{ ...at, tex: TEX.structures, frame: 'home', angle: 0, valid: ok }] };
+      const frame = partView(held.type).frame ?? held.type;
+      const angle = hasPartDef(held.type) && partDef(held.type).rotatable ? held.rot * 90 : 0;
+      return { tiles: [{ ...at, tex: TEX.parts, frame, angle, valid: ok }] };
+    },
+  };
 }
 
 function report(env: ToolEnv, reason: string | null): void {
@@ -149,6 +224,8 @@ function pathTool(
       if (!p.tile) return;
       if (id !== 'erase' && autoSelect(env, p.tile)) return;
       if (opts.outOfStock?.()) return env.putAway();
+      // The eraser tapped on an empty tile: put it away.
+      if (id === 'erase' && occupantAt(env.day, env.store.current, p.tile.x, p.tile.y).kind === 'empty') return env.putAway();
       report(env, opts.commit([p.tile]));
     },
     onDragStart: (p) => {
