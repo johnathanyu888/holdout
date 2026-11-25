@@ -1,5 +1,6 @@
 // The DOM UI over the canvas. Reads the session; calls session.actions.
 
+import { Fragment } from 'preact';
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { WALL_COST, configurePart } from '@shared/build/rules';
 import { INLET_MAX_LOAD, INLET_STRENGTH, hasPartDef, partDef, powerMul, powerPreview } from '@shared/sim';
@@ -61,7 +62,7 @@ function slotKind(id: string, hasHouse: boolean): { tag: string; cls: string; te
   return { tag: 'Attack', cls: 'k-attack', text: `deals damage, needs power ${d.needs}+` };
 }
 
-/** First-pick explainers: a tiny diagram (atlas icons and arrows) and one line. */
+/** How each part is wired, as a tiny diagram (atlas icons and arrows) for its card. */
 const EXPLAIN: Record<string, { flow: string[]; line: string }> = {
   'part:pressure_plate': { flow: ['pressure_plate', '→', 'wire_straight', '→', 'saw_blade'], line: 'A zombie steps on it, power runs down the wire, the trap fires.' },
   'part:tripwire': { flow: ['tripwire', '→', 'wire_straight', '→', 'spike_floor'], line: 'Crossing it sends one short tick. Spikes punch on each tick.' },
@@ -73,20 +74,6 @@ const EXPLAIN: Record<string, { flow: string[]; line: string }> = {
   wire: { flow: ['power_inlet', '→', 'wire_straight', '→', 'saw_blade'], line: 'Carries power from a source to parts. Strength drops 1 a tile.' },
 };
 
-const seen = new Set<string>();
-/** Has this explainer been shown before? Marks it seen (kept across visits). */
-function seenTip(id: string): boolean {
-  const k = `seen-tip:${id}`;
-  let was = seen.has(k);
-  try {
-    was ||= localStorage.getItem(k) === '1';
-    localStorage.setItem(k, '1');
-  } catch {
-    // storage blocked: remember for this visit only
-  }
-  seen.add(k);
-  return was;
-}
 
 /** Tray labels: short enough to fit under a 64px button. */
 const SHORT: Record<string, string> = {
@@ -100,6 +87,8 @@ const SHORT: Record<string, string> = {
   tesla_coil: 'Tesla',
   trapdoor_pit: 'Pit',
   wrecking_ball: 'Ball',
+  piston: 'Piston',
+  latch: 'Latch',
 };
 
 export function partLabel(type: string): string {
@@ -248,8 +237,6 @@ function Briefing() {
     const t = setInterval(() => setLeft((n) => n - 1), 1000);
     return () => clearInterval(t);
   }, [drafting]);
-  // Newest kit entries flash when a pick lands.
-  const [fresh, setFresh] = useState<string[]>([]);
   // Leaving: the card lifts away and the night fades out, then building starts.
   const [leaving, setLeaving] = useState(false);
   const go = () => {
@@ -261,6 +248,8 @@ function Briefing() {
     if (left <= 0 && !drafting) go();
   }, [left]);
   // On a short screen the card scrolls: a "more below" cue until you reach the end.
+  // The cue never changes the card's height (it overlays the bottom), so the
+  // scroll position can't jump when it fades out.
   const cardRef = useRef<HTMLDivElement>(null);
   const [more, setMore] = useState(false);
   const checkMore = () => {
@@ -271,7 +260,7 @@ function Briefing() {
     checkMore();
     window.addEventListener('resize', checkMore);
     return () => window.removeEventListener('resize', checkMore);
-  }, []);
+  }, [drafting]);
   const { day } = session;
   const z = day.spawns.zombies.reduce((n, g) => n + g.count, 0);
   const kit: { key: string; icon: string; label: string; n: string }[] = [
@@ -299,37 +288,33 @@ function Briefing() {
             <span>zombies</span>
           </div>
           <div>
-            <b>4</b>
-            <span>sides</span>
-          </div>
-          <div>
             <b>{fmtClock(day.buildSeconds)}</b>
             <span>to build</span>
           </div>
         </div>
 
-        {drafting && draft && (
+        {drafting && draft ? (
           <DraftRound
             round={picks.length}
             total={draft.rounds.length}
             offers={draft.rounds[picks.length] as [DraftOffer, DraftOffer]}
-            onPick={(p, keys) => {
-              setFresh(keys);
-              session.draftPicks.set([...picks, p]);
-            }}
+            onPick={(p) => session.draftPicks.set([...picks, p])}
           />
-        )}
-
-        <div class="section-label">{drafting ? 'YOUR KIT SO FAR' : 'YOUR KIT'}</div>
-        <div class="kit">
-          {kit.map((k) => (
-            <div class={`kit-item ${fresh.includes(k.key) ? 'fresh' : ''}`} key={k.key} title={k.label}>
-              <img src={icon(k.icon)} alt="" />
-              <span class="kit-name">{k.label}</span>
-              <b>{k.n}</b>
+        ) : (
+          <>
+            <div class="section-label">YOUR KIT</div>
+            {/* the list deals in one by one once the picks are done */}
+            <div class="kit">
+              {kit.map((k, i) => (
+                <div class="kit-item pop" key={k.key} title={k.label} style={{ animationDelay: `${60 + i * 45}ms` }}>
+                  <img src={icon(k.icon)} alt="" />
+                  <span class="kit-name">{k.label}</span>
+                  <b>{k.n}</b>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
+          </>
+        )}
 
         <div class="section-label">TONIGHT</div>
         <ol class="brief-steps">
@@ -339,7 +324,7 @@ function Briefing() {
         </ol>
 
         <button class="big-btn" onClick={go} disabled={drafting}>
-          {drafting ? 'Finish your draft first' : 'Start building'}
+          {drafting ? 'Finish your picks first' : 'Start building'}
         </button>
         {!drafting && (
           <div class="brief-auto">
@@ -349,48 +334,39 @@ function Briefing() {
             <span>Starts on its own in {Math.max(0, left)}s</span>
           </div>
         )}
-        {more && (
-          <button
-            class="brief-more"
-            aria-label="Scroll down for more"
-            onClick={() => cardRef.current?.scrollBy({ top: cardRef.current.clientHeight * 0.7, behavior: 'smooth' })}
-          >
-            <span>More below</span>
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M6 9 L12 15 L18 9" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
-            </svg>
-          </button>
-        )}
+        <button
+          class={`brief-more ${more ? 'show' : ''}`}
+          aria-label="Scroll down for more"
+          tabIndex={more ? 0 : -1}
+          onClick={() => cardRef.current?.scrollBy({ top: cardRef.current.clientHeight * 0.7, behavior: 'smooth' })}
+        >
+          <span>More below</span>
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M6 9 L12 15 L18 9" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </button>
       </div>
     </div>
   );
 }
 
 /**
- * One draft round: two cards, left or right. Tapping one lifts it and fades the
- * other, then the next round deals in. Each card lists what it gives, with the
- * kind of thing it is (Attack, Power, Logic...).
+ * One pick: two cards, left or right. The cards deal in from their sides; a tap
+ * pops the chosen card and drops it away while the other fades, and the next
+ * pair deals straight in.
  */
-function DraftRound(p: {
-  round: number;
-  total: number;
-  offers: [DraftOffer, DraftOffer];
-  onPick(pick: Pick, keys: string[]): void;
-}) {
+function DraftRound(p: { round: number; total: number; offers: [DraftOffer, DraftOffer]; onPick(pick: Pick): void }) {
   const [chosen, setChosen] = useState<Pick | null>(null);
   useEffect(() => setChosen(null), [p.round]);
   const take = (pick: Pick) => {
     if (chosen !== null) return;
     setChosen(pick);
-    const o = p.offers[pick];
-    const keys = [...Object.keys(o.parts ?? {}), ...Object.keys(o.materials ?? {})];
-    setTimeout(() => p.onPick(pick, keys), 420);
+    setTimeout(() => p.onPick(pick), 230);
   };
   return (
     <div class="draft">
       <div class="draft-head">
-        <span class="section-label">DRAFT</span>
-        <span class="draft-count">
+        <span class="draft-count" key={p.round}>
           Pick {p.round + 1} of {p.total}
         </span>
         <span class="draft-dots" aria-hidden="true">
@@ -403,7 +379,7 @@ function DraftRound(p: {
         {([0, 1] as Pick[]).map((side) => (
           <button
             key={side}
-            class={`draft-card ${chosen === side ? 'chosen' : chosen !== null ? 'passed' : ''}`}
+            class={`draft-card side-${side} ${chosen === side ? 'chosen' : chosen !== null ? 'passed' : ''}`}
             onClick={() => take(side)}
           >
             <OfferBody offer={p.offers[side]} />
@@ -415,10 +391,10 @@ function DraftRound(p: {
   );
 }
 
-/** What a draft card gives: each item's icon, name and count, and its kind. */
+/** What a draft card gives: each item as an icon, a short name with its count, and its kind; side by side if more than one. */
 function OfferBody(p: { offer: DraftOffer }) {
   const items = [
-    ...Object.entries(p.offer.parts ?? {}).map(([t, n]) => ({ key: t, icon: t, name: partLabel(t), n, kind: slotKind(`part:${t}`, true) })),
+    ...Object.entries(p.offer.parts ?? {}).map(([t, n]) => ({ key: t, icon: t, name: SHORT[t] ?? partLabel(t), n, kind: slotKind(`part:${t}`, true) })),
     ...Object.entries(p.offer.materials ?? {}).map(([m, n]) => ({
       key: m,
       icon: m,
@@ -428,20 +404,21 @@ function OfferBody(p: { offer: DraftOffer }) {
     })),
   ];
   return (
-    <>
-      {items.map((it) => (
-        <div class="offer-item" key={it.key}>
-          <img src={icon(it.icon)} alt="" />
-          <div class="offer-text">
+    <div class="offer">
+      {items.map((it, i) => (
+        <Fragment key={it.key}>
+          {i > 0 && <span class="offer-plus">+</span>}
+          <div class="offer-item">
+            <img src={icon(it.icon)} alt="" />
             <b>
               {it.n > 1 ? `${it.n}× ` : ''}
               {it.name}
             </b>
             {it.kind && <span class={`kind-tag ${it.kind.cls}`}>{it.kind.tag}</span>}
           </div>
-        </div>
+        </Fragment>
       ))}
-    </>
+    </div>
   );
 }
 
@@ -466,14 +443,6 @@ function Tray() {
       toast(`Out of ${s.label.toLowerCase()}`);
     session.tool.set(tool === id ? 'select' : id);
     if (id === 'select') session.tool.set('select');
-    if (tool !== id) showFirstTip(id);
-  };
-  // The first time each slot is picked, its tag also explains it (with a little diagram).
-  const [firstTip, setFirstTip] = useState<string | null>(null);
-  const showFirstTip = (id: string) => {
-    if (!EXPLAIN[id] || seenTip(id)) return;
-    setFirstTip(id);
-    setTimeout(() => setFirstTip((cur) => (cur === id ? null : cur)), 7000);
   };
 
   // Drag and drop from the hotbar: press a slot, drag onto the lawn, let go to place there.
@@ -537,10 +506,7 @@ function Tray() {
   };
 
   const tip = tipId ? slot(tipId) : null;
-  // What kind of thing it is (Power, Logic, Attack...), not how many are left.
-  const tipKind = tipId ? slotKind(tipId, !!c.house) : null;
-  const tipDetail = tipKind?.text ?? null;
-  const explain = firstTip && firstTip === tipId ? EXPLAIN[firstTip] : null;
+  // Just the name: what a part does is shown in its card once it's placed.
 
   // Centre the tag over its slot, kept inside the hotbar's edges.
   const hotbarRef = useRef<HTMLDivElement>(null);
@@ -561,7 +527,7 @@ function Tray() {
     place();
     window.addEventListener('resize', place);
     return () => window.removeEventListener('resize', place);
-  }, [tipId, tip?.title, tipDetail, explain]);
+  }, [tipId, tip?.title]);
 
   return (
     <div class="tray-wrap">
@@ -574,20 +540,7 @@ function Tray() {
             style={tipLeft === null ? { visibility: 'hidden' } : { left: `${tipLeft}px` }}
           >
             <b>{tip.title ?? tip.label}</b>
-            {tipKind && tipKind.tag !== (tip.title ?? tip.label) && <span class={`kind-tag ${tipKind.cls}`}>{tipKind.tag}</span>}
-            {tipDetail && <span>{tipDetail}</span>}
-            {explain && (
-              <div class="tip-explain">
-                <div class="tip-flow">
-                  {explain.flow.map((f, i) => (
-                    <span key={i} class={f === '→' ? 'arrow' : ''}>
-                      {f === '→' ? '→' : <img src={icon(f)} alt="" />}
-                    </span>
-                  ))}
-                </div>
-                <div class="tip-line">{explain.line}</div>
-              </div>
-            )}
+
           </div>
         )}
         <div
@@ -745,9 +698,10 @@ function InletCard() {
   );
 }
 
-/** What to call a rock by its size. */
-function rockName(w: number, h: number): string {
+/** What to call a rock or tree by its size. */
+function rockName(type: 'rock' | 'tree', w: number, h: number): string {
   const n = w * h;
+  if (type === 'tree') return n >= 4 ? 'Big oak' : 'Tree';
   return n >= 4 ? 'Boulder' : n >= 2 ? 'Rock' : 'Stone';
 }
 
@@ -763,10 +717,10 @@ function RockCard() {
   const can = session.mode !== 'demo' || left - rock.clearSeconds >= 5;
   return (
     <div class={`inspector floating ${below ? 'below' : 'above'}`} ref={ref} style={style}>
-      <div class="insp-rock" aria-hidden="true" />
+      <div class={rock.type === 'tree' ? 'insp-tree' : 'insp-rock'} aria-hidden="true" />
       <div class="insp-body">
         <div class="insp-title">
-          {rockName(rock.w ?? 1, rock.h ?? 1)}
+          {rockName(rock.type, rock.w ?? 1, rock.h ?? 1)}
           <span class="insp-power">
             {rock.w ?? 1}×{rock.h ?? 1}
           </span>
@@ -781,7 +735,7 @@ function RockCard() {
           }}
         >
           <IconWrench />
-          Clear (−{fmtClock(rock.clearSeconds)})
+          {rock.type === 'tree' ? 'Cut down' : 'Clear'} (−{fmtClock(rock.clearSeconds)})
         </button>
         {!can && <div class="insp-note">Not enough build time left</div>}
       </div>
@@ -883,6 +837,7 @@ function Inspector() {
         </div>
         {strength !== null && <SignalMeter s={strength} />}
         <div class="insp-sub">{(type === 'delay' && blink ? BLINK_INFO : PART_INFO[type]) ?? ''}</div>
+        {EXPLAIN[`part:${type}`] && <PartDemo flow={(EXPLAIN[`part:${type}`] as { flow: string[] }).flow} />}
         {latchOn !== null && selPart && (
           <div class="insp-controls">
             <div class="insp-seg" role="group" aria-label="Switch">
@@ -938,6 +893,23 @@ function SignalMeter(p: { s: number }) {
         ))}
       </span>
       <span class="sig-text">Signal {p.s}</span>
+    </div>
+  );
+}
+
+/** The part's little how-it's-wired diagram (icons with arrows), in its card. */
+function PartDemo(p: { flow: string[] }) {
+  return (
+    <div class="part-demo" aria-hidden="true">
+      {p.flow.map((f, i) =>
+        f === '→' ? (
+          <span key={i} class="demo-arrow">
+            <i />
+          </span>
+        ) : (
+          <img key={i} src={icon(f)} alt="" />
+        ),
+      )}
     </div>
   );
 }
@@ -1040,11 +1012,9 @@ function Result() {
           </div>
         </div>
         <div class="btns">
-          <button class="big-btn" onClick={() => session.actions.backToBuild()}>
-            Rebuild
-          </button>
-          <button class="big-btn ghost" onClick={() => session.actions.restart()}>
-            Start over
+          {/* One way on: back to the briefing for a fresh draft and build. */}
+          <button class="big-btn" onClick={() => session.actions.restart()}>
+            {won ? 'Play again' : 'Try again'}
           </button>
         </div>
       </div>

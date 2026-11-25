@@ -63,6 +63,42 @@ function wireBrightness(strength: number): number {
   return 0.06 + 0.94 * Math.min(1, (strength - 1) / 8) ** 1.3;
 }
 
+/**
+ * A tree from above, drawn once per size into a texture: a soft shadow, then a
+ * lumpy canopy (a ring of leafy lobes round a centre) in three greens, lit from
+ * the top left. Bigger trees get more lobes.
+ */
+function treeTexture(scene: Phaser.Scene, w: number, h: number, seed: number): string {
+  const key = `map-tree-${w}x${h}-${seed % 3}`;
+  if (scene.textures.exists(key)) return key;
+  const T = 64;
+  const W = w * T;
+  const H = h * T;
+  const g = scene.add.graphics();
+  const cx = W / 2;
+  const cy = H / 2;
+  const R = Math.min(W, H) * 0.44;
+  const lobes = w * h >= 4 ? 9 : 7;
+  const turn = (seed % 3) * 0.7;
+  // shadow, offset down-right
+  g.fillStyle(0x000000, 0.3).fillCircle(cx + R * 0.12, cy + R * 0.18, R * 1.02);
+  const ring = (r: number, lr: number, col: number, dx = 0, dy = 0) => {
+    g.fillStyle(col, 1);
+    for (let i = 0; i < lobes; i++) {
+      const a = turn + (i / lobes) * Math.PI * 2;
+      g.fillCircle(cx + dx + Math.cos(a) * r, cy + dy + Math.sin(a) * r, lr);
+    }
+    g.fillCircle(cx + dx, cy + dy, r);
+  };
+  ring(R * 0.62, R * 0.4, 0x2f5a24); // dark outer leaves
+  ring(R * 0.46, R * 0.34, 0x3f7a2e, -R * 0.06, -R * 0.06);
+  ring(R * 0.26, R * 0.26, 0x5a9a3a, -R * 0.16, -R * 0.16); // lit crown
+  g.fillStyle(0x7cbf52, 0.8).fillCircle(cx - R * 0.3, cy - R * 0.32, R * 0.14);
+  g.generateTexture(key, W, H);
+  g.destroy();
+  return key;
+}
+
 /** One boulder from above: shadow, body in three tones, cracks. Centre (cx, cy), size rx x ry. */
 function drawBoulder(g: Phaser.GameObjects.Graphics, cx: number, cy: number, rx: number, ry: number): void {
   g.fillStyle(0x000000, 0.28).fillEllipse(cx + rx * 0.08, cy + ry * 0.3, rx * 2.05, ry * 1.75);
@@ -316,9 +352,11 @@ export class EntityLayer {
       // Single stones get a little turn and size each so they don't look stamped;
       // bigger rocks flip instead (their shape has to stay inside the block).
       const v = (o.x * 7 + o.y * 13) % 5;
+      const seed = o.x * 7 + o.y * 13 + w * 5;
+      const tree = o.type === 'tree';
       const s = this.scene.add
-        .image((a.x + b.x) / 2, (a.y + b.y) / 2 + 2, rockTexture(this.scene, w, h, o.x * 7 + o.y * 13 + w * 5))
-        .setAngle(w === 1 && h === 1 ? v * 37 : 0)
+        .image((a.x + b.x) / 2, (a.y + b.y) / 2 + 2, tree ? treeTexture(this.scene, w, h, seed) : rockTexture(this.scene, w, h, seed))
+        .setAngle(tree ? v * 40 : w === 1 && h === 1 ? v * 37 : 0)
         .setFlipX(v % 2 === 1)
         .setScale(w === 1 && h === 1 ? 0.92 + v * 0.03 : 1)
         .setDepth(DEPTH.parts + b.y);
@@ -326,7 +364,7 @@ export class EntityLayer {
     }
     for (const [k, s] of this.rocks)
       if (!want.has(k)) {
-        // Cleared: crumble away.
+        // Cleared or cut down: shrink away.
         this.scene.tweens.add({ targets: s, alpha: 0, scale: s.scale * 0.6, duration: 280, onComplete: () => s.destroy() });
         this.rocks.delete(k);
       }

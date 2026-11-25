@@ -59,7 +59,8 @@ export interface DayConfig {
 }
 
 export interface Obstacle {
-  type: 'rock';
+  /** A rock (cleared) or a tree (cut down): both block the same way. */
+  type: 'rock' | 'tree';
   /** Top-left tile. */
   x: number;
   y: number;

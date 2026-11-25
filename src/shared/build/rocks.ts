@@ -1,5 +1,5 @@
-// The day's rocks (DayConfig.obstacles). A rock covers a w x h block of tiles
-// (1x1 pebbles up to 2x2 boulders). It blocks zombies, parts and wire until the
+// The day's obstacles (DayConfig.obstacles): rocks and trees. Each covers a w x h
+// block of tiles (1x1 up to 2x2). It blocks zombies, parts and wire until the
 // player clears it, which costs build time (bigger rocks cost more).
 
 import { key } from '../grid';
@@ -19,6 +19,12 @@ export function covers(o: Obstacle, x: number, y: number): boolean {
 /** Index of the rock covering tile (x, y), or -1. */
 export function rockAt(day: DayConfig, x: number, y: number): number {
   return (day.obstacles ?? []).findIndex((o) => covers(o, x, y));
+}
+
+/** "rock" or "tree" for messages: what's on tile (x, y). */
+export function obstacleWord(day: DayConfig, x: number, y: number): string {
+  const o = (day.obstacles ?? []).find((q) => covers(q, x, y));
+  return o?.type === 'tree' ? 'tree' : 'rock';
 }
 
 /** Every tile a rock covers. */

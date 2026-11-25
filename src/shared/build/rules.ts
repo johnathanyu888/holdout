@@ -9,7 +9,7 @@ import { type Tile, edgeDistance, inLawn } from '../grid';
 import type { Contraption, PlacedPart, Rot, WallMaterial } from '../types/build';
 import type { DayConfig, Materials } from '../types/day';
 import { fixtureAt } from './fixtures';
-import { rockAt } from './rocks';
+import { obstacleWord, rockAt } from './rocks';
 
 export const WIRE_COST = 1;
 export const WALL_COST = 3;
@@ -64,7 +64,7 @@ function needEmpty(day: DayConfig, c: Contraption, x: number, y: number): string
   if (o.kind === 'empty') return null;
   if (o.kind === 'inlet') return 'The power inlet is here';
   if (o.kind === 'fixture') return 'A machine is here';
-  if (o.kind === 'rock') return 'A rock is in the way';
+  if (o.kind === 'rock') return `A ${obstacleWord(day, x, y)} is in the way`;
   return 'Tile occupied';
 }
 
@@ -183,7 +183,7 @@ export function eraseAt(day: DayConfig, c: Contraption, x: number, y: number): R
     case 'fixture':
       return { ok: false, reason: "You can't remove a machine on the map" };
     case 'rock':
-      return { ok: false, reason: 'Tap the rock to clear it' };
+      return { ok: false, reason: obstacleWord(day, x, y) === 'tree' ? 'Tap the tree to cut it down' : 'Tap the rock to clear it' };
     case 'house':
       return { ok: true, c: { ...c, house: null } };
     case 'part':

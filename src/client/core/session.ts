@@ -189,7 +189,7 @@ export function clearRock(x: number, y: number): string | null {
   }
   session.selected.set(null);
   session.cleared.set([...session.cleared.value, `${r.x},${r.y}`]);
-  toast(`Rock cleared (−${Math.floor(r.clearSeconds / 60)}:${String(r.clearSeconds % 60).padStart(2, '0')})`);
+  toast(`${r.type === 'tree' ? 'Tree cut down' : 'Rock cleared'} (−${Math.floor(r.clearSeconds / 60)}:${String(r.clearSeconds % 60).padStart(2, '0')})`);
   return null;
 }
 
