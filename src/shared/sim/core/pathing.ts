@@ -65,6 +65,44 @@ export function computeField(blocked: Int16Array, goalX: number, goalY: number, 
 }
 
 /**
+ * The "bash through" field, for zombies with no open route to the house: walls
+ * count as passable but cost extra to cross (`extra(k)`: the cost of breaking
+ * through tile k, or < 0 if it can never be crossed, like a rock). Orthogonal
+ * steps only. Every trapped zombie follows the same field, so they converge on
+ * the same cheapest wall and pile up against it together.
+ */
+export function computeBashField(extra: (k: number) => number, goalX: number, goalY: number, out: Int32Array): void {
+  out.fill(FIELD_INF);
+  const done = new Uint8Array(TILE_COUNT);
+  out[goalY * GRID + goalX] = 0;
+  for (;;) {
+    let best = -1;
+    let bestD = FIELD_INF;
+    for (let k = 0; k < TILE_COUNT; k++) {
+      const d = out[k] as number;
+      if (!done[k] && d < bestD) {
+        bestD = d;
+        best = k;
+      }
+    }
+    if (best < 0) return;
+    done[best] = 1;
+    const e = extra(best);
+    if (e < 0) continue; // can't be crossed: nothing reaches the goal through it
+    const x = best % GRID;
+    const y = (best - x) / GRID;
+    for (const [dx, dy] of DIRS.slice(0, 4)) {
+      const nx = x + dx;
+      const ny = y + dy;
+      if (nx < 0 || ny < 0 || nx >= GRID || ny >= GRID) continue;
+      const n = ny * GRID + nx;
+      const nd = bestD + 10 + e;
+      if (nd < (out[n] as number)) out[n] = nd;
+    }
+  }
+}
+
+/**
  * The neighbour a zombie in (x, y) should head for: the reachable neighbour
  * with the smallest distance (ties: DIRS order). null if none is closer.
  */

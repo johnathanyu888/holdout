@@ -25,14 +25,14 @@ export const demoDay: DayConfig = {
     piston: 2,
     latch: 1,
   },
-  materials: { wire: 36, wood: 24, stone: 0 },
+  materials: { wire: 36, wood: 30, stone: 12 },
   buildSeconds: 240,
-  raidMaxSeconds: 45,
+  raidMaxSeconds: 90,
   spawns: {
     seed: 'holdout:demo-1',
-    zombies: [{ type: 'shambler', count: 16 }],
+    zombies: [{ type: 'shambler', count: 40 }],
     firstStep: 10,
-    groupGap: 25,
+    groupGap: 18,
     groupMin: 2,
     groupMax: 3,
   },
@@ -41,7 +41,7 @@ export const demoDay: DayConfig = {
   // Rounds 1 and 4 are attack against attack, round 6 is attack against wire: so
   // every draft ends with 2 or 3 attack cards.
   draft: {
-    base: { kit: { pressure_plate: 2, tripwire: 1 }, materials: { wire: 24, wood: 9, stone: 0 } },
+    base: { kit: { pressure_plate: 2, tripwire: 1 }, materials: { wire: 24, wood: 18, stone: 9 } },
     rounds: [
       [{ parts: { saw_blade: 4 } }, { parts: { spike_floor: 5 } }],
       [{ parts: { piston: 2 } }, { parts: { delay: 2 } }],
@@ -49,7 +49,7 @@ export const demoDay: DayConfig = {
       [{ parts: { saw_blade: 3, pressure_plate: 1 } }, { parts: { spike_floor: 4, tripwire: 1 } }],
       [{ parts: { latch: 1, delay: 1 } }, { parts: { piston: 1, pressure_plate: 1 } }],
       [{ parts: { saw_blade: 3 } }, { materials: { wire: 20 } }],
-      [{ materials: { wood: 12 } }, { materials: { wire: 12 }, parts: { pressure_plate: 1 } }],
+      [{ materials: { wood: 15, stone: 9 } }, { materials: { wire: 12 }, parts: { pressure_plate: 1 } }],
     ],
   },
   // A broken Tesla coil near the inlet: 2:00 of build time to bring it back.

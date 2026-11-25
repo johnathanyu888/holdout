@@ -3094,3 +3094,18 @@ body {
     transform: translateY(10px) scale(0.96);
   }
 }
+
+/* ---- part card: bold text with a little more space between letters ---------------- */
+.inspector .insp-title,
+.inspector .insp-power,
+.inspector .insp-stats td,
+.inspector .insp-stats th,
+.inspector .sig-text,
+.inspector .sig-need,
+.inspector .repair-btn,
+.inspector b {
+  letter-spacing: 0.035em;
+}
+.inspector .insp-stats th {
+  letter-spacing: 0.09em;
+}

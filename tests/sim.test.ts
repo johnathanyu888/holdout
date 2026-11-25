@@ -115,7 +115,7 @@ describe('spawn schedule', () => {
   const sched = buildSchedule(demoDay.spawns);
   it('is deterministic and complete', () => {
     expect(buildSchedule(demoDay.spawns)).toEqual(sched);
-    expect(sched).toHaveLength(16);
+    expect(sched).toHaveLength(40);
     expect(sched[0]!.step).toBe(demoDay.spawns.firstStep);
     for (let i = 1; i < sched.length; i++) expect(sched[i]!.step).toBeGreaterThanOrEqual(sched[i - 1]!.step);
   });

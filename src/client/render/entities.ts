@@ -16,6 +16,8 @@ import {
   hasPartDef,
   partDef,
   partInput,
+  WALL_HP,
+  WIRE_HP,
   powerPreview,
   type SimState,
 } from '@shared/sim';
@@ -433,6 +435,17 @@ export class EntityLayer {
     }
     const wireLook = (s: Phaser.GameObjects.Image, k: number) => {
       const strength = Math.max(powerC?.[k] ?? 0, powerT?.[k] ?? 0);
+      // Raid: a wire zombies have walked through is broken (charred, see-through);
+      // a worn one darkens as it goes.
+      if (sim && this.wires.has(k) && !sim.wire[k]) {
+        s.setTint(0x3a2620).setAlpha(0.45);
+        return;
+      }
+      const worn = sim && this.wires.has(k) ? 1 - (sim.wireHp[k] ?? WIRE_HP) / WIRE_HP : 0;
+      if (worn > 0.05 && strength <= 0) {
+        s.setTint(lerpColour(WIRE_DIM, 0x4a3328, worn)).setAlpha(1);
+        return;
+      }
       if (strength > 0) {
         // Copper brightness follows strength: full bright next to the source (15),
         // fading toward the dull unpowered colour as the signal weakens tile by
@@ -445,6 +458,24 @@ export class EntityLayer {
       }
     };
     for (const [k, s] of this.wires) wireLook(s, k);
+    // Walls: in the raid they darken as they take damage, and vanish once broken.
+    if (this.c) {
+      const mats = sim ? new Map(this.c.walls.map((w) => [key(w.x, w.y), w.material])) : null;
+      for (const [k, s] of this.walls) {
+        if (!sim || !mats) {
+          s.setVisible(true).clearTint();
+          continue;
+        }
+        const hp = sim.wallHp[k] ?? 0;
+        if (hp <= 0) {
+          s.setVisible(false);
+          continue;
+        }
+        const max = WALL_HP[mats.get(k) ?? 'wood'];
+        const lost = 1 - Math.min(1, hp / max);
+        s.setVisible(true).setTint(lerpColour(0xffffff, 0x5a4636, lost * 0.85));
+      }
+    }
     for (const st of this.stubs.values()) wireLook(st.sprite, st.from);
     this.updateBroken(time);
     this.drawCurrent(time, powerC, powerT);

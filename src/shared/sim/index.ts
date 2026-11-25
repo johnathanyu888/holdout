@@ -4,7 +4,7 @@
 import.meta.glob('./parts/*.ts', { eager: true });
 import.meta.glob('./zombies/*.ts', { eager: true });
 
-export { createSim, step, snapshot, hashState, powerPreview, blinkerFloods, partInput, spawnZombie, WALL_HP } from './core/sim';
+export { createSim, step, snapshot, hashState, powerPreview, blinkerFloods, partInput, spawnZombie, WALL_HP, WIRE_HP } from './core/sim';
 export type { SimOptions } from './core/sim';
 export { buildSchedule } from './core/spawn';
 export { allPartDefs, allZombieDefs, hasPartDef, partDef, zombieDef } from './core/registry';

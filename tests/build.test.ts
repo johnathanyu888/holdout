@@ -12,7 +12,7 @@ import {
 import { demoDay } from '@shared/demo/demoDay';
 import { type Contraption, emptyContraption } from '@shared/types/build';
 
-const day = { ...demoDay, obstacles: [] }; // no rocks in the way of these placements
+const day = { ...demoDay, obstacles: [], materials: { ...demoDay.materials, stone: 0 } }; // no rocks in the way; no stone (tests "Out of Stone")
 const ok = (r: ReturnType<typeof placeHouse>): Contraption => {
   if (!r.ok) throw new Error(r.reason);
   return r.c;
@@ -148,11 +148,11 @@ describe('draft', () => {
   it('the kit is the base plus each pick, in a stable order', async () => {
     const { draftedKit } = await import('@shared/build/draft');
     const d = demoDay.draft!;
-    expect(draftedKit(d, [])).toEqual({ kit: { pressure_plate: 2, tripwire: 1 }, materials: { wire: 24, wood: 9, stone: 0 } });
+    expect(draftedKit(d, [])).toEqual({ kit: { pressure_plate: 2, tripwire: 1 }, materials: { wire: 24, wood: 18, stone: 9 } });
     const k = draftedKit(d, [0, 1, 0, 1, 0, 1, 0]);
     expect(Object.keys(k.kit)).toEqual(['pressure_plate', 'tripwire', 'saw_blade', 'spike_floor', 'delay', 'latch']);
     expect(k.kit).toMatchObject({ saw_blade: 4, spike_floor: 4, delay: 3, latch: 1, pressure_plate: 5, tripwire: 2 });
-    expect(k.materials).toEqual({ wire: 44, wood: 21, stone: 0 });
+    expect(k.materials).toEqual({ wire: 44, wood: 33, stone: 18 });
   });
   it('every way through the draft ends with 2 or 3 attack picks', async () => {
     const { draftedKit } = await import('@shared/build/draft');

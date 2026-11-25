@@ -141,13 +141,15 @@ function report(env: ToolEnv, reason: string | null): void {
 }
 
 /**
- * Auto-select: a placing tool tapped on something with a card (a placed part, a
- * map machine, the power inlet) opens that card instead of refusing to place
- * there. Returns true if it did.
+ * Auto-select: a placing tool tapped on something already there with a card (a
+ * placed part, a map machine, the power inlet, a rock or tree) puts the tool away
+ * and opens that card instead of refusing to place there. Returns true if it did.
  */
 function autoSelect(env: ToolEnv, t: Tile): boolean {
   const k = occupantAt(env.day, env.store.current, t.x, t.y).kind;
-  if (k !== 'part' && k !== 'fixture' && k !== 'inlet') return false;
+  if (k !== 'part' && k !== 'fixture' && k !== 'inlet' && k !== 'rock') return false;
+  // Put the hotbar item away first (that clears any selection), then open this one's card.
+  env.putAway();
   env.select(t);
   return true;
 }

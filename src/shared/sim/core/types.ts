@@ -111,6 +111,10 @@ export interface SimState {
   wire: Uint8Array;
   /** Wall HP per tile (0 = no wall). */
   wallHp: Int16Array;
+  /** Wire HP per tile: zombies walking on a wire wear it down; at 0 it breaks (and stops carrying power). */
+  wireHp: Int16Array;
+  /** The bash-through field (walls passable at a cost), for zombies with no open route. */
+  bashField: Int32Array;
   wallMat: (WallMaterial | null)[];
   /** Latest flood: strength per tile, per layer (inlet and sensor power combined). */
   powerC: Uint8Array;

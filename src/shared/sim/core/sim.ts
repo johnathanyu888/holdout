@@ -15,7 +15,7 @@ import { workingFixtures } from '../../build/fixtures';
 import type { Contraption, WallMaterial } from '../../types/build';
 import type { DayConfig } from '../../types/day';
 import type { SimEvent } from './events';
-import { FIELD_INF, computeField, nextTile } from './pathing';
+import { DIRS, FIELD_INF, computeBashField, computeField, nextTile } from './pathing';
 import { type Source, flood, floodLayer, inputAt, inputFromSides, sideKey } from './power';
 import { ROCK_HP, rockTiles } from '../../build/rocks';
 import { hasPartDef, partDef, zombieDef } from './registry';
@@ -39,6 +39,13 @@ import {
 } from './types';
 
 export const WALL_HP: Record<WallMaterial, number> = { wood: 120, stone: 300 };
+/** A wire tile's HP: each zombie on it takes 1 a step (about 5 crossings), then it breaks. */
+export const WIRE_HP = 60;
+/** Damage a trapped zombie deals to the wall it's bashing, per step (20 a second). */
+export const WALL_BASH = 2;
+/** Damage a zombie deals to a wall it scrapes past, at most once a second. */
+export const WALL_SCRAPE = 4;
+const SCRAPE_COOLDOWN = 10;
 /** Zombies closer than this (centre to centre, tiles) push apart. */
 export const SEPARATION = 0.5;
 /** A zombie whose centre gets this close to the house centre breaches it. */
@@ -75,7 +82,11 @@ export function createSim(day: DayConfig, c: Contraption, opts: SimOptions = {})
   const partAt = new Int16Array(TILE_COUNT).fill(-1);
   parts.forEach((p, i) => (partAt[key(p.x, p.y)] = i));
   const wire = new Uint8Array(TILE_COUNT);
-  for (const w of c.wires) wire[key(w.x, w.y)] = 1;
+  const wireHp = new Int16Array(TILE_COUNT);
+  for (const w of c.wires) {
+    wire[key(w.x, w.y)] = 1;
+    wireHp[key(w.x, w.y)] = WIRE_HP;
+  }
   const wallHp = new Int16Array(TILE_COUNT);
   const wallMat: (WallMaterial | null)[] = new Array(TILE_COUNT).fill(null);
   for (const w of c.walls) {
@@ -95,8 +106,10 @@ export function createSim(day: DayConfig, c: Contraption, opts: SimOptions = {})
     parts,
     partAt,
     wire,
+    wireHp,
     wallHp,
     wallMat,
+    bashField: new Int32Array(TILE_COUNT),
     powerC: new Uint8Array(TILE_COUNT),
     powerT: new Uint8Array(TILE_COUNT),
     sensC: new Uint8Array(TILE_COUNT),
@@ -120,7 +133,25 @@ export function createSim(day: DayConfig, c: Contraption, opts: SimOptions = {})
 function refreshField(st: SimState): void {
   if (!st.fieldDirty) return;
   computeField(st.wallHp, st.house.x, st.house.y, st.field);
+  // Breaking through: a wall costs more the tougher it is; rocks and solid parts never give.
+  computeBashField(
+    (k) => ((st.wallHp[k] ?? 0) <= 0 ? 0 : st.wallMat[k] ? 20 + Math.floor((st.wallHp[k] as number) / 5) : -1),
+    st.house.x,
+    st.house.y,
+    st.bashField,
+  );
   st.fieldDirty = false;
+}
+
+/** Damages the wall on tile k (player walls only); at 0 it breaks and the paths open up. */
+function hitWall(st: SimState, k: number, amount: number, events: SimEvent[]): void {
+  if (!st.wallMat[k] || (st.wallHp[k] ?? 0) <= 0) return;
+  st.wallHp[k] = Math.max(0, (st.wallHp[k] as number) - amount);
+  if (st.wallHp[k] === 0) {
+    st.wallMat[k] = null;
+    st.fieldDirty = true;
+    events.push({ type: 'wallBroken', x: k % GRID, y: Math.floor(k / GRID) });
+  }
 }
 
 function makeCtx(st: SimState, events: SimEvent[]): SimCtx {
@@ -363,7 +394,32 @@ function moveZombies(st: SimState, events: SimEvent[]): void {
         tx = nt[0] + 0.5;
         ty = nt[1] + 0.5;
       } else if ((st.field[key(cx, cy)] ?? FIELD_INF) >= FIELD_INF) {
-        continue; // no route to the house (fully walled in): wait
+        // No open route (walled in): follow the bash field to the cheapest wall,
+        // press up against it with the others, and beat on it until it breaks.
+        const here = st.bashField[key(cx, cy)] ?? FIELD_INF;
+        let bk = -1;
+        let bd = here;
+        for (const [dx, dy] of DIRS.slice(0, 4)) {
+          const nx = cx + dx;
+          const ny = cy + dy;
+          if (nx < 0 || ny < 0 || nx >= GRID || ny >= GRID) continue;
+          const d = st.bashField[key(nx, ny)] ?? FIELD_INF;
+          if (d < bd) {
+            bd = d;
+            bk = key(nx, ny);
+          }
+        }
+        if (bk < 0) continue; // nowhere to go at all: wait
+        const bx = bk % GRID;
+        const by = (bk - bx) / GRID;
+        if ((st.wallHp[bk] ?? 0) > 0) {
+          hitWall(st, bk, WALL_BASH, events);
+          tx = cx + 0.5 + (bx - cx) * 0.32; // lean on the wall's face
+          ty = cy + 0.5 + (by - cy) * 0.32;
+        } else {
+          tx = bx + 0.5;
+          ty = by + 0.5;
+        }
       } else {
         tx = cx + 0.5; // already at the best tile: settle onto its centre
         ty = cy + 0.5;
@@ -422,6 +478,30 @@ function moveZombies(st: SimState, events: SimEvent[]): void {
     z.vx = z.x - z.px;
     z.vy = z.y - z.py;
     z.slowMul = 1;
+    const tx0 = Math.floor(z.x);
+    const ty0 = Math.floor(z.y);
+    // Scraping past a wall wears it (at most once a second per zombie).
+    if ((z.ext.scrape ?? 0) > 0) z.ext.scrape = (z.ext.scrape ?? 0) - 1;
+    else
+      for (const [dx, dy] of DIRS.slice(0, 4)) {
+        const nk = key(tx0 + dx, ty0 + dy);
+        if (tx0 + dx < 0 || ty0 + dy < 0 || tx0 + dx >= GRID || ty0 + dy >= GRID || !st.wallMat[nk]) continue;
+        const gap = dx > 0 ? tx0 + 1 - z.x : dx < 0 ? z.x - tx0 : dy > 0 ? ty0 + 1 - z.y : z.y - ty0;
+        if (gap < z.radius + 0.25) { // walking right alongside it
+          hitWall(st, nk, WALL_SCRAPE, events);
+          z.ext.scrape = SCRAPE_COOLDOWN;
+          break;
+        }
+      }
+    // Walking on a wire wears it; a broken wire carries no power.
+    const wk = key(tx0, ty0);
+    if (st.wire[wk]) {
+      st.wireHp[wk] = (st.wireHp[wk] ?? 0) - 1;
+      if ((st.wireHp[wk] as number) <= 0) {
+        st.wire[wk] = 0;
+        events.push({ type: 'wireBroken', x: tx0, y: ty0 });
+      }
+    }
     const bx = z.x - hx;
     const by = z.y - hy;
     if (st.stats.breachBy === null && bx * bx + by * by < BREACH_RADIUS * BREACH_RADIUS) {
@@ -541,6 +621,7 @@ export function hashState(st: SimState): string {
   }
   for (let k = 0; k < TILE_COUNT; k++) {
     word(st.wallHp[k] as number);
+    word(st.wireHp[k] as number);
     word(((st.powerC[k] as number) << 8) | (st.powerT[k] as number));
   }
   num(st.stats.spawned);

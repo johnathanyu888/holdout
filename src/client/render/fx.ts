@@ -276,6 +276,50 @@ export class FxLayer {
         case 'zap':
           this.lightning(e.x, e.y, e.to);
           break;
+        case 'wallBroken': {
+          // A wall gives way: a burst of splinters (or stone chips) and dust.
+          const x = tileUnitToWorld(e.x + 0.5);
+          const y = tileUnitToWorld(e.y + 0.5);
+          this.scene.cameras.main.shake(140, 0.002);
+          for (let i = 0; i < 10; i++) {
+            const a = Math.random() * Math.PI * 2;
+            const bit = this.scene.add
+              .rectangle(x, y, 5 + Math.random() * 6, 3 + Math.random() * 4, i % 3 ? 0x8a6a48 : 0x9a958d, 1)
+              .setRotation(a)
+              .setDepth(DEPTH.fx + 30);
+            this.scene.tweens.add({
+              targets: bit,
+              x: x + Math.cos(a) * (20 + Math.random() * 26),
+              y: y + Math.sin(a) * (20 + Math.random() * 26),
+              angle: (Math.random() - 0.5) * 360,
+              alpha: 0,
+              duration: 420 + Math.random() * 200,
+              ease: 'Quad.easeOut',
+              onComplete: () => bit.destroy(),
+            });
+          }
+          const dust = this.scene.add.circle(x, y, 18, 0xb8ada0, 0.45).setDepth(DEPTH.fx + 29);
+          this.scene.tweens.add({ targets: dust, scale: 2.2, alpha: 0, duration: 600, onComplete: () => dust.destroy() });
+          break;
+        }
+        case 'wireBroken': {
+          // A wire snaps: a quick flash of sparks.
+          const x = tileUnitToWorld(e.x + 0.5);
+          const y = tileUnitToWorld(e.y + 0.5);
+          for (let i = 0; i < 7; i++) {
+            const a = Math.random() * Math.PI * 2;
+            const sp = this.scene.add.circle(x, y, 2.2, 0xfff2b0, 1).setDepth(DEPTH.fx + 31).setBlendMode(Phaser.BlendModes.ADD);
+            this.scene.tweens.add({
+              targets: sp,
+              x: x + Math.cos(a) * (14 + Math.random() * 18),
+              y: y + Math.sin(a) * (14 + Math.random() * 18),
+              alpha: 0,
+              duration: 260 + Math.random() * 160,
+              onComplete: () => sp.destroy(),
+            });
+          }
+          break;
+        }
         case 'worn': {
           // Worn out: a shudder and a puff of grey smoke, then it stays dark.
           const s = this.entities.partSprite(e.partId);

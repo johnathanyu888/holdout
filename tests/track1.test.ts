@@ -428,3 +428,37 @@ describe('tesla coils are solid', () => {
     expect(createSim(broken, build([], []), { schedule: [] }).field[key(12, 6)]).toBe(FIELD_INF);
   });
 });
+
+describe('zombie AI: walls and wires', () => {
+  it('walking on a wire wears it down until it breaks and stops carrying power', () => {
+    // a wire under the shambler's path (x = 12), fed by the inlet at (13, 3)
+    const c = build([], wires([12, 3]));
+    const st = createSim(day({ x: 13, y: 3 }), c, { schedule: [] });
+    for (let i = 0; i < 8; i++) spawnZombie(st, 'shambler', 12, 0);
+    const ev = run(st, 400);
+    expect(ev.some((e) => e.type === 'wireBroken')).toBe(true);
+    expect(st.wire[key(12, 3)]).toBe(0);
+    expect(st.powerC[key(12, 3)]).toBe(0);
+  });
+  it('walled in, zombies all go for the same wall and break through it together', () => {
+    // a wood box round the house at (8, 8)
+    const walls = [];
+    for (let x = 7; x <= 9; x++) for (let y = 7; y <= 9; y++) if (x !== 8 || y !== 8) walls.push({ x, y, material: 'wood' as const });
+    const c = { ...build([], [], { x: 8, y: 8 }), walls };
+    const st = createSim(day({ x: 1, y: 15 }), c, { schedule: [] });
+    for (let i = 0; i < 4; i++) spawnZombie(st, 'shambler', 8, 1);
+    const ev = run(st, 900);
+    const broken = ev.filter((e) => e.type === 'wallBroken');
+    expect(broken.length).toBeGreaterThanOrEqual(1);
+    expect(st.outcome).toBe('lost'); // they got through and reached the house
+  });
+  it('a zombie scraping past a wall chips it', () => {
+    // a wall right beside the shambler's lane (x = 12): it brushes the wall at (13, 5)
+    const c = { ...build([], []), walls: [{ x: 13, y: 5, material: 'stone' as const }] };
+    const st = createSim(day({ x: 1, y: 15 }), c, { schedule: [] });
+    spawnZombie(st, 'shambler', 12, 2);
+    st.zombies[0]!.x = 12.8; // walking close to its edge
+    run(st, 60);
+    expect(st.wallHp[key(13, 5)]).toBeLessThan(300);
+  });
+});

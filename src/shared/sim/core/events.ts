@@ -8,6 +8,8 @@ export type SimEvent =
   | { type: 'partFired'; partId: number }
   | { type: 'zap'; partId: number; x: number; y: number; to: { x: number; y: number }[] }
   | { type: 'worn'; partId: number }
+  | { type: 'wallBroken'; x: number; y: number }
+  | { type: 'wireBroken'; x: number; y: number }
   | { type: 'push'; id: number; partId: number; fromX: number; fromY: number; x: number; y: number }
   | { type: 'breach'; id: number }
   | { type: 'end'; outcome: 'won' | 'lost'; reason: 'cleared' | 'breach' | 'timeout' };
