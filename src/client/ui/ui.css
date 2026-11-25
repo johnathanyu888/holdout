@@ -2354,3 +2354,200 @@ body,
   80% { opacity: 0; transform: translateY(-8px); }
   100% { opacity: 0; }
 }
+
+/* ---- part card: stat chips and the labelled wiring diagram ------------------------- */
+.insp-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+.insp-chips span {
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 11px;
+  font-weight: 800;
+  color: #dfe5ea;
+}
+.part-demo {
+  align-items: flex-start;
+  gap: 2px;
+  padding: 6px 8px 5px;
+}
+.demo-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 38px;
+}
+.demo-step img {
+  width: 26px;
+  height: 26px;
+  padding: 2px;
+  border-radius: 6px;
+}
+.demo-step small {
+  font-size: 9.5px;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.demo-step.this img {
+  background: rgba(242, 193, 78, 0.18);
+  box-shadow: 0 0 0 1.5px var(--gold, #f2c14e);
+}
+.demo-step.this small {
+  color: var(--gold, #f2c14e);
+}
+.part-demo .demo-arrow {
+  margin-top: 14px;
+}
+
+/* ---- briefing: the zombies' stats as a table ------------------------------------- */
+.ztable {
+  width: 100%;
+  margin: 0 0 14px;
+  border-collapse: separate;
+  border-spacing: 0;
+  border: 1.5px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  overflow: hidden;
+  font-size: 13px;
+}
+.ztable th,
+.ztable td {
+  padding: 8px 10px;
+  text-align: left;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+.ztable tr:last-child th,
+.ztable tr:last-child td {
+  border-bottom: 0;
+}
+.ztable th {
+  width: 1%;
+  white-space: nowrap;
+  font-size: 10.5px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.04);
+}
+.ztable td {
+  font-weight: 900;
+  color: #fff;
+}
+.brief-ability {
+  margin-top: 0;
+}
+
+/* ---- draft: cards flip in from the deck, the taken one flips up into your kit ------ */
+.draft-cards {
+  perspective: 700px;
+}
+.draft-card {
+  min-width: 0;
+  overflow: hidden;
+  backface-visibility: hidden;
+}
+.draft-card.side-0,
+.draft-card.side-1 {
+  animation: flip-in 340ms cubic-bezier(0.2, 1.2, 0.35, 1) both;
+}
+.draft-card.side-1 {
+  animation-delay: 90ms;
+}
+@keyframes flip-in {
+  from {
+    opacity: 0;
+    transform: rotateY(-80deg) translateY(10px) scale(0.92);
+  }
+  60% {
+    opacity: 1;
+  }
+}
+.draft-card.chosen {
+  animation: taken 280ms cubic-bezier(0.5, 0, 0.75, 0) forwards;
+}
+@keyframes taken {
+  0% {
+    transform: none;
+    box-shadow: 0 0 0 0 rgba(242, 193, 78, 0.7);
+  }
+  30% {
+    transform: translateY(-6px) scale(1.06);
+    box-shadow: 0 0 0 7px rgba(242, 193, 78, 0.3);
+  }
+  100% {
+    transform: translateY(-46px) scale(0.6) rotateX(30deg);
+    opacity: 0;
+  }
+}
+.draft-card.passed {
+  animation: discard 240ms ease-in forwards;
+}
+@keyframes discard {
+  to {
+    opacity: 0;
+    transform: rotateY(80deg) scale(0.9);
+  }
+}
+/* two items on one card: they share the width, names may wrap, nothing spills out */
+.offer {
+  flex-wrap: nowrap;
+  max-width: 100%;
+}
+.offer-item {
+  flex: 1 1 0;
+  max-width: 76px;
+}
+.offer-item b {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.offer-item + .offer-plus + .offer-item img,
+.offer:has(.offer-plus) .offer-item img {
+  width: 32px;
+  height: 32px;
+}
+.offer:has(.offer-plus) .offer-item b {
+  font-size: 12px;
+}
+
+/* ---- big screens: a bigger hotbar that spreads wider ------------------------------- */
+@media (min-width: 1000px) and (min-height: 640px) {
+  .tray {
+    gap: 8px;
+    padding: 8px;
+    border-radius: 14px;
+  }
+  .tool {
+    width: clamp(64px, 5.6vw, 92px);
+    height: clamp(64px, 5.6vw, 92px);
+    border-radius: 9px;
+  }
+  .tool-icon,
+  .tool-icon img {
+    width: 74%;
+    height: 74%;
+  }
+  .tool .key {
+    font-size: 12px;
+  }
+  .tool .count {
+    font-size: 15px;
+  }
+  .fight-dock {
+    padding: 8px;
+    border-radius: 14px;
+  }
+  .fight-btn {
+    height: clamp(64px, 5.6vw, 92px);
+    min-width: 200px;
+  }
+}

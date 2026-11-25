@@ -406,3 +406,16 @@ describe('piston: always out on steady power', () => {
     expect(st.parts[0]!.active).toBe(true);
   });
 });
+
+describe('pistons are solid', () => {
+  it('zombies path round a piston, never over it', () => {
+    const c = build([{ id: 1, type: 'piston', x: 12, y: 6, rot: 0 }], []);
+    const st = createSim(day({ x: 1, y: 15 }), c, { schedule: one });
+    expect(st.field[key(12, 6)]).toBe(FIELD_INF);
+    let onIt = false;
+    run(st, 400, (s) => {
+      for (const z of s.zombies) if (Math.floor(z.x) === 12 && Math.floor(z.y) === 6) onIt = true;
+    });
+    expect(onIt).toBe(false);
+  });
+});

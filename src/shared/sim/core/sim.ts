@@ -82,8 +82,9 @@ export function createSim(day: DayConfig, c: Contraption, opts: SimOptions = {})
     wallHp[key(w.x, w.y)] = WALL_HP[w.material];
     wallMat[key(w.x, w.y)] = w.material;
   }
-  // Rocks: solid for the whole raid (zombies path round them).
+  // Rocks, and solid parts (pistons): blocked for the whole raid (zombies path round them).
   for (const k of rockTiles(day)) wallHp[k] = ROCK_HP;
+  for (const p of parts) if (hasPartDef(p.type) && partDef(p.type).solid) wallHp[key(p.x, p.y)] = ROCK_HP;
   const st: SimState = {
     day,
     tick: 0,

@@ -4,7 +4,8 @@
 // walk cycle is driven by distance walked, not time, so feet-speed matches
 // ground-speed at any playback rate: the arms reach out in turn, the shoulders
 // sway, and the head bobs. A zombie still in the forest (walking in from off the
-// lawn) is dark, as if under the canopy, and lightens as it steps out.
+// lawn) is dark, as if under the canopy, and lightens as it steps out. A health
+// bar floats over each one (upright, whatever way it faces), draining smoothly.
 
 import Phaser from 'phaser';
 import { GRID } from '@shared/grid';
@@ -25,6 +26,9 @@ export interface ZombieView {
   armL: Phaser.GameObjects.Image;
   armR: Phaser.GameObjects.Image;
   shadow: Phaser.GameObjects.Image;
+  /** The health bar, and the fraction it shows (eases toward the real one). */
+  hp: Phaser.GameObjects.Graphics;
+  shown: number;
   phase: number;
   lastX: number;
   lastY: number;
@@ -62,7 +66,8 @@ export class ZombieLayer {
     const root = s.add.container(0, 0, [armL, armR, body]).setScale(ZOMBIE_SCALE);
     const shadow = s.add.image(0, 0, SHADOW_KEY).setAlpha(0.22).setScale(0.62);
     const facing = Math.atan2(GRID / 2 - z.y, GRID / 2 - z.x); // start facing the lawn's centre
-    return { root, body, armL, armR, shadow, phase: z.id * 1.7, lastX: Number.NaN, lastY: Number.NaN, facing };
+    const hp = s.add.graphics();
+    return { root, body, armL, armR, shadow, hp, shown: 1, phase: z.id * 1.7, lastX: Number.NaN, lastY: Number.NaN, facing };
   }
 
   /** alpha = fraction of the way from the previous sim step to the current one. */
@@ -107,12 +112,29 @@ export class ZombieLayer {
       const tint = Phaser.Display.Color.GetColor(c, c, c);
       if (!v.root.getData('flash')) for (const p of [v.body, v.armL, v.armR]) p.setTint(tint);
       v.shadow.setAlpha(0.22 * (1 - shade));
+      this.drawHp(v, x, y, z.hp / z.maxHp, 1 - shade);
     }
     for (const [id, v] of this.views)
       if (!live.has(id)) {
         destroyView(v);
         this.views.delete(id);
       }
+  }
+
+  /** Health bar over a zombie: dark track, coloured fill (green, then amber, then red), eased. */
+  private drawHp(v: ZombieView, x: number, y: number, frac: number, alpha: number): void {
+    const f = Math.max(0, Math.min(1, frac));
+    v.shown += (f - v.shown) * 0.25;
+    const w = 38;
+    const h = 6;
+    const bx = x - w / 2;
+    const by = y - 40;
+    const col = v.shown > 0.6 ? 0x7fd66b : v.shown > 0.3 ? 0xffc46b : 0xff5a4f;
+    const g = v.hp;
+    g.clear().setDepth(DEPTH.zombies + y + 1).setAlpha(alpha);
+    g.fillStyle(0x0d1116, 0.8).fillRoundedRect(bx - 1.5, by - 1.5, w + 3, h + 3, 3);
+    g.fillStyle(col, 1).fillRoundedRect(bx, by, Math.max(0.01, w * v.shown), h, 2);
+    if (f < v.shown - 0.01) g.fillStyle(0xffffff, 0.55).fillRect(bx + w * f, by, w * (v.shown - f), h); // the bit just lost
   }
 
   clear(): void {
@@ -122,6 +144,7 @@ export class ZombieLayer {
 }
 
 export function destroyView(v: ZombieView): void {
+  v.hp.destroy();
   v.root.destroy();
   v.shadow.destroy();
 }

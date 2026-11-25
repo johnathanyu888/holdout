@@ -7,6 +7,7 @@
 //  Tick: one shot on the rising edge, if anything is in front.
 // Each push wears it a little.
 // The point: shove zombies into spikes, saws or a Tesla coil's reach.
+// It's solid: zombies walk round it, never over it.
 
 import { GRID, key } from '../../grid';
 import { registerPart } from '../core/registry';
@@ -26,6 +27,7 @@ registerPart({
   kind: 'action',
   needs: NEEDS,
   rotatable: true,
+  solid: true, // zombies walk round a piston, not over it
   durability: 300,
   initState: () => ({ last: 0, cool: 0, show: 0 }),
   act(ctx, p, input) {

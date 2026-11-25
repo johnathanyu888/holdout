@@ -169,6 +169,8 @@ export interface PartDef {
    * a part reads the strongest wire on any side and emits into all of them.
    */
   pins?: { in: number[]; out: number[] };
+  /** Solid: zombies can't walk over it (they path round, like a wall). */
+  solid?: boolean;
   /** Wear a part can take before it stops for the raid (see SimCtx.damage). Absent = never wears out. */
   durability?: number;
   /** Ranged parts: how far (tiles, from the tile centre) they reach zombies. Drawn as a range circle. */

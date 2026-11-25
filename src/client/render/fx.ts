@@ -269,6 +269,7 @@ export class FxLayer {
               onComplete: () => destroyView(v),
             });
             this.scene.tweens.add({ targets: v.shadow, alpha: 0, duration: 380 });
+            v.hp.clear();
           }
           break;
         }

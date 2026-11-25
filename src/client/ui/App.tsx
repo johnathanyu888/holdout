@@ -66,17 +66,33 @@ function slotKind(id: string, hasHouse: boolean): { tag: string; cls: string; te
 }
 
 /** How each part is wired, as a tiny diagram (atlas icons and arrows) for its card. */
-const EXPLAIN: Record<string, { flow: string[]; line: string }> = {
-  'part:pressure_plate': { flow: ['pressure_plate', '→', 'wire_straight', '→', 'saw_blade'], line: 'A zombie steps on it, power runs down the wire, the trap fires.' },
-  'part:tripwire': { flow: ['tripwire', '→', 'wire_straight', '→', 'spike_floor'], line: 'Crossing it sends one short tick. Spikes punch on each tick.' },
-  'part:delay': { flow: ['pressure_plate', '→', 'delay', '→', 'saw_blade'], line: 'Power goes in the back and comes out the front a moment later, at full strength.' },
-  'part:latch': { flow: ['pressure_plate', '→', 'latch', '→', 'saw_blade'], line: 'One press switches it on for good. You can also flip it on from its card.' },
-  'part:saw_blade': { flow: ['pressure_plate', '→', 'wire_straight', '→', 'saw_blade'], line: 'Cuts whatever is on its tile while powered. More power cuts harder.' },
-  'part:spike_floor': { flow: ['tripwire', '→', 'wire_straight', '→', 'spike_floor'], line: 'Punches on each tick. Held up on steady power, it stabs once and slows.' },
-  'part:piston': { flow: ['power_inlet', '→', 'wire_straight', '→', 'piston'], line: 'While powered it shoves anything in front of it one tile on. Aim it with R.' },
-  wire: { flow: ['power_inlet', '→', 'wire_straight', '→', 'saw_blade'], line: 'Carries power from a source to parts. Strength drops 1 a tile.' },
+type Step = { icon: string; role: string };
+const SENSOR = (icon = 'pressure_plate'): Step => ({ icon, role: 'Sensor' });
+const WIRE: Step = { icon: 'wire_straight', role: 'Wire' };
+const THIS = (icon: string): Step => ({ icon, role: 'This' });
+/** How each part sits in a circuit, left to right: where power starts, how it travels, where it ends up. */
+const WIRING: Record<string, Step[]> = {
+  pressure_plate: [THIS('pressure_plate'), WIRE, { icon: 'saw_blade', role: 'Trap' }],
+  tripwire: [THIS('tripwire'), WIRE, { icon: 'spike_floor', role: 'Trap' }],
+  delay: [SENSOR(), THIS('delay'), { icon: 'saw_blade', role: 'Trap' }],
+  latch: [SENSOR(), THIS('latch'), { icon: 'saw_blade', role: 'Trap' }],
+  saw_blade: [SENSOR(), WIRE, THIS('saw_blade')],
+  spike_floor: [SENSOR('tripwire'), WIRE, THIS('spike_floor')],
+  tesla_coil: [SENSOR(), WIRE, THIS('tesla_coil')],
+  piston: [{ icon: 'power_inlet', role: 'Power' }, WIRE, THIS('piston')],
 };
 
+/** Each part's key numbers, as small chips on its card. */
+const CHIPS: Record<string, string[]> = {
+  pressure_plate: ['Makes power 10', 'While stepped on'],
+  tripwire: ['Makes a short pulse', 'Each crossing'],
+  delay: ['Waits 0.5 to 2s', 'Boosts to 10'],
+  latch: ['Stays on', 'Switch it here'],
+  saw_blade: ['60 a second', 'Needs 1', 'Wears out'],
+  spike_floor: ['20 stab, 45 punch', 'Slows', 'Needs 1'],
+  tesla_coil: ['70 a zap', 'Reach 1.5 tiles', 'Needs 3'],
+  piston: ['Shoves 1 tile', 'Blocks zombies', 'Needs 1'],
+};
 
 /** Tray labels: short enough to fit under a 64px button. */
 const SHORT: Record<string, string> = {
@@ -300,24 +316,22 @@ function Briefing() {
           </div>
         </div>
 
-        <div class="brief-stats four">
-          <div>
-            <b>{z}</b>
-            <span>zombies</span>
-          </div>
-          <div>
-            <b>{zdef?.hp ?? '?'}</b>
-            <span>health</span>
-          </div>
-          <div>
-            <b>{zdef ? speedWord(zdef.speed) : '?'}</b>
-            <span>speed</span>
-          </div>
-          <div>
-            <b>{fmtClock(day.buildSeconds)}</b>
-            <span>to build</span>
-          </div>
-        </div>
+        <table class="ztable">
+          <tbody>
+            <tr>
+              <th>Zombies</th>
+              <td>{z}</td>
+              <th>Health</th>
+              <td>{zdef?.hp ?? '?'}</td>
+            </tr>
+            <tr>
+              <th>Speed</th>
+              <td>{zdef ? speedWord(zdef.speed) : '?'}</td>
+              <th>Build time</th>
+              <td>{fmtClock(day.buildSeconds)}</td>
+            </tr>
+          </tbody>
+        </table>
         {mut && (
           <div class="brief-ability">
             <span class="ability-label">ABILITY</span>
@@ -411,7 +425,7 @@ function DraftRound(p: { round: number; total: number; offers: [DraftOffer, Draf
   const take = (pick: Pick) => {
     if (chosen !== null) return;
     setChosen(pick);
-    setTimeout(() => p.onPick(pick), 230);
+    setTimeout(() => p.onPick(pick), 280);
   };
   return (
     <div class="draft">
@@ -547,7 +561,6 @@ function Tray() {
       const m = id.slice(5) as 'wood' | 'stone';
       return {
         label: m === 'wood' ? 'Wood wall' : 'Stone wall',
-        title: `${m === 'wood' ? 'Wood' : 'Stone'} wall (${WALL_COST} ${m === 'wood' ? 'Wood' : 'Stone'})`,
         icon: <img src={icon(`wall_${m}_ew_a`)} alt="" />,
         count: Math.floor(inv.materials[m] / WALL_COST),
       };
@@ -907,7 +920,14 @@ function Inspector() {
         </div>
         {strength !== null && <SignalMeter s={strength} />}
         <div class="insp-sub">{(type === 'delay' && blink ? BLINK_INFO : PART_INFO[type]) ?? ''}</div>
-        {EXPLAIN[`part:${type}`] && <PartDemo flow={(EXPLAIN[`part:${type}`] as { flow: string[] }).flow} />}
+        {CHIPS[type] && (
+          <div class="insp-chips">
+            {(CHIPS[type] as string[]).map((c) => (
+              <span key={c}>{c}</span>
+            ))}
+          </div>
+        )}
+        {WIRING[type] && <PartDemo steps={WIRING[type] as Step[]} />}
         {ZDEMO[type] && <ZombieDemo type={type} />}
         {latchOn !== null && selPart && (
           <div class="insp-controls">
@@ -1007,35 +1027,39 @@ function ZombieDemo(p: { type: string }) {
 }
 
 /** The part's little how-it's-wired diagram (icons with arrows), in its card. */
-function PartDemo(p: { flow: string[] }) {
+function PartDemo(p: { steps: Step[] }) {
   return (
     <div class="part-demo" aria-hidden="true">
-      {p.flow.map((f, i) =>
-        f === '→' ? (
-          <span key={i} class="demo-arrow">
-            <i />
+      {p.steps.map((st, i) => (
+        <Fragment key={i}>
+          {i > 0 && (
+            <span class="demo-arrow">
+              <i />
+            </span>
+          )}
+          <span class={`demo-step ${st.role === 'This' ? 'this' : ''}`}>
+            <img src={icon(st.icon)} alt="" />
+            <small>{st.role}</small>
           </span>
-        ) : (
-          <img key={i} src={icon(f)} alt="" />
-        ),
-      )}
+        </Fragment>
+      ))}
     </div>
   );
 }
 
 const DELAY_STEPS = [5, 10, 20];
-const BLINK_INFO = 'Turns steady power into a beat: a tick, then a gap of the same length.';
+const BLINK_INFO = 'Turns steady power into a beat: on, off, on, off.';
 
 /** One line on what each part does (the inspector card). */
 const PART_INFO: Record<string, string> = {
-  pressure_plate: 'Powers its wires (strength 10) while a zombie stands on it.',
-  tripwire: 'Sends a tick (strength 10) when a zombie walks through the cord.',
-  delay: 'Passes power on after a wait. In the back, out the front, boosted to 10.',
-  tesla_coil: 'Zaps the nearest zombie for 70 and arcs on to a second. Needs 3. More power hits harder and wears it faster.',
-  saw_blade: 'Cuts 60 a second at full power. Needs 1. More power hits harder and wears it faster.',
-  spike_floor: 'A tick punches for 45. Steady power stabs each zombie once for 20 and slows it. Needs 1. Wears out.',
-  piston: 'Stays out while powered and shoves any zombie that steps in front one tile on, with a 1s reset. Needs 1. Turn it to aim.',
-  latch: 'A switch. Flip it on here, or power its back to switch it on. Power its side to switch it off. Steady power comes out the front.',
+  pressure_plate: 'Sends power down its wire while a zombie stands on it.',
+  tripwire: 'Sends a short pulse of power each time a zombie walks through.',
+  delay: 'Passes power on after a short wait, back at full strength.',
+  tesla_coil: 'Zaps the nearest zombie in reach, again every 1.5 seconds.',
+  saw_blade: 'Cuts every zombie on its tile while it has power.',
+  spike_floor: 'Stabs zombies on its tile and slows them. A pulse makes it punch hard.',
+  piston: 'Pushes out while powered and shoves zombies in front of it one tile.',
+  latch: 'A switch that stays on. Power its back to turn it on, its side to turn it off.',
 };
 
 // ---- raid -----------------------------------------------------------------------

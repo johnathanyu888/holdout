@@ -294,7 +294,8 @@ export class GuideLayer {
 
   private drawPaths(o: GuideInput): void {
     if (!o.c.house) return;
-    const sig = `${o.c.house.x},${o.c.house.y}|${o.c.walls.map((w) => `${w.x},${w.y}`).join(';')}|${rockTiles(this.day).join(',')}`;
+    const solids = o.c.parts.filter((p) => hasPartDef(p.type) && partDef(p.type).solid).map((p) => `${p.x},${p.y}`);
+    const sig = `${o.c.house.x},${o.c.house.y}|${o.c.walls.map((w) => `${w.x},${w.y}`).join(';')}|${rockTiles(this.day).join(',')}|${solids.join(';')}`;
     if (!this.paths || this.paths.key !== sig) this.paths = { key: sig, lines: this.routes(o.c) };
     const dash = (o.time * 40) % 24;
     for (const line of this.paths.lines) {
@@ -320,6 +321,7 @@ export class GuideLayer {
     const blocked = new Int16Array(GRID * GRID);
     for (const w of c.walls) blocked[key(w.x, w.y)] = 1;
     for (const k of rockTiles(this.day)) blocked[k] = ROCK_HP;
+    for (const p of c.parts) if (hasPartDef(p.type) && partDef(p.type).solid) blocked[key(p.x, p.y)] = ROCK_HP;
     const field = new Int32Array(GRID * GRID);
     computeField(blocked, house.x, house.y, field);
     const starts: Tile[] = [];
