@@ -328,6 +328,7 @@ export class EntityLayer {
     }
 
     const simParts = sim ? new Map(sim.parts.map((p) => [p.id, p])) : null;
+    this.poweredIds.clear();
     for (const part of this.allParts) {
       const s = this.parts.get(part.id);
       if (!s) continue;
@@ -339,6 +340,7 @@ export class EntityLayer {
           : (this.preview?.inputs.get(part.id) ?? { c: 0, t: 0 });
       const def = hasPartDef(part.type) ? partDef(part.type) : null;
       const powered = !def || def.kind !== 'action' || Math.max(input.c, input.t) >= def.needs;
+      if (powered && def?.kind === 'action') this.poweredIds.add(part.id);
       const view = partView(part.type);
       if (view.update) view.update(s, { time, powered, sim: sp, on: sp ? sp.active : blinkOn.has(part.id) });
       else s.setTint(powered || sp?.active ? 0xffffff : 0xb8b8b8);
@@ -427,32 +429,27 @@ export class EntityLayer {
 
   private glow: Phaser.GameObjects.Image | null = null;
   private rangeG: Phaser.GameObjects.Graphics | null = null;
+  /** Action parts with enough power this frame (only these show a range circle). */
+  private readonly poweredIds = new Set<number>();
 
   /**
    * Range circles for ranged parts (e.g. the Tesla coil): a white, see-through
-   * disc showing how far it reaches. Faint on every working one; brighter and
-   * breathing on the selected one; a broken machine shows its range when
-   * selected, so you can see what repairing it buys.
+   * disc showing how far it reaches. Only drawn while the part is powered and
+   * working; faint normally, brighter and breathing when selected.
    */
   private drawRanges(sel: { x: number; y: number } | null, time: number): void {
     this.rangeG ??= this.scene.add.graphics().setDepth(DEPTH.parts - 50);
     const g = this.rangeG;
     g.clear();
     const pulse = 0.5 + 0.5 * Math.sin(time * 4.2);
-    const ring = (x: number, y: number, range: number, selected: boolean, broken: boolean) => {
-      const c = tileToWorld(x, y);
-      const r = range * TILE;
-      g.fillStyle(0xffffff, selected ? 0.12 + 0.05 * pulse : 0.07).fillCircle(c.x, c.y, r);
-      g.lineStyle(selected ? 3 : 2, 0xffffff, selected ? 0.55 + 0.3 * pulse : broken ? 0.4 : 0.28).strokeCircle(c.x, c.y, r);
-    };
     for (const p of this.allParts) {
       const range = hasPartDef(p.type) ? partDef(p.type).range : undefined;
-      if (range) ring(p.x, p.y, range, !!sel && sel.x === p.x && sel.y === p.y, false);
-    }
-    for (const f of this.day.fixtures ?? []) {
-      if (!f.broken || !sel || sel.x !== f.x || sel.y !== f.y) continue;
-      const range = hasPartDef(f.type) ? partDef(f.type).range : undefined;
-      if (range) ring(f.x, f.y, range, true, true);
+      if (!range || !this.poweredIds.has(p.id)) continue;
+      const selected = !!sel && sel.x === p.x && sel.y === p.y;
+      const c = tileToWorld(p.x, p.y);
+      const r = range * TILE;
+      g.fillStyle(0xffffff, selected ? 0.12 + 0.05 * pulse : 0.07).fillCircle(c.x, c.y, r);
+      g.lineStyle(selected ? 3 : 2, 0xffffff, selected ? 0.55 + 0.3 * pulse : 0.28).strokeCircle(c.x, c.y, r);
     }
   }
 
