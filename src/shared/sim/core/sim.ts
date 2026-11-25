@@ -421,6 +421,7 @@ function moveZombies(st: SimState, events: SimEvent[]): void {
         if (bk < 0) continue; // nowhere to go at all: wait
         const bx = bk % GRID;
         const by = (bk - bx) / GRID;
+        if ((st.wallHp[bk] ?? 0) > 0 && !st.wallMat[bk]) continue; // a rock, tree or solid part: not something to punch
         if ((st.wallHp[bk] ?? 0) > 0) {
           hitWall(st, bk, WALL_BASH, events);
           // (for the renderer: punching, and which way the wall is)

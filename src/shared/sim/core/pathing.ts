@@ -96,6 +96,7 @@ export function computeBashField(extra: (k: number) => number, goalX: number, go
       const ny = y + dy;
       if (nx < 0 || ny < 0 || nx >= GRID || ny >= GRID) continue;
       const n = ny * GRID + nx;
+      if (extra(n) < 0) continue; // rocks, trees, solid parts: never a way through (or a place to punch)
       const nd = bestD + 10 + e;
       if (nd < (out[n] as number)) out[n] = nd;
     }

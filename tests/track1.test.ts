@@ -488,3 +488,21 @@ describe('battery', () => {
     expect(st.powerC[key(6, 3)]).toBe(0);
   });
 });
+
+describe('zombies never punch trees or rocks', () => {
+  it('walled in beside a tree, they bash the wall, not the tree', () => {
+    // house (8, 8) boxed in: wood on three sides, a tree on the fourth (the north)
+    const walls = [];
+    for (let x = 7; x <= 9; x++) for (let y = 7; y <= 9; y++) if ((x !== 8 || y !== 8) && !(x === 8 && y === 7)) walls.push({ x, y, material: 'wood' as const });
+    const d: DayConfig = { ...day({ x: 1, y: 15 }), obstacles: [{ type: 'tree', x: 8, y: 7, clearSeconds: 20 }] };
+    const st = createSim(d, { ...build([], [], { x: 8, y: 8 }), walls }, { schedule: [] });
+    for (let i = 0; i < 3; i++) spawnZombie(st, 'shambler', 8, 1);
+    let punchedTree = false;
+    run(st, 900, (s) => {
+      for (const z of s.zombies) if (z.ext.bash && z.ext.bdx === 0 && z.ext.bdy === 1 && Math.floor(z.x) === 8 && Math.floor(z.y) === 6) punchedTree = true;
+    });
+    expect(punchedTree).toBe(false);
+    expect(st.wallHp[key(8, 7)]).toBeGreaterThan(0); // the tree stands
+    expect(st.outcome).toBe('lost'); // they went round and broke a wall instead
+  });
+});
