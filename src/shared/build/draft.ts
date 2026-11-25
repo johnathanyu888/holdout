@@ -39,3 +39,8 @@ export function draftedKit(draft: Draft, picks: readonly Pick[]): { kit: Record<
   for (const t of order) if ((counts[t] ?? 0) > 0) kit[t] = counts[t] as number;
   return { kit, materials };
 }
+
+/** Every kit has at least one battery, whatever the day's draft or fixed kit says. */
+export function withBattery(kit: Record<string, number>): Record<string, number> {
+  return (kit.battery ?? 0) >= 1 ? kit : { battery: 1, ...kit };
+}

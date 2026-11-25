@@ -5,7 +5,7 @@
 import { validate } from '@shared/build/rules';
 import { covers, obstacleYield } from '@shared/build/rocks';
 import type { SimState } from '@shared/sim';
-import { type Pick, draftedKit } from '@shared/build/draft';
+import { type Pick, draftedKit, withBattery } from '@shared/build/draft';
 import { demoDay, sandboxDay } from '@shared/demo/demoDay';
 import type { InitResponse } from '@shared/types/api';
 import type { Contraption, Rot } from '@shared/types/build';
@@ -129,7 +129,7 @@ function createSession() {
       const y = obstacleYield(o);
       k.materials[y.material] += y.n;
     }
-    day.kit = k.kit;
+    day.kit = withBattery(k.kit); // always at least one battery
     day.materials = k.materials;
   };
   applyKit();

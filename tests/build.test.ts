@@ -202,3 +202,11 @@ describe('inlet hint', () => {
     expect(inletInUse(d, { ...base, parts: [{ ...saw, type: 'piston' }], wires: [{ x: 4, y: 3 }, { x: 5, y: 3 }] })).toBe(false);
   });
 });
+
+describe('battery in every kit', () => {
+  it('adds one when a kit has none, and leaves a kit that has one alone', async () => {
+    const { withBattery } = await import('@shared/build/draft');
+    expect(withBattery({ saw_blade: 2 })).toEqual({ battery: 1, saw_blade: 2 });
+    expect(withBattery({ battery: 2, saw_blade: 1 })).toEqual({ battery: 2, saw_blade: 1 });
+  });
+});
