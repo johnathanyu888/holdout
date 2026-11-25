@@ -285,15 +285,23 @@ function Briefing() {
   // The cue never changes the card's height (it overlays the bottom), so the
   // scroll position can't jump when it fades out.
   const cardRef = useRef<HTMLDivElement>(null);
+  const startRef = useRef<HTMLButtonElement>(null);
   const [more, setMore] = useState(false);
+  // Only while the Start button is still hidden below: the cue never covers a button you can see (and tap).
   const checkMore = () => {
     const el = cardRef.current;
-    if (el) setMore(el.scrollTop + el.clientHeight < el.scrollHeight - 12);
+    const btn = startRef.current;
+    if (el && btn) setMore(btn.getBoundingClientRect().top > el.getBoundingClientRect().bottom - 24);
   };
   useLayoutEffect(() => {
     checkMore();
+    // and again once the kit has dealt in (it changes the card's height)
+    const t = setTimeout(checkMore, 700);
     window.addEventListener('resize', checkMore);
-    return () => window.removeEventListener('resize', checkMore);
+    return () => {
+      clearTimeout(t);
+      window.removeEventListener('resize', checkMore);
+    };
   }, [drafting]);
   const { day } = session;
   const z = day.spawns.zombies.reduce((n, g) => n + g.count, 0);
@@ -378,7 +386,7 @@ function Briefing() {
           </li>
         </ol>
 
-        <button class="big-btn" onClick={go} disabled={drafting}>
+        <button class="big-btn" ref={startRef} onClick={go} disabled={drafting}>
           {drafting ? 'Finish your picks first' : 'Start building'}
         </button>
         {!drafting && (

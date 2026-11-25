@@ -193,6 +193,8 @@ function partTool(env: ToolEnv, type: string): BuildTool {
       if ((env.store.inventory.parts[type] ?? 0) <= 0) return env.putAway();
       const cfg = hasPartDef(type) ? partDef(type).defaultConfig : undefined;
       report(env, env.store.apply((c) => placePart(env.day, c, type, p.tile!.x, p.tile!.y, env.rot(), cfg)));
+      // That was the last one: put the tool away (no red "none left" preview).
+      if ((env.store.inventory.parts[type] ?? 0) <= 0) env.putAway();
     },
     ghost: (t) =>
       t && {
@@ -230,6 +232,8 @@ function pathTool(
       // The eraser tapped on an empty tile: put it away.
       if (id === 'erase' && occupantAt(env.day, env.store.current, p.tile.x, p.tile.y).kind === 'empty') return env.putAway();
       report(env, opts.commit([p.tile]));
+      // Used up the last of it (wire, or wood/stone for walls): put the tool away.
+      if (opts.outOfStock?.()) env.putAway();
     },
     onDragStart: (p) => {
       const t = tileOf(p);
@@ -249,6 +253,7 @@ function pathTool(
     },
     onDragEnd: () => {
       if (path?.length) report(env, opts.commit(path));
+      if (path?.length && opts.outOfStock?.()) env.putAway();
       path = null;
       start = null;
     },
