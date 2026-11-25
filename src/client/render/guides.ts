@@ -293,15 +293,20 @@ export class GuideLayer {
     }
   }
 
-  /** Rings rippling out of the inlet, and a label: start your wire here. */
+  /** Rings rippling out of the inlet, and a red "!" on it: your wire should start here. */
   private drawWireHint(time: number): void {
     const c = tileToWorld(this.day.inlet.x, this.day.inlet.y);
     for (let i = 0; i < 2; i++) {
       const k = (time * 0.8 + i * 0.5) % 1;
       this.under.lineStyle(4, 0xfff2b0, 0.7 * (1 - k)).strokeCircle(c.x, c.y, TILE * (0.45 + 0.6 * k));
     }
-    const bob = Math.sin(time * 4) * 3;
-    this.labelAt(c.x, c.y - TILE * 0.95 + bob, 'Start wire here', 0xfff2b0, 15);
+    const g = this.g;
+    const bx = c.x + TILE * 0.36;
+    const by = c.y - TILE * 0.36 + Math.sin(time * 4) * 2;
+    const r = 11 * (1 + 0.08 * Math.sin(time * 6));
+    g.fillStyle(0x0d1116, 0.9).fillCircle(bx, by, r + 2.5);
+    g.fillStyle(0xe8574a, 1).fillCircle(bx, by, r);
+    g.fillStyle(0xffffff, 1).fillRoundedRect(bx - 1.8, by - 6.5, 3.6, 8, 1.4).fillCircle(bx, by + 4.8, 2);
   }
 
   // ---- sandbox: zombie routes ----------------------------------------------------------
