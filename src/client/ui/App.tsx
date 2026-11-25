@@ -3,11 +3,13 @@
 import { Fragment } from 'preact';
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { WALL_COST, configurePart } from '@shared/build/rules';
-import { INLET_MAX_LOAD, INLET_STRENGTH, hasPartDef, partDef, powerMul, powerPreview } from '@shared/sim';
+import { INLET_MAX_LOAD, INLET_STRENGTH, allZombieDefs, hasPartDef, partDef, powerMul, powerPreview, zombieDef } from '@shared/sim';
+
+const hasZombieDef = (t: string) => allZombieDefs().some((z) => z.type === t);
 import { useObs } from '../core/observable';
 import { clearRock, repairFixture, session, toast } from '../core/session';
 import { fixtureAt, workingFixtures } from '@shared/build/fixtures';
-import { covers } from '@shared/build/rocks';
+import { covers, obstacleYield } from '@shared/build/rocks';
 import type { DraftOffer, Pick } from '@shared/build/draft';
 import {
   IconErase,
@@ -37,6 +39,7 @@ export function App() {
       {phase === 'build' && <Inspector />}
       {phase === 'build' && <InletCard />}
       {phase === 'build' && <RockCard />}
+      {phase === 'build' && <CardHint />}
       {phase === 'build' && session.mode === 'demo' && <TimeWarning />}
       {phase === 'raid' && <RaidBar />}
       {phase === 'result' && <Result />}
@@ -225,6 +228,19 @@ const WARNINGS = [
 
 const BRIEFING_SECONDS = 30;
 
+const RANK_NAME: Record<string, string> = {
+  common: 'Common',
+  uncommon: 'Uncommon',
+  rare: 'Rare',
+  epic: 'Epic',
+  legendary: 'Legendary',
+};
+
+/** Walking speed in words (tiles per second). */
+function speedWord(v: number): string {
+  return v < 1 ? 'Slow' : v < 1.5 ? 'Steady' : 'Fast';
+}
+
 function Briefing() {
   const picks = useObs(session.draftPicks);
   const draft = session.baseDay.draft;
@@ -263,6 +279,8 @@ function Briefing() {
   }, [drafting]);
   const { day } = session;
   const z = day.spawns.zombies.reduce((n, g) => n + g.count, 0);
+  const mut = day.mutation;
+  const zdef = hasZombieDef(mut?.zombie ?? 'shambler') ? zombieDef(mut?.zombie ?? 'shambler') : null;
   const kit: { key: string; icon: string; label: string; n: string }[] = [
     ...Object.entries(day.kit).map(([type, n]) => ({ key: type, icon: type, label: SHORT[type] ?? partLabel(type), n: `×${n}` })),
     { key: 'wire', icon: 'wire', label: 'Wire', n: `${day.materials.wire}` },
@@ -276,22 +294,37 @@ function Briefing() {
             <img src={icon('shambler')} alt="" />
           </div>
           <div class="brief-head">
-            <div class="eyebrow">TONIGHT'S MUTATION</div>
+            <div class="eyebrow">TONIGHT'S ZOMBIE</div>
             <h1>{day.mutationName}</h1>
-            <p class="blurb">{day.mutationBlurb}</p>
+            {mut && <span class={`rank rank-${mut.rank}`}>{RANK_NAME[mut.rank]}</span>}
           </div>
         </div>
 
-        <div class="brief-stats">
+        <div class="brief-stats four">
           <div>
             <b>{z}</b>
             <span>zombies</span>
+          </div>
+          <div>
+            <b>{zdef?.hp ?? '?'}</b>
+            <span>health</span>
+          </div>
+          <div>
+            <b>{zdef ? speedWord(zdef.speed) : '?'}</b>
+            <span>speed</span>
           </div>
           <div>
             <b>{fmtClock(day.buildSeconds)}</b>
             <span>to build</span>
           </div>
         </div>
+        {mut && (
+          <div class="brief-ability">
+            <span class="ability-label">ABILITY</span>
+            <b>{mut.ability.name}</b>
+            <span>{mut.ability.text}</span>
+          </div>
+        )}
 
         {drafting && draft ? (
           <DraftRound
@@ -318,9 +351,26 @@ function Briefing() {
 
         <div class="section-label">TONIGHT</div>
         <ol class="brief-steps">
-          <li>Place your house anywhere inside the clearing.</li>
-          <li>Wire traps to sensors, or to the inlet (it powers 3).</li>
-          <li>Press Fight. Every zombie must fall before one reaches the house.</li>
+          <li>
+            <span>
+              <b>Place your house.</b> Every zombie walks straight for it.
+            </span>
+          </li>
+          <li>
+            <span>
+              <b>Traps need power.</b> Wire each one to a sensor (a plate or tripwire) or to the inlet, which powers 3.
+            </span>
+          </li>
+          <li>
+            <span>
+              <b>Build circuits that kill:</b> power, then wire, then a trap. Strength drops 1 per wire tile.
+            </span>
+          </li>
+          <li>
+            <span>
+              <b>Press Fight.</b> Kill every zombie before one reaches the house.
+            </span>
+          </li>
         </ol>
 
         <button class="big-btn" onClick={go} disabled={drafting}>
@@ -428,6 +478,7 @@ function OfferBody(p: { offer: DraftOffer }) {
 function Tray() {
   const tool = useObs(session.tool);
   useObs(session.draftPicks); // the kit (and so the slots) comes from the draft
+  useObs(session.cleared); // cleared trees and rocks add wood and stone
   const c = useObs(session.store.contraption);
   const inv = session.store.inventory;
   const { day } = session;
@@ -506,7 +557,8 @@ function Tray() {
   };
 
   const tip = tipId ? slot(tipId) : null;
-  // Just the name: what a part does is shown in its card once it's placed.
+  // The name, with its kind (Attack, Power...) underneath. What it does is in its card once placed.
+  const tipKind = tipId ? slotKind(tipId, !!c.house) : null;
 
   // Centre the tag over its slot, kept inside the hotbar's edges.
   const hotbarRef = useRef<HTMLDivElement>(null);
@@ -540,6 +592,7 @@ function Tray() {
             style={tipLeft === null ? { visibility: 'hidden' } : { left: `${tipLeft}px` }}
           >
             <b>{tip.title ?? tip.label}</b>
+            {tipKind && tipKind.tag !== (tip.title ?? tip.label) && <span class={`kind-tag ${tipKind.cls}`}>{tipKind.tag}</span>}
 
           </div>
         )}
@@ -698,6 +751,20 @@ function InletCard() {
   );
 }
 
+/**
+ * The first time you place a part, a small bubble over it says it can be tapped
+ * to see how it works. It goes away for good once you open any part's card.
+ */
+function CardHint() {
+  const at = useObs(session.cardHint);
+  if (!at) return null;
+  return (
+    <div class="card-hint" style={{ left: `${at.x}px`, top: `${at.y}px` }} aria-hidden="true">
+      Tap it to see how it works
+    </div>
+  );
+}
+
 /** What to call a rock or tree by its size. */
 function rockName(type: 'rock' | 'tree', w: number, h: number): string {
   const n = w * h;
@@ -725,7 +792,10 @@ function RockCard() {
             {rock.w ?? 1}×{rock.h ?? 1}
           </span>
         </div>
-        <div class="insp-sub">Zombies walk round it. Nothing can be built or wired through it.</div>
+        <div class="insp-sub">
+          Zombies walk round it. Nothing can be built or wired through it. Clearing it gives {obstacleYield(rock).n}{' '}
+          {obstacleYield(rock).material}.
+        </div>
         <button
           class="repair-btn"
           disabled={!can}
@@ -838,6 +908,7 @@ function Inspector() {
         {strength !== null && <SignalMeter s={strength} />}
         <div class="insp-sub">{(type === 'delay' && blink ? BLINK_INFO : PART_INFO[type]) ?? ''}</div>
         {EXPLAIN[`part:${type}`] && <PartDemo flow={(EXPLAIN[`part:${type}`] as { flow: string[] }).flow} />}
+        {ZDEMO[type] && <ZombieDemo type={type} />}
         {latchOn !== null && selPart && (
           <div class="insp-controls">
             <div class="insp-seg" role="group" aria-label="Switch">
@@ -893,6 +964,44 @@ function SignalMeter(p: { s: number }) {
         ))}
       </span>
       <span class="sig-text">Signal {p.s}</span>
+    </div>
+  );
+}
+
+/** What each trap does to a zombie, for the card's demo: a caption and the damage numbers that pop. */
+const ZDEMO: Record<string, { caption: string; hits: string[] }> = {
+  saw_blade: { caption: 'Cuts it the whole way across: about 66 of its 100 health at full power.', hits: ['-66'] },
+  spike_floor: { caption: 'Steady power: one 20 stab, and it crosses at half speed. A tick punches for 45.', hits: ['-20'] },
+  tesla_coil: { caption: 'Zaps the nearest zombie in reach for 70, then again after 1.5s.', hits: ['-70', '-70'] },
+  piston: { caption: 'Shoves it one tile on, into spikes, a saw, or a wall (20 damage).', hits: [] },
+};
+
+/**
+ * A looping demo strip in the part card: a zombie walks along a lane past the
+ * part, and you see what happens to it (its health bar, damage numbers, being
+ * slowed, zapped or shoved). Pure CSS animation, one loop every 3.2s.
+ */
+function ZombieDemo(p: { type: string }) {
+  const d = ZDEMO[p.type];
+  if (!d) return null;
+  return (
+    <div class={`zdemo zd-${p.type}`} aria-hidden="true">
+      <div class="zd-lane">
+        <img class="zd-part" src={icon(p.type)} alt="" />
+        {p.type === 'tesla_coil' && <i class="zd-zap" />}
+        <div class="zd-zombie">
+          <span class="zd-hp">
+            <i />
+          </span>
+          <img src={icon('shambler')} alt="" />
+        </div>
+        {d.hits.map((h, i) => (
+          <span key={i} class={`zd-hit h${i}`}>
+            {h}
+          </span>
+        ))}
+      </div>
+      <div class="zd-caption">{d.caption}</div>
     </div>
   );
 }
@@ -1011,7 +1120,7 @@ function Result() {
             <span>stars</span>
           </div>
         </div>
-        <div class="btns">
+        <div class="btns one">
           {/* One way on: back to the briefing for a fresh draft and build. */}
           <button class="big-btn" onClick={() => session.actions.restart()}>
             {won ? 'Play again' : 'Try again'}

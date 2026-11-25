@@ -9,6 +9,11 @@ export const demoDay: DayConfig = {
   id: 'demo-1',
   mutationName: 'Shamblers',
   mutationBlurb: 'Slow. Hungry. They come from every side.',
+  mutation: {
+    zombie: 'shambler',
+    rank: 'common',
+    ability: { name: 'Swarm', text: 'They arrive in groups of 2 or 3, from every side.' },
+  },
   inlet: { x: 10, y: 5 },
   houseBand: 2,
   kit: {
@@ -32,15 +37,19 @@ export const demoDay: DayConfig = {
     groupMax: 3,
   },
   par: 1000,
-  // Everyone drafts from the same offers: a small base, then 5 picks of left or right.
+  // Everyone drafts from the same offers: a small base, then 7 picks of left or right.
+  // Rounds 1 and 4 are attack against attack, round 6 is attack against wire: so
+  // every draft ends with 2 or 3 attack cards.
   draft: {
-    base: { kit: { pressure_plate: 2, tripwire: 1 }, materials: { wire: 20, wood: 9, stone: 0 } },
+    base: { kit: { pressure_plate: 2, tripwire: 1 }, materials: { wire: 24, wood: 9, stone: 0 } },
     rounds: [
-      [{ parts: { saw_blade: 2 } }, { parts: { spike_floor: 3 } }],
+      [{ parts: { saw_blade: 3 } }, { parts: { spike_floor: 4 } }],
       [{ parts: { piston: 2 } }, { parts: { delay: 2 } }],
-      [{ parts: { latch: 1, tripwire: 1 } }, { parts: { pressure_plate: 2 } }],
-      [{ materials: { wire: 14 } }, { parts: { saw_blade: 1 } }],
-      [{ materials: { wood: 12 } }, { parts: { spike_floor: 1, tripwire: 1 } }],
+      [{ parts: { pressure_plate: 3 } }, { parts: { tripwire: 3 } }],
+      [{ parts: { saw_blade: 2, pressure_plate: 1 } }, { parts: { spike_floor: 3, tripwire: 1 } }],
+      [{ parts: { latch: 1, delay: 1 } }, { parts: { piston: 1, pressure_plate: 1 } }],
+      [{ parts: { saw_blade: 2 } }, { materials: { wire: 20 } }],
+      [{ materials: { wood: 12 } }, { materials: { wire: 12 }, parts: { pressure_plate: 1 } }],
     ],
   },
   // A broken Tesla coil near the inlet: 2:00 of build time to bring it back.

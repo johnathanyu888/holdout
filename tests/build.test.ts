@@ -148,10 +148,22 @@ describe('draft', () => {
   it('the kit is the base plus each pick, in a stable order', async () => {
     const { draftedKit } = await import('@shared/build/draft');
     const d = demoDay.draft!;
-    expect(draftedKit(d, [])).toEqual({ kit: { pressure_plate: 2, tripwire: 1 }, materials: { wire: 20, wood: 9, stone: 0 } });
-    const k = draftedKit(d, [0, 1, 0, 0, 1]);
+    expect(draftedKit(d, [])).toEqual({ kit: { pressure_plate: 2, tripwire: 1 }, materials: { wire: 24, wood: 9, stone: 0 } });
+    const k = draftedKit(d, [0, 1, 0, 1, 0, 1, 0]);
     expect(Object.keys(k.kit)).toEqual(['pressure_plate', 'tripwire', 'saw_blade', 'spike_floor', 'delay', 'latch']);
-    expect(k.kit).toMatchObject({ saw_blade: 2, delay: 2, latch: 1, tripwire: 3, spike_floor: 1 });
-    expect(k.materials.wire).toBe(34);
+    expect(k.kit).toMatchObject({ saw_blade: 3, spike_floor: 3, delay: 3, latch: 1, pressure_plate: 5, tripwire: 2 });
+    expect(k.materials).toEqual({ wire: 44, wood: 21, stone: 0 });
+  });
+  it('every way through the draft ends with 2 or 3 attack picks', async () => {
+    const { draftedKit } = await import('@shared/build/draft');
+    const d = demoDay.draft!;
+    const attack = (o: { parts?: Record<string, number> }) => Object.keys(o.parts ?? {}).some((t) => t === 'saw_blade' || t === 'spike_floor');
+    for (let mask = 0; mask < 1 << d.rounds.length; mask++) {
+      const picks = d.rounds.map((_, i) => ((mask >> i) & 1) as 0 | 1);
+      const n = picks.filter((p, i) => attack(d.rounds[i]![p])).length;
+      expect(n).toBeGreaterThanOrEqual(2);
+      expect(n).toBeLessThanOrEqual(3);
+      expect(Object.keys(draftedKit(d, picks).kit).length).toBeGreaterThan(0);
+    }
   });
 });

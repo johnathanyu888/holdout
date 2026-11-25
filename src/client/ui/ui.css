@@ -2056,3 +2056,301 @@
     radial-gradient(circle at 50% 50%, #3f7a2e 0 52%, #2f5a24 53%);
   box-shadow: 2px 3px 0 rgba(0, 0, 0, 0.3);
 }
+
+/* ---- no scrollbars anywhere (content still scrolls: wheel, trackpad, touch) ---- */
+html,
+body,
+* {
+  scrollbar-width: none;
+}
+*::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
+/* ---- the Fight button is never wider than the hotbar ---------------------------- */
+@media (max-width: 860px) {
+  .tray-wrap {
+    left: 0;
+    right: 0;
+    margin: 0 auto;
+    width: max-content;
+    max-width: calc(100% - var(--safe-l) - var(--safe-r));
+    align-items: stretch;
+  }
+  .tray-wrap .hotbar,
+  .tray-wrap .fight-dock {
+    width: auto;
+    max-width: none;
+  }
+  .tray-wrap .fight-btn {
+    min-width: 0;
+  }
+}
+
+/* ---- result: a single button spans the card -------------------------------------- */
+.btns.one {
+  grid-template-columns: 1fr;
+}
+
+/* ---- briefing: the zombie's stats, rank and ability -------------------------------- */
+.brief-stats.four {
+  grid-template-columns: repeat(4, 1fr);
+}
+.brief-stats.four b {
+  font-size: 19px;
+}
+.rank {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 2px 9px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #0d1116;
+}
+.rank-common { background: #b9c2cc; }
+.rank-uncommon { background: #7fd66b; }
+.rank-rare { background: #6bb6ff; }
+.rank-epic { background: #c08cff; }
+.rank-legendary {
+  background: linear-gradient(90deg, #f2c14e, #ffe39a, #f2c14e);
+  box-shadow: 0 0 10px rgba(242, 193, 78, 0.5);
+}
+.brief-ability {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+  margin: -6px 0 16px;
+  padding: 9px 12px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1.5px solid rgba(255, 255, 255, 0.1);
+  font-size: 13px;
+  line-height: 1.35;
+  color: #dfe5ea;
+}
+.brief-ability .ability-label {
+  font-size: 10.5px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+}
+.brief-ability b {
+  color: #fff;
+  font-weight: 900;
+}
+.brief-steps b {
+  color: #fff;
+}
+
+/* ---- hotbar label: the name, its kind stacked underneath --------------------------- */
+.hotbar-tip {
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+
+/* ---- "tap it to see how it works" bubble over a newly placed part ------------------ */
+.card-hint {
+  position: absolute;
+  z-index: 5;
+  transform: translate(-50%, calc(-100% - 10px));
+  padding: 6px 11px;
+  border-radius: 8px;
+  background: #fff;
+  color: #0d1116;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
+  animation: hint-bob 1.4s ease-in-out infinite;
+}
+.card-hint::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -6px;
+  margin-left: -6px;
+  border: 6px solid transparent;
+  border-bottom: 0;
+  border-top-color: #fff;
+}
+@keyframes hint-bob {
+  0%,
+  100% { margin-top: 0; }
+  50% { margin-top: -5px; }
+}
+
+/* ---- the part card's zombie demo: a zombie walks past the part, on a loop ---------- */
+.zdemo {
+  margin-top: 8px;
+}
+.zd-lane {
+  position: relative;
+  height: 54px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: linear-gradient(180deg, rgba(90, 140, 60, 0.25), rgba(60, 100, 40, 0.3));
+}
+.zd-part {
+  position: absolute;
+  left: 50%;
+  bottom: 6px;
+  width: 30px;
+  height: 30px;
+  margin-left: -15px;
+}
+.zd-zombie {
+  position: absolute;
+  bottom: 5px;
+  left: 0;
+  width: 26px;
+  animation: zd-walk 3.2s linear infinite;
+}
+.zd-zombie img {
+  display: block;
+  width: 26px;
+  height: 26px;
+}
+.zd-hp {
+  display: block;
+  height: 4px;
+  margin: 0 2px 2px;
+  border-radius: 2px;
+  background: rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+}
+.zd-hp i {
+  display: block;
+  height: 100%;
+  width: 100%;
+  background: #7fd66b;
+}
+.zd-hit {
+  position: absolute;
+  left: 50%;
+  top: 2px;
+  margin-left: 6px;
+  font-size: 12px;
+  font-weight: 900;
+  color: #ff8a7a;
+  text-shadow: 0 1px 0 #0d1116;
+  opacity: 0;
+}
+.zd-caption {
+  margin-top: 5px;
+  font-size: 11.5px;
+  line-height: 1.35;
+  color: #aab4bf;
+}
+@keyframes zd-walk {
+  0% { left: 0%; opacity: 0; }
+  6% { opacity: 1; }
+  90% { left: 86%; opacity: 1; }
+  100% { left: 90%; opacity: 0; }
+}
+
+/* saw: spins; health drains while the zombie is on it */
+.zd-saw_blade .zd-part { animation: zd-spin 0.5s linear infinite; }
+.zd-saw_blade .zd-hp i { animation: zd-hp-saw 3.2s linear infinite; }
+.zd-saw_blade .zd-hit.h0 { animation: zd-pop 3.2s linear infinite; --at: 52%; }
+@keyframes zd-spin { to { transform: rotate(360deg); } }
+@keyframes zd-hp-saw {
+  0%, 40% { width: 100%; }
+  56%, 100% { width: 34%; background: #ffc46b; }
+}
+
+/* spikes: one stab, then it wades across at half speed */
+.zd-spike_floor .zd-zombie { animation-name: zd-walk-slow; }
+.zd-spike_floor .zd-hp i { animation: zd-hp-spike 3.2s linear infinite; }
+.zd-spike_floor .zd-hit.h0 { animation: zd-pop 3.2s linear infinite; }
+@keyframes zd-walk-slow {
+  0% { left: 0%; opacity: 0; }
+  6% { opacity: 1; }
+  38% { left: 38%; }
+  64% { left: 52%; }
+  90% { left: 86%; opacity: 1; }
+  100% { left: 90%; opacity: 0; }
+}
+@keyframes zd-hp-spike {
+  0%, 41% { width: 100%; }
+  43%, 100% { width: 80%; }
+}
+
+/* tesla: two zaps, then it drops */
+.zd-tesla_coil .zd-zombie { animation-name: zd-walk-die; }
+.zd-tesla_coil .zd-hp i { animation: zd-hp-tesla 3.2s linear infinite; }
+.zd-tesla_coil .zd-hit.h0 { animation: zd-pop-a 3.2s linear infinite; }
+.zd-tesla_coil .zd-hit.h1 { animation: zd-pop-b 3.2s linear infinite; margin-left: 30px; }
+.zd-zap {
+  position: absolute;
+  left: 50%;
+  bottom: 22px;
+  width: 44px;
+  height: 3px;
+  margin-left: -40px;
+  background: #e8fbff;
+  box-shadow: 0 0 8px #5fd8ff;
+  opacity: 0;
+  transform: rotate(-8deg);
+  animation: zd-zap 3.2s linear infinite;
+}
+@keyframes zd-walk-die {
+  0% { left: 0%; opacity: 0; }
+  6% { opacity: 1; }
+  66% { left: 62%; opacity: 1; }
+  74% { left: 66%; opacity: 0; }
+  100% { left: 66%; opacity: 0; }
+}
+@keyframes zd-hp-tesla {
+  0%, 35% { width: 100%; }
+  37%, 63% { width: 30%; background: #ffc46b; }
+  65%, 100% { width: 0%; }
+}
+@keyframes zd-zap {
+  0%, 34% { opacity: 0; }
+  35%, 38% { opacity: 1; }
+  39%, 62% { opacity: 0; }
+  63%, 66% { opacity: 1; transform: rotate(10deg); }
+  67%, 100% { opacity: 0; }
+}
+
+/* piston: sits on the lane facing along it; the zombie steps in front and gets shoved a tile on */
+.zd-piston .zd-part {
+  left: 30%;
+}
+.zd-piston .zd-zombie { animation-name: zd-walk-shove; }
+@keyframes zd-walk-shove {
+  0% { left: 0%; bottom: 5px; opacity: 0; }
+  6% { opacity: 1; }
+  46% { left: 44%; bottom: 5px; }
+  50% { left: 62%; bottom: 5px; }
+  90% { left: 88%; opacity: 1; }
+  100% { left: 92%; opacity: 0; }
+}
+
+/* damage numbers: pop up and float off at the moment of the hit */
+@keyframes zd-pop {
+  0%, 44% { opacity: 0; transform: translateY(8px); }
+  48% { opacity: 1; transform: translateY(0); }
+  64% { opacity: 0; transform: translateY(-8px); }
+  100% { opacity: 0; }
+}
+@keyframes zd-pop-a {
+  0%, 35% { opacity: 0; transform: translateY(8px); }
+  38% { opacity: 1; transform: translateY(0); }
+  52% { opacity: 0; transform: translateY(-8px); }
+  100% { opacity: 0; }
+}
+@keyframes zd-pop-b {
+  0%, 63% { opacity: 0; transform: translateY(8px); }
+  66% { opacity: 1; transform: translateY(0); }
+  80% { opacity: 0; transform: translateY(-8px); }
+  100% { opacity: 0; }
+}

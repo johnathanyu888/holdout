@@ -36,6 +36,8 @@ export interface DayConfig {
   /** Mutation card name shown in the briefing, e.g. "Shamblers". */
   mutationName: string;
   mutationBlurb: string;
+  /** Tonight's zombie for the briefing: its rank (common to legendary) and its one ability. */
+  mutation?: { zombie: string; rank: Rank; ability: { name: string; text: string } };
   /** The map's one power inlet (always on, strength 6, powers at most 3 action parts). */
   inlet: Tile;
   /** The house can't go within this many tiles of the lawn edge. */
@@ -57,6 +59,9 @@ export interface DayConfig {
   /** The briefing draft. With one, the kit is the draft's base plus the picks (kit/materials above are ignored). */
   draft?: Draft;
 }
+
+/** How dangerous a night's zombie is, low to high. */
+export type Rank = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
 
 export interface Obstacle {
   /** A rock (cleared) or a tree (cut down): both block the same way. */

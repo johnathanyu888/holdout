@@ -3,7 +3,7 @@
 // registers the actions the UI calls (start raid, zoom...).
 
 import { validate } from '@shared/build/rules';
-import { covers } from '@shared/build/rocks';
+import { covers, obstacleYield } from '@shared/build/rocks';
 import { type Pick, draftedKit } from '@shared/build/draft';
 import { demoDay, sandboxDay } from '@shared/demo/demoDay';
 import type { InitResponse } from '@shared/types/api';
@@ -57,6 +57,23 @@ export interface Actions {
 
 const noop = () => {};
 
+/** A remembered yes/no (kept across visits; false if storage is blocked). */
+function readFlag(k: string): boolean {
+  try {
+    return localStorage.getItem(k) === '1';
+  } catch {
+    return false;
+  }
+}
+
+export function setFlag(k: string): void {
+  try {
+    localStorage.setItem(k, '1');
+  } catch {
+    // storage blocked: fine, it just isn't remembered
+  }
+}
+
 function createSession() {
   const params = new URLSearchParams(location.search);
   const mode: Mode = params.has('sandbox') ? 'sandbox' : 'demo';
@@ -75,14 +92,6 @@ function createSession() {
 
   // The briefing draft (left or right per round): the kit is the base plus the picks.
   const draftPicks = new Obs<Pick[]>([]);
-  const applyDraft = (picks: Pick[]) => {
-    if (!baseDay.draft) return;
-    const k = draftedKit(baseDay.draft, picks);
-    day.kit = k.kit;
-    day.materials = k.materials;
-  };
-  applyDraft([]);
-  draftPicks.subscribe(applyDraft);
 
   // Repaired map machines (fixture indices).
   const repairedKey = `repaired:${day.id}`;
@@ -107,6 +116,22 @@ function createSession() {
     applyCleared(list);
     local.save(clearedKey, list);
   });
+
+  // The kit: the draft's base plus the picks (or the day's fixed kit), plus what
+  // cleared trees and rocks gave (wood and stone).
+  const applyKit = () => {
+    const k = baseDay.draft ? draftedKit(baseDay.draft, draftPicks.value) : { kit: { ...baseDay.kit }, materials: { ...baseDay.materials } };
+    for (const o of baseDay.obstacles ?? []) {
+      if (!cleared.value.includes(`${o.x},${o.y}`)) continue;
+      const y = obstacleYield(o);
+      k.materials[y.material] += y.n;
+    }
+    day.kit = k.kit;
+    day.materials = k.materials;
+  };
+  applyKit();
+  draftPicks.subscribe(applyKit);
+  cleared.subscribe(applyKit);
 
   return {
     api: createApi() as ApiClient,
@@ -155,6 +180,10 @@ function createSession() {
     } as Actions,
     /** Sandbox: draw the routes zombies would take to the house. */
     showPaths: new Obs(false),
+    /** Where to show the "tap it to see how it works" bubble (screen px), or null. */
+    cardHint: new Obs<{ x: number; y: number } | null>(null),
+    /** Has the player opened a part's card yet? (Then the bubble never shows again.) */
+    cardHintDone: new Obs(readFlag('seen-card-hint')),
   };
 }
 
@@ -189,7 +218,8 @@ export function clearRock(x: number, y: number): string | null {
   }
   session.selected.set(null);
   session.cleared.set([...session.cleared.value, `${r.x},${r.y}`]);
-  toast(`${r.type === 'tree' ? 'Tree cut down' : 'Rock cleared'} (−${Math.floor(r.clearSeconds / 60)}:${String(r.clearSeconds % 60).padStart(2, '0')})`);
+  const got = obstacleYield(r);
+  toast(`${r.type === 'tree' ? 'Tree cut down' : 'Rock cleared'}, +${got.n} ${got.material} (−${Math.floor(r.clearSeconds / 60)}:${String(r.clearSeconds % 60).padStart(2, '0')})`);
   return null;
 }
 

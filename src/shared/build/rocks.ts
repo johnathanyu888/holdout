@@ -27,6 +27,11 @@ export function obstacleWord(day: DayConfig, x: number, y: number): string {
   return o?.type === 'tree' ? 'tree' : 'rock';
 }
 
+/** What clearing it gives: a tree is wood, a rock is stone, 3 per tile it covers (one wall each). */
+export function obstacleYield(o: Obstacle): { material: 'wood' | 'stone'; n: number } {
+  return { material: o.type === 'tree' ? 'wood' : 'stone', n: 3 * w(o) * h(o) };
+}
+
 /** Every tile a rock covers. */
 export function rockCells(o: Obstacle): { x: number; y: number }[] {
   const out: { x: number; y: number }[] = [];

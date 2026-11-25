@@ -11,7 +11,7 @@ import { FAR_SCALE, MAP_SCALE, PART_SCALE, SPRITE_SCALE, TEX, canopyChunks, farC
 import { CameraController } from '../core/camera';
 import { InputRouter, type PointerInfo } from '../core/input';
 import { RaidRunner } from '../core/raid';
-import { session, toast } from '../core/session';
+import { session, setFlag, toast } from '../core/session';
 import { VIEWPORT_EVENT, type ViewportSize } from '../core/viewport';
 import { DebugOverlay } from '../render/debugOverlay';
 import { EntityLayer } from '../render/entities';
@@ -459,6 +459,7 @@ export class WorldScene extends Phaser.Scene {
       this.hoverG.lineStyle(3 * dpr * px, 0xffffff, 0.55 + 0.45 * pulse).strokeRect(o.x, o.y, W, H);
     }
     this.publishSelectionAnchor(sel);
+    this.publishCardHint();
 
 
     const v = this.camera.current;
@@ -474,6 +475,29 @@ export class WorldScene extends Phaser.Scene {
       gesture: `${this.router.gesture}${this.router.handMode ? ' (hand)' : ''} / ${phase}`,
       api: `${session.api.mode}${session.init?.userName ? ` as ${session.init.userName}` : ''}`,
     });
+  }
+
+  /**
+   * Until the player opens a part's card, the newest placed part gets a bubble
+   * saying it can be tapped: published here as a screen point over that part.
+   */
+  private publishCardHint(): void {
+    let h: { x: number; y: number } | null = null;
+    const sel = session.selected.value;
+    const parts = session.store.current.parts;
+    if (sel && parts.some((p) => p.x === sel.x && p.y === sel.y) && !session.cardHintDone.value) {
+      session.cardHintDone.set(true);
+      setFlag('seen-card-hint');
+    }
+    const last = parts[parts.length - 1];
+    if (session.phase.value === 'build' && !session.cardHintDone.value && !sel && last) {
+      const o = tileOrigin(last.x, last.y);
+      const p = worldToScreen(this.camera.current, this.camera.size, o.x + TILE / 2, o.y);
+      h = { x: Math.round(p.x), y: Math.round(p.y) };
+    }
+    const cur = session.cardHint.value;
+    if (h === cur || (h && cur && h.x === cur.x && h.y === cur.y)) return;
+    session.cardHint.set(h);
   }
 
   /** Where the selected tile is on screen, for the part card that floats above it. */
