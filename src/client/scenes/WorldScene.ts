@@ -215,6 +215,7 @@ export class WorldScene extends Phaser.Scene {
     session.clock.stop();
     session.selected.set(null);
     this.raid = new RaidRunner(day, store.current, session.mode === 'sandbox' ? { schedule: [] } : undefined);
+    session.raidSim = this.raid.sim;
     this.resultAt = null;
     session.result.set(null);
     session.phase.set('raid');
@@ -258,6 +259,7 @@ export class WorldScene extends Phaser.Scene {
 
   private endRaidVisuals(): void {
     this.raid = null;
+    session.raidSim = null;
     this.resultAt = null;
     session.raid.set(null);
     session.danger.set(0);

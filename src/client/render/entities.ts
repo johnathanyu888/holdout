@@ -181,6 +181,8 @@ export class EntityLayer {
   /** Additive overlay: current running along powered wires. */
   private readonly zap: Phaser.GameObjects.Graphics;
   private sparks: { x: number; y: number; until: number; seed: number }[] = [];
+  /** Cracks drawn over parts as they wear out (raid only), by part id. */
+  private readonly cracks = new Map<number, Phaser.GameObjects.Graphics>();
   /** Blinking delays in the build preview, and a scratch tick layer to combine them into. */
   private blinkers: ReturnType<typeof blinkerFloods> = [];
   private readonly livePowerT = new Uint8Array(TILE_COUNT);
@@ -475,7 +477,44 @@ export class EntityLayer {
       const view = partView(part.type);
       if (view.update) view.update(s, { time, powered, sim: sp, on: sp ? sp.active : blinkOn.has(part.id) });
       else s.setTint(powered || sp?.active ? 0xffffff : 0xb8b8b8);
+      this.showWear(part.id, s, sp && def?.durability ? (sp.s.wear ?? 0) / def.durability : 0, time);
     }
+    if (!sim) for (const [id, g] of this.cracks) (g.destroy(), this.cracks.delete(id));
+  }
+
+  /**
+   * A part looks more and more busted as it wears (0 = new, 1 = worn out): it
+   * darkens toward rust, cracks spread across it (turning with it, so a saw's
+   * cracks spin), it starts to wobble, and near the end it throws sparks.
+   */
+  private showWear(id: number, s: Phaser.GameObjects.Image, f: number, time: number): void {
+    if (f <= 0.02) {
+      this.cracks.get(id)?.clear();
+      return;
+    }
+    const k = Math.min(1, f);
+    s.setTint(lerpColour(0xffffff, 0x8a5e44, k * 0.75));
+    s.setRotation(s.rotation + Math.sin(time * 37 + id) * 0.06 * k * k);
+    let g = this.cracks.get(id);
+    if (!g) {
+      g = this.scene.add.graphics();
+      this.cracks.set(id, g);
+    }
+    g.clear().setPosition(s.x, s.y).setRotation(s.rotation).setDepth(s.depth + 0.4);
+    const n = Math.min(6, Math.floor(k * 7));
+    const r = TILE * 0.34;
+    for (let i = 0; i < n; i++) {
+      // fixed crack shapes per part: a main split from the middle, then a kink
+      const a = (i * 2.4 + id * 0.7) % (Math.PI * 2);
+      const len = r * (0.55 + 0.4 * ((i * 37 + id * 13) % 10) / 10);
+      const mx = Math.cos(a) * len * 0.55;
+      const my = Math.sin(a) * len * 0.55;
+      const b = a + (i % 2 ? 0.45 : -0.45);
+      g.lineStyle(2.4, 0x1a1210, 0.85).lineBetween(Math.cos(a) * 4, Math.sin(a) * 4, mx, my);
+      g.lineBetween(mx, my, mx + Math.cos(b) * len * 0.45, my + Math.sin(b) * len * 0.45);
+    }
+    if (k > 0.7 && Math.random() < 0.04 * k)
+      this.sparks.push({ x: s.x + (Math.random() - 0.5) * 34, y: s.y + (Math.random() - 0.5) * 34, until: time + 0.1, seed: Math.random() * 100 });
   }
 
   /**
@@ -658,6 +697,7 @@ export class EntityLayer {
   }
 
   destroy(): void {
+    for (const g of this.cracks.values()) g.destroy();
     this.rangeG?.destroy();
     this.rangeFx?.destroy();
     for (const s of this.rocks.values()) s.destroy();

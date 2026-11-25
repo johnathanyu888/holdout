@@ -185,7 +185,7 @@ describe('build guide: is a trap wired to power?', () => {
 });
 
 describe('inlet hint', () => {
-  it('stays on until a trap is wired to the inlet itself (a sensor alone does not count)', async () => {
+  it('stays on until an attack part is powered by the inlet (in reach, in a slot)', async () => {
     const { inletInUse } = await import('@shared/build/connect');
     const d = { ...demoDay, inlet: { x: 3, y: 3 }, obstacles: [], fixtures: [] };
     const base = { house: null, walls: [], nextId: 10 };
@@ -194,5 +194,11 @@ describe('inlet hint', () => {
     const plate = { id: 2, type: 'pressure_plate', x: 6, y: 5, rot: 0 as const };
     expect(inletInUse(d, { ...base, parts: [saw, plate], wires: [{ x: 6, y: 4 }] })).toBe(false);
     expect(inletInUse(d, { ...base, parts: [saw], wires: [{ x: 4, y: 3 }, { x: 5, y: 3 }] })).toBe(true);
+    // wired, but too far: the signal (6, minus 1 a tile) runs out before the saw
+    const far = { ...saw, x: 10 };
+    const long = [4, 5, 6, 7, 8, 9].map((x) => ({ x, y: 3 }));
+    expect(inletInUse(d, { ...base, parts: [far], wires: long })).toBe(false);
+    // a piston alone doesn't count: it doesn't attack
+    expect(inletInUse(d, { ...base, parts: [{ ...saw, type: 'piston' }], wires: [{ x: 4, y: 3 }, { x: 5, y: 3 }] })).toBe(false);
   });
 });

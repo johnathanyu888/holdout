@@ -2979,3 +2979,40 @@ body,
   48%, 58% { height: 22px; }
   66%, 100% { height: 0; }
 }
+
+/* ---- briefing: scrolls up and down only, never sideways --------------------------- */
+.modal-wrap,
+.card.briefing {
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+}
+.card.briefing {
+  touch-action: pan-y;
+}
+html,
+body {
+  touch-action: manipulation;
+  overflow: hidden;
+}
+
+/* durability in the part card: the number and a small bar */
+.dur {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.dur-bar {
+  width: 54px;
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+}
+.dur-bar i {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+}
+.dur-bar i.hi { background: #7fd66b; }
+.dur-bar i.mid { background: #ffc46b; }
+.dur-bar i.low { background: #ff5a4f; }

@@ -37,7 +37,7 @@ export function App() {
       <TopBar />
       {phase === 'briefing' && <Briefing />}
       {phase === 'build' && <Tray />}
-      {phase === 'build' && <Inspector />}
+      {(phase === 'build' || phase === 'raid') && <Inspector />}
       {phase === 'build' && <InletCard />}
       {phase === 'build' && <RockCard />}
       {phase === 'build' && <CardHint />}
@@ -892,6 +892,8 @@ function Inspector() {
   const c = useObs(session.store.contraption);
   useObs(session.repaired);
   const left = useObs(session.clock.left);
+  useObs(session.raid); // during a raid: refresh the live numbers
+  const raidPhase = useObs(session.phase) === 'raid';
   const fxIndex = sel ? fixtureAt(session.day, sel.x, sel.y) : -1;
   const fixture = fxIndex >= 0 ? session.day.fixtures?.[fxIndex] : undefined;
   const selPart = sel
@@ -912,11 +914,11 @@ function Inspector() {
         <img src={icon(type)} alt="" class="insp-broken-img" />
         <div class="insp-body">
           <div class="insp-title">
-            {def.label}
+            ???
             <span class="insp-power bad">Broken</span>
           </div>
-          <div class="insp-sub">{PART_INFO[type] ?? ''} Repair it and it works where it stands.</div>
-          <button class="repair-btn" disabled={!can} onClick={() => repairFixture(fxIndex)}>
+          <div class="insp-sub">???</div>
+          <button class="repair-btn" disabled={!can || session.phase.value !== 'build'} onClick={() => repairFixture(fxIndex)}>
             <IconWrench />
             Repair (−{fmtClock(cost)})
           </button>
@@ -945,12 +947,25 @@ function Inspector() {
               : { text: 'No power yet', ok: false };
     else if (def.kind === 'chip') power = s > 0 ? { text: `Input ${s}`, ok: true } : { text: 'No input yet', ok: false };
   }
-  const strength = (() => {
+  let strength = (() => {
     const got = powerPreview(session.day, c).inputs.get(selPart.id);
     return got ? Math.max(got.c, got.t) : null;
   })();
-  const latchOn = selPart?.type === 'latch' ? (selPart.config?.on ?? 0) > 0 : null;
-  const delay = selPart?.type === 'delay' ? (selPart.config?.delay ?? 5) : null;
+  // During the raid the card is read-only and live: the sim's signal, status and wear.
+  const live = raidPhase ? (session.raidSim?.parts.find((q) => q.id === selPart.id) ?? null) : null;
+  if (live) {
+    strength = Math.max(live.input.c, live.input.t);
+    if (def.kind === 'action')
+      power = live.s.worn
+        ? { text: 'Worn out', ok: false }
+        : live.active || strength >= def.needs
+          ? { text: 'Working', ok: true }
+          : { text: 'Waiting for power', ok: false };
+  }
+  const dur = def.durability;
+  const wearLeft = dur ? Math.max(0, Math.round(dur - (live?.s.wear ?? 0))) : null;
+  const latchOn = !raidPhase && selPart?.type === 'latch' ? (selPart.config?.on ?? 0) > 0 : null;
+  const delay = !raidPhase && selPart?.type === 'delay' ? (selPart.config?.delay ?? 5) : null;
   const blink = selPart?.type === 'delay' ? (selPart.config?.blink ?? 0) > 0 : false;
   const setCfg = (patch: Record<string, number>) =>
     selPart && session.store.apply((cc) => configurePart(cc, selPart.id, { ...selPart.config, ...patch }));
@@ -974,6 +989,22 @@ function Inspector() {
                   <td>{v}</td>
                 </tr>
               ))}
+              {dur && wearLeft !== null && (
+                <tr>
+                  <th>Durability</th>
+                  <td>
+                    <span class="dur">
+                      {live ? `${wearLeft} of ${dur}` : `${dur}`}
+                      <span class="dur-bar">
+                        <i
+                          class={wearLeft / dur > 0.5 ? 'hi' : wearLeft / dur > 0.2 ? 'mid' : 'low'}
+                          style={{ width: `${(wearLeft / dur) * 100}%` }}
+                        />
+                      </span>
+                    </span>
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         )}
@@ -1011,7 +1042,7 @@ function Inspector() {
           </div>
         )}
       </div>
-      {def.rotatable && (
+      {def.rotatable && !raidPhase && (
         <button class="icon-btn" title="Turn (R)" onClick={() => session.actions.rotate()}>
           <IconRotate />
         </button>
@@ -1205,10 +1236,16 @@ function Result() {
           </div>
         </div>
         <div class="btns one">
-          {/* One way on: back to the briefing for a fresh draft and build. */}
-          <button class="big-btn" onClick={() => session.actions.restart()}>
-            {won ? 'Play again' : 'Try again'}
-          </button>
+          {/* One way on: a fresh night (draft and build) in the demo; the sandbox keeps its build. */}
+          {session.mode === 'sandbox' ? (
+            <button class="big-btn" onClick={() => session.actions.backToBuild()}>
+              Back to building
+            </button>
+          ) : (
+            <button class="big-btn" onClick={() => session.actions.restart()}>
+              {won ? 'Play again' : 'Try again'}
+            </button>
+          )}
         </div>
       </div>
     </div>

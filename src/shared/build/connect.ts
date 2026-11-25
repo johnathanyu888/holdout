@@ -7,7 +7,8 @@
 // its group of wires touches the inlet or a sensor.
 
 import { GRID, key } from '../grid';
-import { hasPartDef, partDef } from '../sim';
+import { hasPartDef, partDef, powerPreview } from '../sim';
+import { workingFixtures } from './fixtures';
 import type { Contraption } from '../types/build';
 import type { DayConfig } from '../types/day';
 
@@ -70,13 +71,22 @@ export function wiredTraps(day: DayConfig, c: Contraption, inletOnly = false): S
   return out;
 }
 
-/** Is any trap wired to the power inlet? (Until one is, the inlet calls for attention.) */
+/**
+ * Is the inlet actually running an attack part? One has to be wired to it, close
+ * enough that the signal still meets what it needs, and in one of the inlet's
+ * slots. (Pistons don't count: they steer, they don't kill.) Until then the
+ * inlet calls for attention.
+ */
 export function inletInUse(day: DayConfig, c: Contraption): boolean {
-  return wiredTraps(day, c, true).size > 0;
+  const all = [...c.parts, ...workingFixtures(day)];
+  return powerPreview(day, c).loaded.some((id) => {
+    const p = all.find((q) => q.id === id);
+    return !!p && p.type !== 'piston';
+  });
 }
 
 /** The three first steps: house placed, a trap placed, a trap wired to the inlet. */
 export function buildSteps(day: DayConfig, c: Contraption): { house: boolean; trap: boolean; wired: boolean } {
   const trap = c.parts.some((p) => hasPartDef(p.type) && partDef(p.type).kind === 'action');
-  return { house: !!c.house, trap, wired: trap && wiredTraps(day, c, true).size > 0 };
+  return { house: !!c.house, trap, wired: trap && inletInUse(day, c) };
 }

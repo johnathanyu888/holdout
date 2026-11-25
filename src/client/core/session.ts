@@ -4,6 +4,7 @@
 
 import { validate } from '@shared/build/rules';
 import { covers, obstacleYield } from '@shared/build/rocks';
+import type { SimState } from '@shared/sim';
 import { type Pick, draftedKit } from '@shared/build/draft';
 import { demoDay, sandboxDay } from '@shared/demo/demoDay';
 import type { InitResponse } from '@shared/types/api';
@@ -178,6 +179,8 @@ function createSession() {
       hoverAt: noop,
       dropAt: noop,
     } as Actions,
+    /** The running raid's sim (null outside a raid): the part cards read live values from it. */
+    raidSim: null as SimState | null,
     /** Sandbox: draw the routes zombies would take to the house. */
     showPaths: new Obs(false),
     /** Where to show the "tap it to see how it works" bubble (screen px), or null. */
